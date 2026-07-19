@@ -1,26 +1,37 @@
 <?php
-// Disable display errors to avoid corrupting JSON responses in API output
-// Keep error reporting enabled for logs but don't echo to clients
-ini_set('display_errors', 0);
-ini_set('display_startup_errors', 0);
+
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
 error_reporting(E_ALL);
-// mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
-$host = "tokaido.proxy.rlwy.net";
-$username = "root";
-$password = "akVeaqGsMrFagZHBxQgMJGnsLDAWwRAW";
-$database = "anipet_db";
+$host = getenv('MYSQLHOST') ?: 'tokaido.proxy.rlwy.net';
+$port = (int) (getenv('MYSQLPORT') ?: 29989);
+$username = getenv('MYSQLUSER') ?: 'root';
+$password = getenv('MYSQLPASSWORD');
+$database = getenv('MYSQLDATABASE') ?: 'railway';
 
-$conn = new mysqli($host, $username, $password, $database);
+$conn = new mysqli(
+    $host,
+    $username,
+    $password,
+    $database,
+    $port
+);
 
 if ($conn->connect_error) {
-    // Use JSON-friendly error output for Android clients during debugging
+    error_log('Database connection failed: ' . $conn->connect_error);
+
+    http_response_code(500);
     header('Content-Type: application/json');
-    echo json_encode(['status' => 'error', 'message' => 'DB Error: ' . $conn->connect_error]);
+
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Database connection failed'
+    ]);
     exit;
 }
 
-$conn->set_charset("utf8");
+$conn->set_charset('utf8mb4');
 
 // Auto-migrate: ensure audit_logs has columns referenced by admin/super admin panels.
 // (Base schema file was updated after this DB was created, so the live table can lag behind.)
