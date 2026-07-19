@@ -202,7 +202,7 @@ CREATE TABLE IF NOT EXISTS `appointments` (
 
 -- Sample Super Admin user
 INSERT INTO `users` (`username`, `full_name`, `first_name`, `middle_name`, `last_name`, `suffix`, `email`, `password`, `role`, `is_verified`) VALUES
-('super_admin123', 'SuperAdmin', 'SuperAdmin', NULL, NULL, NULL, 'demo@local', '$2y$10$abcdefghijklmnopqrstuv', 'super_admin', 1);
+('super_admin123', 'SuperAdmin', 'SuperAdmin', NULL, '', NULL, 'demo@local', '$2y$10$abcdefghijklmnopqrstuv', 'super_admin', 1);
 
 INSERT INTO `shelters` (`name`, `address`, `phone`, `email`, `status`) VALUES
 ('AniPet Main Shelter', '123 Pet Care Blvd, Manila', '+63 912 345 6789', 'shelter@anipet.com', 'active');

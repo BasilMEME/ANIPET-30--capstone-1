@@ -6,9 +6,9 @@ ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
-$host = "localhost";
+$host = "tokaido.proxy.rlwy.net";
 $username = "root";
-$password = "";
+$password = "akVeaqGsMrFagZHBxQgMJGnsLDAWwRAW";
 $database = "anipet_db";
 
 $conn = new mysqli($host, $username, $password, $database);
@@ -113,12 +113,16 @@ $conn->query("CREATE TABLE IF NOT EXISTS `donations` (
     INDEX `idx_refund_status` (`refund_status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-// Auto-migrate: Pet Pound feature (admin_pages/pet_pound.php and friends). A pet taken due
-// to a penalty is impounded here with a 48-hour claim grace period (impound_date/claim_deadline
-// are DATETIME so the 48h window can be checked to the hour, not just the day). status drives
-// both listings: Pending/Claimed/Paid/Expired/Posted = active pound, Deceased = the separate
-// deceased-records listing. posted_for_adoption/adoption_pet_id track the one-way move into the
-// public `pets` table once the grace period lapses unclaimed.
+// Auto-migrate: Pet Pound feature (admin_pages/pet_pound.php and friends).
+// A pet taken due to a penalty is impounded here with a 14-day claim grace period.
+// impound_date and claim_deadline are DATETIME so the 14-day window can be checked
+// accurately, including the exact time of day.
+//
+// Status values:
+// Pending / Claimed / Paid / Expired / Posted = active pound records
+// Deceased = deceased pet records
+//
+// posted_for_adoption and adoption_pet_id track the move into the public pets table.
 $conn->query("CREATE TABLE IF NOT EXISTS `pet_pound` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `pet_name` VARCHAR(150) NOT NULL,
@@ -126,14 +130,14 @@ $conn->query("CREATE TABLE IF NOT EXISTS `pet_pound` (
     `owner_name` VARCHAR(150) NOT NULL,
     `owner_id` INT DEFAULT NULL,
     `reason` TEXT NOT NULL,
-    `penalty_amount` DECIMAL(10,2) NOT NULL DEFAULT 0,
+    `penalty_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     `impound_date` DATETIME NOT NULL,
     `claim_deadline` DATETIME NOT NULL,
-    `species` VARCHAR(50) NOT NULL,
-    `breed` VARCHAR(100) NOT NULL,
-    `age` VARCHAR(30) NOT NULL,
-    `gender` VARCHAR(20) NOT NULL,
-    `health_status` VARCHAR(100) NOT NULL,
+    `species` VARCHAR(50) NOT NULL DEFAULT 'Unknown',
+    `breed` VARCHAR(100) NOT NULL DEFAULT 'Unknown',
+    `age` VARCHAR(30) NOT NULL DEFAULT 'Unknown',
+    `gender` VARCHAR(20) NOT NULL DEFAULT 'Unknown',
+    `health_status` VARCHAR(100) NOT NULL DEFAULT 'Unknown',
     `status` VARCHAR(20) NOT NULL DEFAULT 'Pending',
     `posted_for_adoption` TINYINT(1) NOT NULL DEFAULT 0,
     `adoption_pet_id` INT DEFAULT NULL,
@@ -147,6 +151,17 @@ $conn->query("CREATE TABLE IF NOT EXISTS `pet_pound` (
     INDEX `idx_status` (`status`),
     INDEX `idx_claim_deadline` (`claim_deadline`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// Upgrade older pet_pound tables that already existed before the
+// cause_of_death, death_remarks, and death_date columns were added.
+$conn->query("ALTER TABLE `pet_pound`
+    ADD COLUMN IF NOT EXISTS `cause_of_death`
+        VARCHAR(50) DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `death_remarks`
+        TEXT DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `death_date`
+        DATETIME DEFAULT NULL
+");
 
 // Auto-migrate: penalty payment records tied to a pet_pound row. payment_date defaults to
 // CURRENT_TIMESTAMP so the "date" is always the moment the payment was recorded as complete,

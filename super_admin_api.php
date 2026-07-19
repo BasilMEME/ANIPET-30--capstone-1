@@ -108,6 +108,40 @@ function handlePetImageUpload($uploadedFile) {
     return $filename;
 }
 
+function handleMultiplePetImageUploads($filesArray) {
+    // $filesArray is $_FILES['images'] in the standard multi-file array shape
+    $uploaded = [];
+    if (!isset($filesArray) || !is_array($filesArray['name'] ?? null)) {
+        return $uploaded;
+    }
+
+    $uploadDir = __DIR__ . '/images';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+    $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+
+    $count = count($filesArray['name']);
+    for ($i = 0; $i < $count; $i++) {
+        if ($filesArray['error'][$i] !== UPLOAD_ERR_OK) continue;
+        if (!is_uploaded_file($filesArray['tmp_name'][$i])) continue;
+
+        $mimeType = finfo_file($finfo, $filesArray['tmp_name'][$i]);
+        if (!in_array($mimeType, $allowedMimeTypes, true)) continue;
+
+        $extension = strtolower(pathinfo($filesArray['name'][$i], PATHINFO_EXTENSION) ?: 'jpg');
+        $filename = 'pet_' . time() . '_' . bin2hex(random_bytes(4)) . '_' . $i . '.' . $extension;
+        $targetPath = $uploadDir . '/' . $filename;
+
+        if (move_uploaded_file($filesArray['tmp_name'][$i], $targetPath)) {
+            $uploaded[] = $filename;
+        }
+    }
+    finfo_close($finfo);
+    return $uploaded;
+}
+
 function getSystemSetting($conn, $key, $default = null) {
     return getPolicySetting($conn, $key, $default);
 }
@@ -776,7 +810,7 @@ try {
             break;
 
         case 'get_pets':
-            $result = $conn->query("SELECT id, name, breed, age, gender, status, health_status, description, is_archived, shelter_id, created_at FROM pets ORDER BY created_at DESC");
+            $result = $conn->query("SELECT id, name, breed, age, gender, status, health_status, description, image, is_archived, shelter_id, created_at FROM pets ORDER BY created_at DESC");
             $pets = [];
             while ($row = $result->fetch_assoc()) { $pets[] = $row; }
             respond(['success' => true, 'pets' => $pets]);
@@ -857,54 +891,79 @@ try {
             break;
 
         case 'create_pet':
-            $name = safeValue($conn, $_POST['name'] ?? '');
-            $breed = safeValue($conn, $_POST['breed'] ?? '');
-            $age = safeValue($conn, $_POST['age'] ?? '');
-            $gender = safeValue($conn, $_POST['gender'] ?? '');
-            $description = safeValue($conn, $_POST['description'] ?? '');
-            $health_status = safeValue($conn, $_POST['health_status'] ?? '');
-            $status = safeValue($conn, $_POST['status'] ?? 'available');
-            if (!in_array($status, ['available', 'reserved', 'in_adoption', 'adopted', 'under_treatment'])) $status = 'available';
-            $shelter_id = intval($_POST['shelter_id'] ?? 0);
-            $imageFile = handlePetImageUpload($_FILES['image'] ?? null);
-            if ($imageFile === false) { respond(['success' => false, 'message' => 'Invalid pet image file']); }
-            if (!$name || !$breed) { respond(['success' => false, 'message' => 'Name and breed are required']); }
-            $stmt = $conn->prepare("INSERT INTO pets (name, breed, age, gender, description, health_status, image, status, shelter_id, is_archived, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())");
-            $stmt->bind_param('ssssssssi', $name, $breed, $age, $gender, $description, $health_status, $imageFile, $status, $shelter_id);
-            if ($stmt->execute()) {
-                logAudit($conn, $actor_id, 'create_pet', 'pet', $stmt->insert_id, "Created pet {$name}");
-                respond(['success' => true, 'message' => 'Pet created successfully']);
-            }
-            respond(['success' => false, 'message' => $conn->error]);
-            break;
+    $name = safeValue($conn, $_POST['name'] ?? '');
+    $breed = safeValue($conn, $_POST['breed'] ?? '');
+    $age = safeValue($conn, $_POST['age'] ?? '');
+    $gender = safeValue($conn, $_POST['gender'] ?? '');
+    $description = safeValue($conn, $_POST['description'] ?? '');
+    $health_status = safeValue($conn, $_POST['health_status'] ?? '');
+    $status = safeValue($conn, $_POST['status'] ?? 'available');
+    if (!in_array($status, ['available', 'reserved', 'in_adoption', 'adopted', 'under_treatment'])) $status = 'available';
+    $shelter_id = intval($_POST['shelter_id'] ?? 0);
+
+    if (!$name || !$breed) { respond(['success' => false, 'message' => 'Name and breed are required']); }
+
+    $uploadedFilenames = handleMultiplePetImageUploads($_FILES['images'] ?? null);
+    if (count($uploadedFilenames) > 10) { respond(['success' => false, 'message' => 'Maximum 10 photos per pet']); }
+    $imageString = $uploadedFilenames ? implode(',', $uploadedFilenames) : null;
+
+    $stmt = $conn->prepare("INSERT INTO pets (name, breed, age, gender, description, health_status, image, status, shelter_id, is_archived, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())");
+    $stmt->bind_param('ssssssssi', $name, $breed, $age, $gender, $description, $health_status, $imageString, $status, $shelter_id);
+    if ($stmt->execute()) {
+        logAudit($conn, $actor_id, 'create_pet', 'pet', $stmt->insert_id, "Created pet {$name}");
+        respond(['success' => true, 'message' => 'Pet created successfully']);
+    }
+    respond(['success' => false, 'message' => $conn->error]);
+    break;
 
         case 'update_pet':
-            $id = intval($_POST['id'] ?? 0);
-            $name = safeValue($conn, $_POST['name'] ?? '');
-            $breed = safeValue($conn, $_POST['breed'] ?? '');
-            $age = safeValue($conn, $_POST['age'] ?? '');
-            $gender = safeValue($conn, $_POST['gender'] ?? '');
-            $description = safeValue($conn, $_POST['description'] ?? '');
-            $health_status = safeValue($conn, $_POST['health_status'] ?? '');
-            $status = safeValue($conn, $_POST['status'] ?? 'available');
-            if (!in_array($status, ['available', 'reserved', 'in_adoption', 'adopted', 'under_treatment'])) $status = 'available';
-            $shelter_id = intval($_POST['shelter_id'] ?? 0);
-            $imageFile = handlePetImageUpload($_FILES['image'] ?? null);
-            if ($imageFile === false) { respond(['success' => false, 'message' => 'Invalid pet image file']); }
-            if (!$id || !$name || !$breed) { respond(['success' => false, 'message' => 'Pet id, name, and breed are required']); }
-            if ($imageFile !== null) {
-                $stmt = $conn->prepare("UPDATE pets SET name = ?, breed = ?, age = ?, gender = ?, description = ?, health_status = ?, image = ?, status = ?, shelter_id = ? WHERE id = ?");
-                $stmt->bind_param('ssssssssii', $name, $breed, $age, $gender, $description, $health_status, $imageFile, $status, $shelter_id, $id);
-            } else {
-                $stmt = $conn->prepare("UPDATE pets SET name = ?, breed = ?, age = ?, gender = ?, description = ?, health_status = ?, status = ?, shelter_id = ? WHERE id = ?");
-                $stmt->bind_param('sssssssii', $name, $breed, $age, $gender, $description, $health_status, $status, $shelter_id, $id);
-            }
-            if ($stmt->execute()) {
-                logAudit($conn, $actor_id, 'update_pet', 'pet', $id, "Updated pet {$name}");
-                respond(['success' => true, 'message' => 'Pet updated successfully']);
-            }
-            respond(['success' => false, 'message' => $conn->error]);
-            break;
+    $id = intval($_POST['id'] ?? 0);
+    $name = safeValue($conn, $_POST['name'] ?? '');
+    $breed = safeValue($conn, $_POST['breed'] ?? '');
+    $age = safeValue($conn, $_POST['age'] ?? '');
+    $gender = safeValue($conn, $_POST['gender'] ?? '');
+    $description = safeValue($conn, $_POST['description'] ?? '');
+    $health_status = safeValue($conn, $_POST['health_status'] ?? '');
+    $status = safeValue($conn, $_POST['status'] ?? 'available');
+    if (!in_array($status, ['available', 'reserved', 'in_adoption', 'adopted', 'under_treatment'])) $status = 'available';
+    $shelter_id = intval($_POST['shelter_id'] ?? 0);
+
+    if (!$id || !$name || !$breed) { respond(['success' => false, 'message' => 'Pet id, name, and breed are required']); }
+
+    // Load current images
+    $cur = $conn->prepare("SELECT image FROM pets WHERE id = ?");
+    $cur->bind_param('i', $id);
+    $cur->execute();
+    $row = $cur->get_result()->fetch_assoc();
+    $existing = $row && $row['image'] ? explode(',', $row['image']) : [];
+
+    // Remove any the super admin deleted in the UI
+    $removed = !empty($_POST['removed_images']) ? explode(',', $_POST['removed_images']) : [];
+    if ($removed) {
+        foreach ($removed as $rf) {
+            $rf = trim($rf);
+            if ($rf === '') continue;
+            @unlink(__DIR__ . '/images/' . $rf);
+        }
+        $existing = array_values(array_diff($existing, $removed));
+    }
+
+    // Add newly uploaded files
+    $uploadedFilenames = handleMultiplePetImageUploads($_FILES['images'] ?? null);
+    if (count($existing) + count($uploadedFilenames) > 10) {
+        respond(['success' => false, 'message' => 'Maximum 10 photos per pet']);
+    }
+    $existing = array_merge($existing, $uploadedFilenames);
+    $imageString = $existing ? implode(',', $existing) : null;
+
+    $stmt = $conn->prepare("UPDATE pets SET name = ?, breed = ?, age = ?, gender = ?, description = ?, health_status = ?, image = ?, status = ?, shelter_id = ? WHERE id = ?");
+    $stmt->bind_param('ssssssssii', $name, $breed, $age, $gender, $description, $health_status, $imageString, $status, $shelter_id, $id);
+    if ($stmt->execute()) {
+        logAudit($conn, $actor_id, 'update_pet', 'pet', $id, "Updated pet {$name}");
+        respond(['success' => true, 'message' => 'Pet updated successfully']);
+    }
+    respond(['success' => false, 'message' => $conn->error]);
+    break;
 
         case 'delete_pet':
             $id = intval($_POST['id'] ?? 0);

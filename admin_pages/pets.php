@@ -97,7 +97,7 @@ $archivedTotal = (int)($conn->query("SELECT COUNT(*) FROM pets WHERE is_archived
     </thead>
     <tbody>
     <?php foreach ($pets as $p):
-        $imgSrc = !empty($p['image']) ? 'images/'.htmlspecialchars($p['image']) : null;
+        $imgSrc = !empty($p['image']) ? 'images/'.htmlspecialchars(explode(',', $p['image'])[0]) : null;
     ?>
     <tr>
         <td>
@@ -222,13 +222,11 @@ $archivedTotal = (int)($conn->query("SELECT COUNT(*) FROM pets WHERE is_archived
         <!-- Photo -->
         <div class="tab-pane" data-tg="add" data-tab="photo">
             <div class="form-group">
-                <label class="form-label">Pet Photo</label>
-                <input type="file" name="image" class="form-control" accept="image/*" onchange="previewImg(this,'addPreview')">
+                <label class="form-label">Pet Photos</label>
+                <input type="file" name="images[]" class="form-control" accept="image/*" multiple onchange="previewMultiple(this,'addPreviewGrid')">
             </div>
-            <div id="addPreview" style="margin-top:12px;display:none;">
-                <img id="addPreviewImg" src="" alt="" style="max-width:200px;border-radius:8px;border:1px solid var(--border);">
-            </div>
-            <p style="margin-top:8px;font-size:.8rem;color:var(--muted);">Max 5 MB. JPG, PNG, GIF, WebP allowed.</p>
+            <div id="addPreviewGrid" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;"></div>
+            <p style="margin-top:8px;font-size:.8rem;color:var(--muted);">Up to 10 photos. Max 5 MB each. JPG, PNG, GIF, WebP allowed.</p>
         </div>
 
         </form>
@@ -328,14 +326,17 @@ $archivedTotal = (int)($conn->query("SELECT COUNT(*) FROM pets WHERE is_archived
 
         <!-- Photo -->
         <div class="tab-pane" data-tg="edit" data-tab="photo">
-            <div id="currentPetPhoto" style="margin-bottom:12px;"></div>
             <div class="form-group">
-                <label class="form-label">Replace Photo</label>
-                <input type="file" name="image" class="form-control" accept="image/*" onchange="previewImg(this,'editPreview')">
+                <label class="form-label">Current Photos</label>
+                <div id="currentPetPhotos" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
             </div>
-            <div id="editPreview" style="margin-top:12px;display:none;">
-                <img id="editPreviewImg" src="" alt="" style="max-width:200px;border-radius:8px;border:1px solid var(--border);">
+            <input type="hidden" name="removed_images" id="edit_removed_images" value="">
+            <div class="form-group">
+                <label class="form-label">Add More Photos</label>
+                <input type="file" name="images[]" class="form-control" accept="image/*" multiple onchange="previewMultiple(this,'editPreviewGrid')">
             </div>
+            <div id="editPreviewGrid" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;"></div>
+            <p style="margin-top:8px;font-size:.8rem;color:var(--muted);">Up to 10 photos total. Max 5 MB each.</p>
         </div>
 
         </form>
@@ -348,18 +349,29 @@ $archivedTotal = (int)($conn->query("SELECT COUNT(*) FROM pets WHERE is_archived
 </div>
 
 <script>
-function previewImg(input, wrapId) {
-    const wrap = document.getElementById(wrapId);
-    const img  = wrap.querySelector('img');
-    if (input.files && input.files[0]) {
+function previewMultiple(input, gridId) {
+    const grid = document.getElementById(gridId);
+    grid.innerHTML = '';
+    if (!input.files) return;
+    [...input.files].forEach(file => {
         const reader = new FileReader();
-        reader.onload = e => { img.src = e.target.result; wrap.style.display = 'block'; };
-        reader.readAsDataURL(input.files[0]);
-    }
+        reader.onload = e => {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.style.cssText = 'width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--border);';
+            grid.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+    });
 }
+
+let editRemovedImages = [];
 
 async function editPet(id) {
     switchTab('edit','basic');
+    editRemovedImages = [];
+    document.getElementById('edit_removed_images').value = '';
+    document.getElementById('editPreviewGrid').innerHTML = '';
     try {
         const res  = await fetch('admin_api.php?action=get_pet&id='+id);
         const data = await res.json();
@@ -376,16 +388,33 @@ async function editPet(id) {
         setSelectVal('edit_species', p.species || '');
         setSelectVal('edit_gender',  p.gender  || '');
         setSelectVal('edit_status',  p.status  || 'available');
-        // Current photo
-        const cp = document.getElementById('currentPetPhoto');
-        if (p.image) {
-            cp.innerHTML = '<p style="font-size:.82rem;color:var(--muted);margin-bottom:6px;">Current photo:</p><img src="images/'+p.image+'" style="max-width:160px;border-radius:8px;border:1px solid var(--border);">';
+
+        // Current photo gallery
+        const grid = document.getElementById('currentPetPhotos');
+        grid.innerHTML = '';
+        const filenames = p.image ? p.image.split(',').filter(f => f) : [];
+        if (filenames.length === 0) {
+            grid.innerHTML = '<p style="font-size:.82rem;color:var(--muted);">No photos uploaded.</p>';
         } else {
-            cp.innerHTML = '<p style="font-size:.82rem;color:var(--muted);">No photo uploaded.</p>';
+            filenames.forEach(fname => {
+                const wrap = document.createElement('div');
+                wrap.style.cssText = 'position:relative;width:90px;height:90px;';
+                wrap.innerHTML = '<img src="images/'+fname+'" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">' +
+                    '<button type="button" onclick="removeExistingPhoto(\''+fname+'\', this)" ' +
+                    'style="position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:.75rem;line-height:1;">✕</button>';
+                grid.appendChild(wrap);
+            });
         }
-        document.getElementById('editPreview').style.display = 'none';
+
+        document.getElementById('editPreview')?.classList?.add('hidden');
         openModal('editPetModal');
     } catch(e) { showToast('Failed to load pet data','error'); }
+}
+
+function removeExistingPhoto(filename, btn) {
+    editRemovedImages.push(filename);
+    document.getElementById('edit_removed_images').value = editRemovedImages.join(',');
+    btn.parentElement.remove();
 }
 
 function setSelectVal(id, val) {
@@ -402,7 +431,7 @@ async function submitAddPet() {
     try {
         const res  = await fetch('admin_api.php', {method:'POST', body:data});
         const json = await res.json();
-        if (json.success) { showToast('Pet added successfully!'); closeModal('addPetModal'); form.reset(); location.reload(); }
+        if (json.success) { showToast('Pet added successfully!'); closeModal('addPetModal'); form.reset(); document.getElementById('addPreviewGrid').innerHTML=''; location.reload(); }
         else showToast(json.message,'error');
     } catch(e) { showToast('Request failed','error'); }
 }

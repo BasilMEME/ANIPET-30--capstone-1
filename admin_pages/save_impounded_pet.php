@@ -55,7 +55,7 @@ if (!empty($_FILES['pet_photo']['name'])) {
     }
 }
 
-// Impound timestamp is "now"; the owner then gets a fixed 48-hour grace period to
+// Impound timestamp is "now"; the owner then gets a fixed 14-DAY grace period to
 // claim the pet before it becomes eligible to post for adoption. This is a policy
 // constant, not something entered on the form. Computed with MySQL's own NOW() (not
 // PHP's date()/time()) so it's always consistent with the "claim_deadline < NOW()"
@@ -68,7 +68,7 @@ $stmt = $conn->prepare("
         (pet_name, pet_photo, owner_name, reason, penalty_amount,
          impound_date, claim_deadline, species, breed, age,
          gender, health_status, status)
-    VALUES (?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 48 HOUR), ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 14 DAY), ?, ?, ?, ?, ?, ?)
 ");
 
 $stmt->bind_param(

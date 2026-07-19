@@ -22,7 +22,19 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($row = $result->fetch_assoc()) {
-    $row["image"] = !empty($row["image"]) ? $base_url . $row["image"] : "";
+    // `image` may now hold multiple comma-separated filenames.
+    $filenames = !empty($row["image"]) ? explode(',', $row["image"]) : [];
+    $filenames = array_values(array_filter(array_map('trim', $filenames)));
+
+    $imageUrls = array_map(function ($fname) use ($base_url) {
+        return $base_url . $fname;
+    }, $filenames);
+
+    // Keep "image" as the first photo for any older app code still reading it directly,
+    // and add "images" as the full gallery array for the updated PetDetailsScreen.
+    $row["image"]  = $imageUrls[0] ?? "";
+    $row["images"] = $imageUrls;
+
     echo json_encode([
         "status" => "success",
         "message" => "Pet found",

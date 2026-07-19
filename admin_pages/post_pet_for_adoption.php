@@ -4,196 +4,282 @@ require_permission($conn, 'manage_returns');
 
 header("Content-Type: application/json");
 
-$id = intval($_POST['id'] ?? 0);
+$id = (int)($_POST['id'] ?? 0);
 
-if($id <= 0){
+$name          = trim($_POST['name'] ?? '');
+$species       = trim($_POST['species'] ?? '');
+$breed         = trim($_POST['breed'] ?? '');
+$age           = trim($_POST['age'] ?? '');
+$gender        = trim($_POST['gender'] ?? '');
+$description   = trim($_POST['description'] ?? '');
+$healthStatus  = trim($_POST['health_status'] ?? '');
+
+if ($id <= 0) {
     echo json_encode([
-        "success"=>false,
-        "message"=>"Invalid ID."
+        "success" => false,
+        "message" => "Invalid pet ID."
     ]);
     exit;
 }
 
-/* Lazy grace-period expiry, scoped to this row. Runs as a pure SQL comparison
-   (claim_deadline < NOW(), both evaluated by MySQL) rather than mixing in PHP's
-   time()/strtotime() — the PHP process and the DB server are not guaranteed to run
-   in the same timezone, which would otherwise skew the 48-hour window. */
-$conn->query("UPDATE pet_pound SET status='Expired' WHERE id=" . (int)$id . " AND status='Pending' AND claim_deadline < NOW()");
+/* Required adoption details */
+
+if ($name === '') {
+    echo json_encode([
+        "success" => false,
+        "message" => "Pet name is required."
+    ]);
+    exit;
+}
+
+if ($species === '') {
+    echo json_encode([
+        "success" => false,
+        "message" => "Species is required."
+    ]);
+    exit;
+}
+
+if ($gender === '') {
+    echo json_encode([
+        "success" => false,
+        "message" => "Gender is required."
+    ]);
+    exit;
+}
+
+if ($description === '') {
+    echo json_encode([
+        "success" => false,
+        "message" => "Description is required."
+    ]);
+    exit;
+}
+
+/*
+Automatically change Pending to Expired once the
+14-day grace period has passed.
+*/
+
+$expireStmt = $conn->prepare("
+    UPDATE pet_pound
+    SET status = 'Expired'
+    WHERE id = ?
+      AND status = 'Pending'
+      AND claim_deadline < NOW()
+");
+
+$expireStmt->bind_param("i", $id);
+$expireStmt->execute();
+$expireStmt->close();
 
 /* Get impounded pet */
 
 $stmt = $conn->prepare("
-SELECT *
-FROM pet_pound
-WHERE id=?
+    SELECT *
+    FROM pet_pound
+    WHERE id = ?
+    LIMIT 1
 ");
 
-$stmt->bind_param("i",$id);
+$stmt->bind_param("i", $id);
 $stmt->execute();
 
 $pet = $stmt->get_result()->fetch_assoc();
+$stmt->close();
 
-if(!$pet){
+if (!$pet) {
     echo json_encode([
-        "success"=>false,
-        "message"=>"Pet not found."
+        "success" => false,
+        "message" => "Pet record not found."
     ]);
     exit;
 }
 
-/* Already posted? */
+/* Prevent duplicate posting */
 
-if(!empty($pet['posted_for_adoption'])){
-
+if (!empty($pet['posted_for_adoption']) || $pet['status'] === 'Posted') {
     echo json_encode([
-        "success"=>true,
-        "message"=>"Pet already posted."
-    ]);
-
-    exit;
-
-}
-
-if($pet['status'] === 'Deceased'){
-    echo json_encode([
-        "success"=>false,
-        "message"=>"This pet is recorded as deceased and cannot be posted for adoption."
+        "success" => false,
+        "message" => "This pet has already been posted for adoption."
     ]);
     exit;
 }
 
-if($pet['status'] === 'Claimed' || $pet['status'] === 'Paid'){
+/* Block deceased pets */
+
+if ($pet['status'] === 'Deceased') {
     echo json_encode([
-        "success"=>false,
-        "message"=>"This pet has already been claimed by its owner and cannot be posted for adoption."
+        "success" => false,
+        "message" => "A deceased pet cannot be posted for adoption."
     ]);
     exit;
 }
 
-/* 48-hour grace period gate: the owner must be given the full window before the
-   pet can be posted publicly, even if an admin jumps straight to this action.
-   By this point the lazy-expiry UPDATE above has already flipped the row to
-   'Expired' if the deadline has passed, so a status still stuck on 'Pending'
-   means the grace period is genuinely still active. */
-if($pet['status'] === 'Pending'){
+/* Block claimed or paid pets */
+
+if (in_array($pet['status'], ['Claimed', 'Paid'], true)) {
     echo json_encode([
-        "success"=>false,
-        "message"=>"Grace period still active until " . date("M d, Y g:i A", strtotime($pet['claim_deadline'])) . ". The pet cannot be posted for adoption yet."
+        "success" => false,
+        "message" => "This pet has already been claimed and cannot be posted for adoption."
     ]);
     exit;
 }
 
-/* Copy photo from pet_pound folder into the pets folder so it displays correctly */
+/* Enforce the full 14-day grace period */
+
+if ($pet['status'] === 'Pending') {
+    echo json_encode([
+        "success" => false,
+        "message" =>
+            "The 14-day grace period is still active until " .
+            date("M d, Y g:i A", strtotime($pet['claim_deadline'])) .
+            "."
+    ]);
+    exit;
+}
+
+/* Only expired pets may be posted */
+
+if ($pet['status'] !== 'Expired') {
+    echo json_encode([
+        "success" => false,
+        "message" => "Only expired pet-pound records can be posted for adoption."
+    ]);
+    exit;
+}
+
+/* Copy pet photo into adoption image folder */
 
 $image = null;
+$copiedImagePath = null;
 
 if (!empty($pet['pet_photo'])) {
+    $originalFilename = basename($pet['pet_photo']);
 
-    $sourcePath = __DIR__ . '/../images/pet_pound/' . $pet['pet_photo'];
-    $destDir    = __DIR__ . '/../images/';
+    $sourcePath = __DIR__ . '/../images/pet_pound/' . $originalFilename;
+    $destinationDirectory = __DIR__ . '/../images/';
 
-    if (!is_dir($destDir)) {
-        mkdir($destDir, 0755, true);
+    if (!is_dir($destinationDirectory)) {
+        mkdir($destinationDirectory, 0755, true);
     }
 
-    if (file_exists($sourcePath)) {
-        $newFilename = 'pet_' . uniqid() . '_' . $pet['pet_photo'];
-        $destPath    = $destDir . $newFilename;
+    if (is_file($sourcePath)) {
+        $extension = pathinfo($originalFilename, PATHINFO_EXTENSION);
 
-        if (copy($sourcePath, $destPath)) {
+        $newFilename = 'pet_' . bin2hex(random_bytes(8));
+
+        if ($extension !== '') {
+            $newFilename .= '.' . strtolower($extension);
+        }
+
+        $destinationPath = $destinationDirectory . $newFilename;
+
+        if (copy($sourcePath, $destinationPath)) {
             $image = $newFilename;
+            $copiedImagePath = $destinationPath;
         }
     }
 }
 
-/* Insert into pets table. Note: `pets` has no owner_id column — it's the adoptable
-   catalog, not an ownership record, so there is nothing to carry over there. */
+/* Use a transaction so both tables update together */
 
-$insert = $conn->prepare("
-INSERT INTO pets
-(
-    name,
-    species,
-    breed,
-    age,
-    gender,
-    description,
-    health_status,
-    image,
-    status
-)
-VALUES
-(
-    ?, ?, ?, ?, ?, ?, ?, ?, 'available'
-)
-");
+$conn->begin_transaction();
 
-$species = $pet['species'];
-$breed = $pet['breed'];
-$age = $pet['age'];
-$gender = $pet['gender'];
-$health_status = $pet['health_status'];
+try {
+    /* Insert into adoption pets table */
 
-$description = "Impounded pet.\nReason: ".$pet['reason'];
+    $insert = $conn->prepare("
+        INSERT INTO pets
+        (
+            name,
+            species,
+            breed,
+            age,
+            gender,
+            description,
+            health_status,
+            image,
+            status
+        )
+        VALUES
+        (
+            ?, ?, ?, ?, ?, ?, ?, ?, 'available'
+        )
+    ");
 
-$insert->bind_param(
-    "ssssssss",
-    $pet['pet_name'],
-    $species,
-    $breed,
-    $age,
-    $gender,
-    $description,
-    $health_status,
-    $image
-);
+    if (!$insert) {
+        throw new Exception($conn->error);
+    }
 
-if(!$insert->execute()){
+    $insert->bind_param(
+        "ssssssss",
+        $name,
+        $species,
+        $breed,
+        $age,
+        $gender,
+        $description,
+        $healthStatus,
+        $image
+    );
+
+    if (!$insert->execute()) {
+        throw new Exception($insert->error);
+    }
+
+    $newPetId = $conn->insert_id;
+    $insert->close();
+
+    /* Update pet-pound record */
+
+    $update = $conn->prepare("
+        UPDATE pet_pound
+        SET
+            posted_for_adoption = 1,
+            adoption_pet_id = ?,
+            status = 'Posted'
+        WHERE id = ?
+          AND posted_for_adoption = 0
+          AND status = 'Expired'
+    ");
+
+    if (!$update) {
+        throw new Exception($conn->error);
+    }
+
+    $update->bind_param("ii", $newPetId, $id);
+
+    if (!$update->execute()) {
+        throw new Exception($update->error);
+    }
+
+    if ($update->affected_rows !== 1) {
+        throw new Exception(
+            "The pet could not be marked as posted. It may already have been processed."
+        );
+    }
+
+    $update->close();
+
+    $conn->commit();
 
     echo json_encode([
-        "success"=>false,
-        "message"=>$insert->error
+        "success" => true,
+        "message" => "Pet successfully posted for adoption.",
+        "pet_id" => $id,
+        "new_pet_id" => $newPetId
     ]);
 
-    exit;
+} catch (Throwable $error) {
+    $conn->rollback();
 
-}
+    if ($copiedImagePath && is_file($copiedImagePath)) {
+        unlink($copiedImagePath);
+    }
 
-$newPetId = $conn->insert_id;
-
-/* Update pet pound */
-
-$update = $conn->prepare("
-UPDATE pet_pound
-SET
-    posted_for_adoption = ?,
-    adoption_pet_id = ?,
-    status = ?
-WHERE id = ?
-");
-
-$posted = 1;
-$status = "Posted";
-
-$update->bind_param(
-    "iisi",
-    $posted,
-    $newPetId,
-    $status,
-    $id
-);
-
-if(!$update->execute()){
     echo json_encode([
         "success" => false,
-        "message" => $update->error
+        "message" => $error->getMessage()
     ]);
-    exit;
 }
-
-echo json_encode([
-    "success" => true,
-    "affected_rows" => $update->affected_rows,
-    "pet_id" => $id,
-    "new_pet_id" => $newPetId
-]);

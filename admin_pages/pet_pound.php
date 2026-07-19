@@ -2,7 +2,7 @@
 require_once __DIR__ . "/../auth_helper.php";
 require_permission($conn, 'manage_returns');
 
-// Lazy grace-period expiry: any pet still Pending once its 48-hour claim_deadline has
+// Lazy grace-period expiry: any pet still Pending once its 14-day claim_deadline has
 // passed flips to Expired, which is what makes it eligible to be posted for adoption
 // (see post_pet_for_adoption.php). There is no cron in this stack, so this check runs
 // on every page load instead.
@@ -368,7 +368,7 @@ ADD IMPOUNDED PET MODAL
 
                 <div class="form-group">
                     <p class="note" style="margin:0;color:var(--muted);font-size:.85rem;">
-                        The owner gets a fixed <strong>48-hour grace period</strong> from now to claim this pet before it becomes eligible for adoption posting.
+                        The owner gets a fixed <strong>14-day grace period</strong> from now to claim this pet before it becomes eligible for adoption posting.
                     </p>
                 </div>
 
@@ -521,6 +521,102 @@ MARK AS DECEASED MODAL
 
 </div>
 
+
+<!-- ===========================
+POST FOR ADOPTION MODAL
+=========================== -->
+
+<div id="adoptionPostModal" class="modal-backdrop">
+
+    <div class="modal modal-lg">
+
+        <div class="modal-header">
+            <div class="modal-title">Post Pet for Adoption</div>
+
+            <button
+                type="button"
+                class="modal-close"
+                onclick="closeAdoptionPostModal()">
+                &times;
+            </button>
+        </div>
+
+        <form id="adoptionPostForm">
+
+            <div class="modal-body">
+
+                <input
+                    type="hidden"
+                    id="adoptionPoundId"
+                    name="id">
+
+                <p style="margin-bottom:18px;color:var(--text-light);">
+                    Review and complete the pet information before publishing it
+                    on the adoption page.
+                </p>
+
+                <div class="form-row cols-2">
+
+                    <div class="form-group">
+                        <label class="form-label" for="adoptionName">Pet Name</label>
+                        <input type="text" id="adoptionName" name="name" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="adoptionSpecies">Species</label>
+                        <select id="adoptionSpecies" name="species" class="form-control" required>
+                            <option value="">Select Species</option>
+                            <option value="Dog">Dog</option>
+                            <option value="Cat">Cat</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="adoptionBreed">Breed</label>
+                        <input type="text" id="adoptionBreed" name="breed" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="adoptionAge">Age</label>
+                        <input type="text" id="adoptionAge" name="age" class="form-control" placeholder="Example: 2 years">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="adoptionGender">Gender</label>
+                        <select id="adoptionGender" name="gender" class="form-control" required>
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Unknown">Unknown</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="adoptionHealthStatus">Health Status</label>
+                        <input type="text" id="adoptionHealthStatus" name="health_status" class="form-control" placeholder="Healthy and vaccinated">
+                    </div>
+
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="adoptionDescription">Adoption Description</label>
+                    <textarea id="adoptionDescription" name="description" class="form-control" rows="6" placeholder="Describe the pet's personality and condition..." required></textarea>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="closeAdoptionPostModal()">Cancel</button>
+                <button type="submit" class="btn btn-info" id="publishAdoptionButton">Finish and Publish</button>
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
 <script>
 
 /*=========================
@@ -541,6 +637,11 @@ window.onclick = function(e){
             modal.style.display = "none";
         }
     });
+
+    const adoptionModal = document.getElementById("adoptionPostModal");
+    if(adoptionModal && e.target === adoptionModal){
+        closeAdoptionPostModal();
+    }
 }
 
 /*=========================
@@ -568,15 +669,19 @@ function saveImpoundedPet(){
     let form = document.getElementById("addPetForm");
     let data = new FormData(form);
 
-    fetch("admin_pages/save_impounded_pet.php", { method: "POST", body: data })
-    .then(r => r.text())
-    .then(result => {
-        result = result.trim();
-        if(result === "success"){
+    fetch("admin_pages/save_impounded_pet.php", {
+        method:"POST",
+        body:data
+    })
+    .then(r=>r.text())
+    .then(result=>{
+        result=result.trim();
+
+        if(result==="success"){
             alert("Pet added successfully.");
             closeModal("addPetModal");
             location.reload();
-        } else {
+        }else{
             alert(result);
         }
     });
@@ -587,51 +692,57 @@ PAYMENT
 =========================*/
 
 function paymentPet(){
+
     closeModal("petModal");
 
-    fetch("admin_pages/payment_pet.php?id=" + currentPetId)
-    .then(r => r.text())
-    .then(html => {
-        document.getElementById("paymentContent").innerHTML = html;
+    fetch("admin_pages/payment_pet.php?id="+currentPetId)
+    .then(r=>r.text())
+    .then(html=>{
+        document.getElementById("paymentContent").innerHTML=html;
         openModal("paymentModal");
     });
+
 }
 
 function viewPaymentHistory(){
-    window.open("admin_pages/payment_details.php?id=" + currentPetId, "_blank");
+    window.open("admin_pages/payment_details.php?id="+currentPetId,"_blank");
 }
 
 function savePayment(){
-    let form = document.getElementById("paymentForm");
+
+    let form=document.getElementById("paymentForm");
 
     if(!form){
         alert("Payment form not found.");
         return;
     }
 
-    let data = new FormData(form);
-    data.append("save", "1");
+    let data=new FormData(form);
+    data.append("save","1");
 
-    fetch("admin_pages/payment_pet.php?id=" + currentPetId, {
-        method: "POST",
-        body: data
+    fetch("admin_pages/payment_pet.php?id="+currentPetId,{
+        method:"POST",
+        body:data
     })
-    .then(res => res.text())
-    .then(result => {
-        result = result.trim();
+    .then(res=>res.text())
+    .then(result=>{
 
-        if(result === "success"){
+        result=result.trim();
+
+        if(result==="success"){
             alert("Payment recorded successfully.");
             closeModal("paymentModal");
             location.reload();
-        } else {
+        }else{
             alert(result);
         }
+
     })
-    .catch(err => {
+    .catch(err=>{
         console.log(err);
         alert("Error saving payment.");
     });
+
 }
 
 /*=========================
@@ -639,23 +750,40 @@ FREE STATUS CHANGE
 =========================*/
 
 function updatePetStatus(){
-    let status = document.getElementById("statusSelect").value;
 
-    fetch("admin_pages/update_pet_status.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "id=" + currentPetId + "&status=" + encodeURIComponent(status)
+    let status=document.getElementById("statusSelect").value;
+
+    fetch("admin_pages/update_pet_status.php",{
+
+        method:"POST",
+
+        headers:{
+            "Content-Type":"application/x-www-form-urlencoded"
+        },
+
+        body:"id="+currentPetId+
+        "&status="+encodeURIComponent(status)
+
     })
-    .then(r => r.json())
-    .then(data => {
+    .then(r=>r.json())
+    .then(data=>{
+
         if(data.success){
-            alert("Status updated to " + data.new_status + ".");
+
+            alert("Status updated to "+data.new_status+".");
+
             closeModal("petModal");
+
             location.reload();
-        } else {
+
+        }else{
+
             alert(data.message);
+
         }
+
     });
+
 }
 
 /*=========================
@@ -663,47 +791,151 @@ CLAIM PET
 =========================*/
 
 function claimPet(){
+
     if(!confirm("Return this pet to the owner?")) return;
 
-    fetch("admin_pages/claim_pet.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "id=" + currentPetId
+    fetch("admin_pages/claim_pet.php",{
+
+        method:"POST",
+
+        headers:{
+            "Content-Type":"application/x-www-form-urlencoded"
+        },
+
+        body:"id="+currentPetId
+
     })
-    .then(r => r.json())
-    .then(data => {
+
+    .then(r=>r.json())
+
+    .then(data=>{
+
         if(data.success){
+
             alert("Pet successfully claimed.");
+
             closeModal("petModal");
+
             location.reload();
-        } else {
+
+        }else{
+
             alert(data.message);
+
         }
+
     });
+
 }
 
 /*=========================
 POST FOR ADOPTION
 =========================*/
 
-function postForAdoption(){
-    if(!confirm("Post this pet for adoption?")) return;
+function openAdoptionPostModal(button){
 
-    fetch("admin_pages/post_pet_for_adoption.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "id=" + currentPetId
-    })
-    .then(r => r.json())
-    .then(data => {
-        if(data.success){
-            alert("Pet posted for adoption.");
-            closeModal("petModal");
-            location.reload();
-        } else {
-            alert(data.message);
+    const modal=document.getElementById("adoptionPostModal");
+
+    document.getElementById("adoptionPoundId").value=currentPetId;
+    document.getElementById("adoptionName").value=button.dataset.name||"";
+    document.getElementById("adoptionSpecies").value=button.dataset.species||"";
+    document.getElementById("adoptionBreed").value=button.dataset.breed||"";
+    document.getElementById("adoptionAge").value=button.dataset.age||"";
+    document.getElementById("adoptionGender").value=button.dataset.gender||"";
+    document.getElementById("adoptionHealthStatus").value=button.dataset.health||"";
+    document.getElementById("adoptionDescription").value=button.dataset.description||"";
+
+    modal.style.display="flex";
+
+}
+
+function closeAdoptionPostModal(){
+
+    document.getElementById("adoptionPostModal").style.display="none";
+
+}
+
+const adoptionPostForm=document.getElementById("adoptionPostForm");
+
+if(adoptionPostForm){
+
+    adoptionPostForm.addEventListener("submit",function(event){
+
+        event.preventDefault();
+
+        const publishButton=document.getElementById("publishAdoptionButton");
+
+        if(!confirm("Finish and publish this pet for adoption?")){
+            return;
         }
+
+        publishButton.disabled=true;
+        publishButton.innerHTML="Publishing...";
+
+        const formData=new URLSearchParams(
+            new FormData(this)
+        );
+
+        fetch("admin_pages/post_pet_for_adoption.php",{
+
+            method:"POST",
+
+            headers:{
+                "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"
+            },
+
+            body:formData.toString()
+
+        })
+
+        .then(response=>{
+
+            if(!response.ok){
+                throw new Error("HTTP "+response.status);
+            }
+
+            return response.json();
+
+        })
+
+        .then(data=>{
+
+            if(data.success){
+
+                alert(data.message);
+
+                closeAdoptionPostModal();
+
+                closeModal("petModal");
+
+                location.reload();
+
+            }else{
+
+                alert(data.message);
+
+            }
+
+        })
+
+        .catch(error=>{
+
+            console.error(error);
+
+            alert("Posting failed.");
+
+        })
+
+        .finally(()=>{
+
+            publishButton.disabled=false;
+
+            publishButton.innerHTML="Finish and Publish";
+
+        });
+
     });
+
 }
 
 /*=========================
@@ -711,33 +943,58 @@ MARK DECEASED
 =========================*/
 
 function openDeceasedModal(){
-    document.getElementById("recordType").value = "Illness";
-    document.getElementById("recordRemarks").value = "";
+
+    document.getElementById("recordType").value="Illness";
+
+    document.getElementById("recordRemarks").value="";
+
     openModal("deceasedModal");
+
 }
 
 function confirmDeceased(){
-    let type = document.getElementById("recordType").value;
-    let remarks = document.getElementById("recordRemarks").value;
 
-    fetch("admin_pages/mark_pet_deceased.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    let type=document.getElementById("recordType").value;
+
+    let remarks=document.getElementById("recordRemarks").value;
+
+    fetch("admin_pages/mark_pet_deceased.php",{
+
+        method:"POST",
+
+        headers:{
+            "Content-Type":"application/x-www-form-urlencoded"
+        },
+
         body:
-            "id=" + currentPetId +
-            "&record_type=" + encodeURIComponent(type) +
-            "&remarks=" + encodeURIComponent(remarks)
+            "id="+currentPetId+
+            "&record_type="+encodeURIComponent(type)+
+            "&remarks="+encodeURIComponent(remarks)
+
     })
-    .then(r => r.json())
-    .then(data => {
+
+    .then(r=>r.json())
+
+    .then(data=>{
+
         if(data.success){
+
             alert("Pet marked as deceased.");
+
             closeModal("deceasedModal");
+
             closeModal("petModal");
+
             location.reload();
-        } else {
+
+        }else{
+
             alert(data.message);
+
         }
+
     });
+
 }
+
 </script>

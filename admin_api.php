@@ -29,51 +29,60 @@ try {
         // ================================================================
 
         case 'add_pet':
-            require_permission($conn, 'manage_pets');
-            $name    = trim($_POST['name']    ?? '');
-            $species = trim($_POST['species'] ?? '');
-            $breed   = trim($_POST['breed']   ?? '');
-            $age     = trim($_POST['age']     ?? '');
-            $gender  = trim($_POST['gender']  ?? '');
-            $status  = trim($_POST['status']  ?? 'available');
-            $health_status         = trim($_POST['health_status']         ?? '');
-            $description           = trim($_POST['description']           ?? '');
-            $vaccination_records   = trim($_POST['vaccination_records']   ?? '');
-            $medical_records       = trim($_POST['medical_records']       ?? '');
+    require_permission($conn, 'manage_pets');
+    $name    = trim($_POST['name']    ?? '');
+    $species = trim($_POST['species'] ?? '');
+    $breed   = trim($_POST['breed']   ?? '');
+    $age     = trim($_POST['age']     ?? '');
+    $gender  = trim($_POST['gender']  ?? '');
+    $status  = trim($_POST['status']  ?? 'available');
+    $health_status         = trim($_POST['health_status']         ?? '');
+    $description           = trim($_POST['description']           ?? '');
+    $vaccination_records   = trim($_POST['vaccination_records']   ?? '');
+    $medical_records       = trim($_POST['medical_records']       ?? '');
 
-            if (!$name || !$breed) respondJSON(false, 'Name and breed are required');
+    if (!$name || !$breed) respondJSON(false, 'Name and breed are required');
 
-            $validStatuses = ['available', 'reserved', 'adopted', 'under_treatment'];
-            if (!in_array($status, $validStatuses)) $status = 'available';
+    $validStatuses = ['available', 'reserved', 'adopted', 'under_treatment'];
+    if (!in_array($status, $validStatuses)) $status = 'available';
 
-            $imageFilename = null;
-            if (!empty($_FILES['image']['name'])) {
-                $uploadDir = __DIR__ . '/images/';
-                if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-                $ext     = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-                $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-                if (!in_array($ext, $allowed)) respondJSON(false, 'Invalid image type (jpg/png/gif/webp only)');
-                if ($_FILES['image']['size'] > 5 * 1024 * 1024) respondJSON(false, 'Image too large (max 5 MB)');
-                $imageFilename = 'pet_' . uniqid() . '.' . $ext;
-                if (!move_uploaded_file($_FILES['image']['tmp_name'], $uploadDir . $imageFilename)) {
-                    respondJSON(false, 'Image upload failed');
-                }
+    // ---- Handle multiple image uploads (stored comma-separated in `image`) ----
+    $uploadedFilenames = [];
+    if (!empty($_FILES['images']['name'][0])) {
+        $uploadDir = __DIR__ . '/images/';
+        if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        $fileCount = count($_FILES['images']['name']);
+        if ($fileCount > 10) respondJSON(false, 'Maximum 10 photos per pet');
+
+        for ($i = 0; $i < $fileCount; $i++) {
+            if ($_FILES['images']['error'][$i] !== UPLOAD_ERR_OK) continue;
+            $ext = strtolower(pathinfo($_FILES['images']['name'][$i], PATHINFO_EXTENSION));
+            if (!in_array($ext, $allowed)) respondJSON(false, 'Invalid image type (jpg/png/gif/webp only)');
+            if ($_FILES['images']['size'][$i] > 5 * 1024 * 1024) respondJSON(false, 'Each image must be under 5 MB');
+
+            $filename = 'pet_' . uniqid() . '_' . $i . '.' . $ext;
+            if (move_uploaded_file($_FILES['images']['tmp_name'][$i], $uploadDir . $filename)) {
+                $uploadedFilenames[] = $filename;
             }
+        }
+    }
+    $imageString = $uploadedFilenames ? implode(',', $uploadedFilenames) : null;
 
-            $stmt = $conn->prepare(
-                "INSERT INTO pets (name, species, breed, age, gender, status, health_status, description,
-                 vaccination_records, medical_records, image, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())"
-            );
-            $stmt->bind_param('sssssssssss',
-                $name, $species, $breed, $age, $gender, $status, $health_status,
-                $description, $vaccination_records, $medical_records, $imageFilename
-            );
-            if ($stmt->execute()) {
-                respondJSON(true, 'Pet added successfully', ['pet_id' => $stmt->insert_id]);
-            }
-            respondJSON(false, $conn->error);
-            break;
+    $stmt = $conn->prepare(
+        "INSERT INTO pets (name, species, breed, age, gender, status, health_status, description,
+         vaccination_records, medical_records, image, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())"
+    );
+    $stmt->bind_param('sssssssssss',
+        $name, $species, $breed, $age, $gender, $status, $health_status,
+        $description, $vaccination_records, $medical_records, $imageString
+    );
+    if ($stmt->execute()) {
+        respondJSON(true, 'Pet added successfully', ['pet_id' => $stmt->insert_id]);
+    }
+    respondJSON(false, $conn->error);
+    break;
 
         case 'get_pet':
             require_permission($conn, 'manage_pets');
@@ -89,60 +98,80 @@ try {
             break;
 
         case 'update_pet':
-            require_permission($conn, 'manage_pets');
-            $id      = intval($_POST['id'] ?? 0);
-            if (!$id) respondJSON(false, 'Missing pet ID');
+    require_permission($conn, 'manage_pets');
+    $id = intval($_POST['id'] ?? 0);
+    if (!$id) respondJSON(false, 'Missing pet ID');
 
-            $name    = trim($_POST['name']    ?? '');
-            $species = trim($_POST['species'] ?? '');
-            $breed   = trim($_POST['breed']   ?? '');
-            $age     = trim($_POST['age']     ?? '');
-            $gender  = trim($_POST['gender']  ?? '');
-            $status  = trim($_POST['status']  ?? 'available');
-            $health_status       = trim($_POST['health_status']       ?? '');
-            $description         = trim($_POST['description']         ?? '');
-            $vaccination_records = trim($_POST['vaccination_records'] ?? '');
-            $medical_records     = trim($_POST['medical_records']     ?? '');
+    $name    = trim($_POST['name']    ?? '');
+    $species = trim($_POST['species'] ?? '');
+    $breed   = trim($_POST['breed']   ?? '');
+    $age     = trim($_POST['age']     ?? '');
+    $gender  = trim($_POST['gender']  ?? '');
+    $status  = trim($_POST['status']  ?? 'available');
+    $health_status       = trim($_POST['health_status']       ?? '');
+    $description         = trim($_POST['description']         ?? '');
+    $vaccination_records = trim($_POST['vaccination_records'] ?? '');
+    $medical_records     = trim($_POST['medical_records']     ?? '');
 
-            if (!$name || !$breed) respondJSON(false, 'Name and breed are required');
+    if (!$name || !$breed) respondJSON(false, 'Name and breed are required');
 
-            $validStatuses = ['available', 'reserved', 'in_adoption', 'adopted', 'under_treatment'];
-            if (!in_array($status, $validStatuses)) $status = 'available';
+    $validStatuses = ['available', 'reserved', 'in_adoption', 'adopted', 'under_treatment'];
+    if (!in_array($status, $validStatuses)) $status = 'available';
 
-            $imageClause  = '';
-            $params       = [$name, $species, $breed, $age, $gender, $status,
-                             $health_status, $description, $vaccination_records, $medical_records];
-            $types        = 'ssssssssss';
+    // Load current images
+    $cur = $conn->prepare("SELECT image FROM pets WHERE id = ?");
+    $cur->bind_param('i', $id);
+    $cur->execute();
+    $row = $cur->get_result()->fetch_assoc();
+    $existing = $row && $row['image'] ? explode(',', $row['image']) : [];
 
-            if (!empty($_FILES['image']['name'])) {
-                $uploadDir = __DIR__ . '/images/';
-                if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-                $ext     = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-                $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-                if (!in_array($ext, $allowed)) respondJSON(false, 'Invalid image type (jpg/png/gif/webp only)');
-                if ($_FILES['image']['size'] > 5 * 1024 * 1024) respondJSON(false, 'Image too large (max 5 MB)');
-                $imageFilename = 'pet_' . uniqid() . '.' . $ext;
-                if (move_uploaded_file($_FILES['image']['tmp_name'], $uploadDir . $imageFilename)) {
-                    $imageClause = ', image = ?';
-                    $params[]    = $imageFilename;
-                    $types      .= 's';
-                }
+    // Remove any the user deleted in the UI
+    $removed = !empty($_POST['removed_images']) ? explode(',', $_POST['removed_images']) : [];
+    if ($removed) {
+        foreach ($removed as $rf) {
+            $rf = trim($rf);
+            if ($rf === '') continue;
+            @unlink(__DIR__ . '/images/' . $rf);
+        }
+        $existing = array_values(array_diff($existing, $removed));
+    }
+
+    // Add newly uploaded files
+    if (!empty($_FILES['images']['name'][0])) {
+        $uploadDir = __DIR__ . '/images/';
+        if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        $fileCount = count($_FILES['images']['name']);
+        if (count($existing) + $fileCount > 10) respondJSON(false, 'Maximum 10 photos per pet');
+
+        for ($i = 0; $i < $fileCount; $i++) {
+            if ($_FILES['images']['error'][$i] !== UPLOAD_ERR_OK) continue;
+            $ext = strtolower(pathinfo($_FILES['images']['name'][$i], PATHINFO_EXTENSION));
+            if (!in_array($ext, $allowed)) respondJSON(false, 'Invalid image type (jpg/png/gif/webp only)');
+            if ($_FILES['images']['size'][$i] > 5 * 1024 * 1024) respondJSON(false, 'Each image must be under 5 MB');
+
+            $filename = 'pet_' . uniqid() . '_' . $i . '.' . $ext;
+            if (move_uploaded_file($_FILES['images']['tmp_name'][$i], $uploadDir . $filename)) {
+                $existing[] = $filename;
             }
+        }
+    }
 
-            $params[] = $id;
-            $types   .= 'i';
+    $imageString = $existing ? implode(',', $existing) : null;
 
-            $stmt = $conn->prepare(
-                "UPDATE pets SET name=?, species=?, breed=?, age=?, gender=?, status=?,
-                 health_status=?, description=?, vaccination_records=?, medical_records=?
-                 {$imageClause} WHERE id=?"
-            );
-            $stmt->bind_param($types, ...$params);
-            if ($stmt->execute()) {
-                respondJSON(true, 'Pet updated successfully');
-            }
-            respondJSON(false, $conn->error);
-            break;
+    $stmt = $conn->prepare(
+        "UPDATE pets SET name=?, species=?, breed=?, age=?, gender=?, status=?,
+         health_status=?, description=?, vaccination_records=?, medical_records=?, image=? WHERE id=?"
+    );
+    $stmt->bind_param('sssssssssssi',
+        $name, $species, $breed, $age, $gender, $status,
+        $health_status, $description, $vaccination_records, $medical_records, $imageString, $id
+    );
+    if ($stmt->execute()) {
+        respondJSON(true, 'Pet updated successfully');
+    }
+    respondJSON(false, $conn->error);
+    break;
 
         case 'delete_pet':
             require_permission($conn, 'manage_pets');

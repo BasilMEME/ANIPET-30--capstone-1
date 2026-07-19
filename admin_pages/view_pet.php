@@ -46,7 +46,10 @@ $isPosted   = !empty($row['posted_for_adoption']);
 $isClaimed  = in_array($row['status'], ['Claimed', 'Paid'], true);
 // $row['status'] is authoritative here — the lazy-expiry UPDATE above already
 // flipped Pending -> Expired if claim_deadline had passed, entirely in SQL.
-$graceExpired = ($row['status'] !== 'Pending');
+$graceExpired = (
+    $row['status'] === 'Expired' ||
+    strtotime($row['claim_deadline']) <= time()
+);
 ?>
 
 <div class="info-grid">
@@ -90,13 +93,16 @@ $graceExpired = ($row['status'] !== 'Pending');
 
 <?php if (!$isDeceased && !$isPosted && !$isClaimed): ?>
     <div class="divider"></div>
+
     <?php if ($graceExpired): ?>
         <p style="color:var(--danger);font-weight:600;">
-            48-hour grace period has expired. This pet is now eligible to be posted for adoption.
+            The 14-day grace period has expired. This pet is now eligible to be posted for adoption.
         </p>
     <?php else: ?>
         <p style="color:var(--muted);">
-            Owner has until <strong><?= date("M d, Y g:i A", strtotime($row['claim_deadline'])) ?></strong> (48 hours from impound) to claim this pet before it can be posted for adoption.
+            The owner has until
+            <strong><?= date("M d, Y g:i A", strtotime($row['claim_deadline'])) ?></strong>
+            (14 days from impoundment) to claim this pet before it can be posted for adoption.
         </p>
     <?php endif; ?>
 <?php endif; ?>
@@ -190,16 +196,31 @@ FREE STATUS CHANGE
     <?php endif; ?>
 
     <?php if (!$isPosted && !$isClaimed): ?>
-        <button class="btn btn-info" onclick="postForAdoption()" <?= !$graceExpired ? 'disabled title="Grace period still active"' : '' ?>>
-            ❤️ Post for Adoption
-        </button>
-    <?php endif; ?>
+        <button
+    type="button"
+    class="btn btn-info"
+    onclick="openAdoptionPostModal(this)"
+    data-name="<?= htmlspecialchars($row['pet_name'] ?? '', ENT_QUOTES) ?>"
+    data-species="<?= htmlspecialchars($row['species'] ?? '', ENT_QUOTES) ?>"
+    data-breed="<?= htmlspecialchars($row['breed'] ?? '', ENT_QUOTES) ?>"
+    data-age="<?= htmlspecialchars($row['age'] ?? '', ENT_QUOTES) ?>"
+    data-gender="<?= htmlspecialchars($row['gender'] ?? '', ENT_QUOTES) ?>"
+    data-health="<?= htmlspecialchars($row['health_status'] ?? '', ENT_QUOTES) ?>"
+    data-description="<?= htmlspecialchars(
+        "Impounded pet.\nReason: " . ($row['reason'] ?? ''),
+        ENT_QUOTES
+    ) ?>"
+    <?= !$graceExpired ? 'disabled title="The 14-day grace period is still active"' : '' ?>
+>
+    ❤️ Post for Adoption
+</button>
+<?php endif; ?>
 
-    <?php if (!$isPosted): ?>
-        <button class="btn btn-danger" onclick="openDeceasedModal()">
-            ☠ Mark as Deceased
-        </button>
-    <?php endif; ?>
+<?php if (!$isPosted): ?>
+    <button class="btn btn-danger" onclick="openDeceasedModal()">
+        ☠ Mark as Deceased
+    </button>
+<?php endif; ?>
 
 </div>
 
