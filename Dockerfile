@@ -4,9 +4,9 @@ RUN install-php-extensions mysqli pdo_mysql
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-WORKDIR /app
+WORKDIR /app/public
 
-COPY . /app
+COPY . /app/public
 
 RUN composer install --no-dev --optimize-autoloader
 
