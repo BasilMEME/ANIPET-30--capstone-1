@@ -41,50 +41,190 @@ function generateApplicationQRCode($data, $app_id) {
     return null;
 }
 
-function sendApplicationApprovalQrEmail($toEmail, $toName, $qrFilePath, $qrDownloadUrl) {
+function sendApplicationApprovalQrEmail(
+    string $toEmail,
+    string $toName,
+    string $qrFilePath,
+    string $qrDownloadUrl,
+    string $petName,
+    int $applicationId
+): bool {
     if (!defined('USE_SMTP') || !USE_SMTP) {
+        error_log('SMTP is disabled; approval email was not sent.');
         return false;
     }
 
-    if (!file_exists(PHPMailer_AUTOLOAD)) {
-        error_log("PHPMailer autoload not found; cannot send approval QR email");
+    if (!defined('PHPMailer_AUTOLOAD') || !file_exists(PHPMailer_AUTOLOAD)) {
+        error_log('PHPMailer autoload not found; cannot send approval QR email.');
+        return false;
+    }
+
+    if (!filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
+        error_log('Invalid applicant email: ' . $toEmail);
         return false;
     }
 
     try {
         require_once PHPMailer_AUTOLOAD;
+
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
 
-        if (USE_SMTP) {
-            $mail->isSMTP();
-            $mail->Host = SMTP_HOST;
-            $mail->SMTPAuth = true;
-            $mail->Username = SMTP_USER;
-            $mail->Password = SMTP_PASS;
-            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port = SMTP_PORT;
-        }
+        $mail->isSMTP();
+        $mail->Host = SMTP_HOST;
+        $mail->SMTPAuth = true;
+        $mail->Username = SMTP_USER;
+        $mail->Password = SMTP_PASS;
+        $mail->SMTPSecure =
+            PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = SMTP_PORT;
+
+        $mail->CharSet = 'UTF-8';
 
         $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
-        $mail->addAddress($toEmail, $toName ?: 'Applicant');
-        $mail->Subject = 'AniPet Adoption Approved - Your QR Code';
-        $mail->isHTML(true);
-        $mail->Body = "<p>Congratulations! Your AniPet adoption application has been approved.</p>"
-            . "<p>Your QR code is attached below. Show this code when visiting the shelter.</p>"
-            . "<p style='text-align:center;margin:20px 0;'><img src=\"cid:{$qrFilePath}\" alt='QR Code' style='max-width:200px;'></p>"
-            . "<p><strong>💚 Support AniPet:</strong></p>"
-            . "<p>Help us continue our mission! Scan the QR Ph code in the app or use one of these links:</p>"
-            . "<ul><li>GCash: www.qrph.com/anipet</li><li>PayMaya: www.qrph.com/anipet</li></ul>"
-            . "<p style='color:#666;font-size:12px;'>Questions? Contact us at support@anipet.com</p>";
+        $mail->addAddress(
+            $toEmail,
+            $toName !== '' ? $toName : 'Applicant'
+        );
 
-        if (file_exists($qrFilePath)) {
-            $mail->addAttachment($qrFilePath, basename($qrFilePath));
+        $safeName = htmlspecialchars(
+            $toName !== '' ? $toName : 'Applicant',
+            ENT_QUOTES,
+            'UTF-8'
+        );
+
+        $safePetName = htmlspecialchars(
+            $petName,
+            ENT_QUOTES,
+            'UTF-8'
+        );
+
+        $safeQrUrl = htmlspecialchars(
+            $qrDownloadUrl,
+            ENT_QUOTES,
+            'UTF-8'
+        );
+
+        $mail->Subject = 'AniPet Adoption Application Approved';
+
+        $qrEmbedded = false;
+
+        if (is_file($qrFilePath)) {
+            $mail->addEmbeddedImage(
+                $qrFilePath,
+                'anipet_approval_qr',
+                basename($qrFilePath)
+            );
+
+            $mail->addAttachment(
+                $qrFilePath,
+                'AniPet_Application_' . $applicationId . '_QR.png'
+            );
+
+            $qrEmbedded = true;
         }
 
+        $qrSection = $qrEmbedded
+            ? "
+                <div style='text-align:center; margin:24px 0;'>
+                    <img
+                        src='cid:anipet_approval_qr'
+                        alt='AniPet application QR code'
+                        width='200'
+                        height='200'
+                        style='max-width:200px; height:auto;'
+                    >
+                </div>
+            "
+            : "
+                <p>
+                    Your QR image could not be embedded in this email.
+                    You may open it using the link below.
+                </p>
+            ";
+
+        $mail->isHTML(true);
+
+        $mail->Body = "
+            <div style='
+                max-width:600px;
+                margin:0 auto;
+                padding:24px;
+                font-family:Arial, sans-serif;
+                color:#222;
+                line-height:1.6;
+            '>
+                <h2 style='color:#1B998B;'>
+                    Congratulations, {$safeName}!
+                </h2>
+
+                <p>
+                    Your adoption application for
+                    <strong>{$safePetName}</strong> has been approved.
+                </p>
+
+                <p>
+                    Your application number is
+                    <strong>#{$applicationId}</strong>.
+                </p>
+
+                <p>
+                    Please present the QR code below when you visit the
+                    shelter. The shelter staff will scan it to verify and
+                    track your approved application.
+                </p>
+
+                {$qrSection}
+
+                <p style='text-align:center;'>
+                    <a
+                        href='{$safeQrUrl}'
+                        style='
+                            display:inline-block;
+                            padding:12px 18px;
+                            background:#1B998B;
+                            color:#ffffff;
+                            text-decoration:none;
+                            border-radius:6px;
+                        '
+                    >
+                        Open QR Code
+                    </a>
+                </p>
+
+                <p>
+                    You can also check the latest application status from
+                    the My Applications section of the AniPet app.
+                </p>
+
+                <p>
+                    Thank you for choosing adoption and giving an animal
+                    a new home.
+                </p>
+
+                <p style='color:#666; font-size:12px; margin-top:28px;'>
+                    This is an automated message from AniPet.
+                </p>
+            </div>
+        ";
+
+        $mail->AltBody =
+            "Congratulations, {$toName}! "
+            . "Your adoption application for {$petName} has been approved. "
+            . "Application number: #{$applicationId}. "
+            . "Open your QR code here: {$qrDownloadUrl}";
+
         $mail->send();
+
         return true;
-    } catch (Exception $e) {
-        error_log('Approval QR email failed: ' . $e->getMessage());
+
+    } catch (Throwable $e) {
+        error_log(
+            'Approval QR email failed for application '
+            . $applicationId
+            . ': '
+            . $e->getMessage()
+        );
+
         return false;
     }
 }
@@ -176,8 +316,17 @@ if (!columnExists($conn, 'adoption_applications', 'qr_data')) {
         $conn->begin_transaction();
 
         $getApp = $conn->prepare("
-            SELECT aa.pet_id, aa.user_id, aa.applicant_name, aa.form_data, p.name AS pet_name,
-                   u.email AS user_email, u.full_name AS user_full_name
+            SELECT
+            aa.pet_id,
+            aa.user_id,
+            aa.applicant_name,
+            aa.form_data,
+            aa.status AS current_status,
+            aa.qr_code AS existing_qr_code,
+            aa.qr_data AS existing_qr_data,
+            p.name AS pet_name,
+            u.email AS user_email,
+            u.full_name AS user_full_name
             FROM adoption_applications aa
             JOIN users u ON aa.user_id = u.id
             JOIN pets p ON aa.pet_id = p.id
@@ -193,16 +342,41 @@ if (!columnExists($conn, 'adoption_applications', 'qr_data')) {
         }
 
         $appData = $appResult->fetch_assoc();
-        $qr_code = null;
-        $qr_data = null;
+        $previousStatus = $appData['current_status'] ?? '';
+$isNewApproval = (
+    $status === 'approved'
+    && $previousStatus !== 'approved'
+);
 
-        if ($status === 'approved') {
-            // qr_data is the string encoded INTO the QR image (what a scanner reads back);
-            // qr_code is the image file path (used for display/email). They must be stored
-            // separately — verify_qr.php looks a scan up by qr_data, not the file path.
-            $qr_data = "ANIPET|APP:{$application_id}|PET:{$appData['pet_id']}|DATE:" . date('Y-m-d');
-            $qr_code = generateApplicationQRCode($qr_data, $application_id);
+$qr_code = null;
+$qr_data = null;
+
+if ($status === 'approved') {
+    if (
+        !empty($appData['existing_qr_code'])
+        && !empty($appData['existing_qr_data'])
+    ) {
+        $qr_code = $appData['existing_qr_code'];
+        $qr_data = $appData['existing_qr_data'];
+    } else {
+        $qr_data =
+            "ANIPET"
+            . "|APP:" . $application_id
+            . "|PET:" . $appData['pet_id']
+            . "|DATE:" . date('Y-m-d');
+
+        $qr_code = generateApplicationQRCode(
+            $qr_data,
+            $application_id
+        );
+
+        if ($qr_code === null) {
+            throw new Exception(
+                'The application could not be approved because QR generation failed.'
+            );
         }
+    }
+}
 
         $stmt = $conn->prepare("
             UPDATE adoption_applications
@@ -216,15 +390,6 @@ if (!columnExists($conn, 'adoption_applications', 'qr_data')) {
 
         if (!$stmt->execute()) {
             throw new Exception("Failed to update application");
-        }
-
-        if ($status === 'approved' && $qr_code && !empty($appData['user_email'])) {
-            sendApplicationApprovalQrEmail(
-                $appData['user_email'],
-                $appData['user_full_name'] ?? '',
-                __DIR__ . '/' . $qr_code,
-                $base_url . $qr_code
-            );
         }
 
         if ($status === 'approved') {
@@ -260,12 +425,41 @@ if (!columnExists($conn, 'adoption_applications', 'qr_data')) {
 
         $conn->commit();
 
+        $emailSent = null;
+
+if (
+    $isNewApproval
+    && $qr_code
+    && !empty($appData['user_email'])
+) {
+    $emailSent = sendApplicationApprovalQrEmail(
+        $appData['user_email'],
+        $appData['user_full_name'] ?? $appData['applicant_name'],
+        __DIR__ . '/' . $qr_code,
+        $base_url . $qr_code,
+        $appData['pet_name'],
+        $application_id
+    );
+}
+
         return [
-            "success" => true,
-            "message" => "Application status updated to " . $status,
-            "status" => $status,
-            "qr_code" => $qr_code
-        ];
+    "success" => true,
+    "message" =>
+        $status === 'approved'
+            ? (
+                $emailSent === true
+                    ? "Application approved and the QR email was sent."
+                    : (
+                        $isNewApproval
+                            ? "Application approved, but the QR email could not be sent."
+                            : "Application remains approved."
+                    )
+            )
+            : "Application status updated to " . $status,
+    "status" => $status,
+    "qr_code" => $qr_code,
+    "email_sent" => $emailSent
+];
     } catch (Exception $e) {
         $conn->rollback();
         return ["success" => false, "message" => "Error: " . $e->getMessage()];

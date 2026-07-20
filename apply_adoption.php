@@ -127,7 +127,15 @@ $house_paths = [];
 
 // File constraints
 $MAX_BYTES = 8 * 1024 * 1024; // 8 MB
-$allowed_image_types = ['image/jpeg','image/png','image/gif','image/webp'];
+$allowed_image_types = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/heic',
+    'image/heif'
+];
 
 // id_document validation + move
 if (empty($_FILES['id_document']) || $_FILES['id_document']['error'] === UPLOAD_ERR_NO_FILE) {
@@ -160,8 +168,15 @@ if (move_uploaded_file($tmp, __DIR__ . '/' . $target)) {
 }
 
 // house photos
+$files = null;
+
 if (!empty($_FILES['house_photos'])) {
     $files = $_FILES['house_photos'];
+} elseif (!empty($_FILES['house_photos[]'])) {
+    $files = $_FILES['house_photos[]'];
+}
+
+if ($files !== null) {
     if (is_array($files['name'])) {
         for ($i = 0; $i < count($files['name']); $i++) {
             if ($files['error'][$i] !== UPLOAD_ERR_OK) {
