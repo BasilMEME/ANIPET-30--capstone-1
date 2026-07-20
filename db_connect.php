@@ -76,12 +76,40 @@ $conn->query("CREATE TABLE IF NOT EXISTS `sso_tokens` (
 // and admin_pages/notifications.php could fatal on a fresh DB reached via
 // admin_workspace.php before admin_api.php ever ran once. Moved here so every
 // entry point self-heals consistently.
-$conn->query("ALTER TABLE `pets`
-    ADD COLUMN IF NOT EXISTS `species` VARCHAR(50) DEFAULT NULL AFTER `name`,
-    ADD COLUMN IF NOT EXISTS `shelter_id` INT DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `is_archived` TINYINT(1) NOT NULL DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS `vaccination_records` TEXT DEFAULT NULL AFTER `health_status`,
-    ADD COLUMN IF NOT EXISTS `medical_records` TEXT DEFAULT NULL AFTER `vaccination_records`");
+if (!columnExists($conn, "pets", "species")) {
+    $conn->query("
+        ALTER TABLE `pets`
+        ADD COLUMN `species` VARCHAR(50) DEFAULT NULL AFTER `name`
+    ");
+}
+
+if (!columnExists($conn, "pets", "shelter_id")) {
+    $conn->query("
+        ALTER TABLE `pets`
+        ADD COLUMN `shelter_id` INT DEFAULT NULL
+    ");
+}
+
+if (!columnExists($conn, "pets", "is_archived")) {
+    $conn->query("
+        ALTER TABLE `pets`
+        ADD COLUMN `is_archived` TINYINT(1) NOT NULL DEFAULT 0
+    ");
+}
+
+if (!columnExists($conn, "pets", "vaccination_records")) {
+    $conn->query("
+        ALTER TABLE `pets`
+        ADD COLUMN `vaccination_records` TEXT DEFAULT NULL AFTER `health_status`
+    ");
+}
+
+if (!columnExists($conn, "pets", "medical_records")) {
+    $conn->query("
+        ALTER TABLE `pets`
+        ADD COLUMN `medical_records` TEXT DEFAULT NULL AFTER `vaccination_records`
+    ");
+}
 
 $conn->query("CREATE TABLE IF NOT EXISTS `notifications` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
