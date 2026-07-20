@@ -86,25 +86,40 @@ if ($perfCheck && ($row = $perfCheck->fetch_assoc()) && intval($row['total']) > 
     }
 }
 
-$replicationStatus = [];
-$slaveStatusResult = $conn->query("SHOW SLAVE STATUS");
-if ($slaveStatusResult && $slaveStatusResult->num_rows > 0) {
-    $slaveStatus = $slaveStatusResult->fetch_assoc();
+$replicaStatus = null;
+
+try {
+    $replicaResult = $conn->query("SHOW REPLICA STATUS");
+
+    if ($replicaResult && $replicaResult->num_rows > 0) {
+        $replicaStatus = $replicaResult->fetch_assoc();
+    }
+} catch (mysqli_sql_exception $e) {
+    error_log('Replica status check failed: ' . $e->getMessage());
+}
+
+if ($replicaStatus) {
     $replicationStatus = [
-        'role' => 'slave',
-        'status' => ($slaveStatus['Slave_IO_Running'] ?? 'unknown') . ' / ' . ($slaveStatus['Slave_SQL_Running'] ?? 'unknown'),
-        'seconds_behind' => $slaveStatus['Seconds_Behind_Master'] ?? 'N/A',
-        'master_host' => $slaveStatus['Master_Host'] ?? 'N/A',
+        'role' => 'replica',
+        'status' => ($replicaStatus['Replica_IO_Running'] ?? 'unknown')
+            . ' / '
+            . ($replicaStatus['Replica_SQL_Running'] ?? 'unknown'),
+        'seconds_behind' => $replicaStatus['Seconds_Behind_Source'] ?? 'N/A',
+        'source_host' => $replicaStatus['Source_Host'] ?? 'N/A',
     ];
 } else {
     $masterStatusResult = $conn->query("SHOW MASTER STATUS");
+
     if ($masterStatusResult && $masterStatusResult->num_rows > 0) {
         $masterStatus = $masterStatusResult->fetch_assoc();
+
         $replicationStatus = [
             'role' => 'master',
             'file' => $masterStatus['File'] ?? 'N/A',
             'position' => $masterStatus['Position'] ?? 'N/A',
         ];
+    } else {
+        $replicationStatus = null;
     }
 }
 
@@ -297,10 +312,10 @@ $conn->close();
         <h2>Replication Status</h2>
         <div class="note">
             <?php if (!empty($replicationStatus)): ?>
-                <?php if ($replicationStatus['role'] === 'slave'): ?>
-                    Master host: <?php echo htmlspecialchars($replicationStatus['master_host']); ?><br>
-                    Slave status: <?php echo htmlspecialchars($replicationStatus['status']); ?><br>
-                    Seconds behind master: <?php echo htmlspecialchars($replicationStatus['seconds_behind']); ?>
+                <?php if ($replicationStatus['role'] === 'replica'): ?>
+                    Source host: <?php echo htmlspecialchars($replicationStatus['source_host']); ?><br>
+                    Replica status: <?php echo htmlspecialchars($replicationStatus['status']); ?><br>
+                    Seconds behind source: <?php echo htmlspecialchars($replicationStatus['seconds_behind']); ?>
                 <?php else: ?>
                     Role: Master<br>
                     File: <?php echo htmlspecialchars($replicationStatus['file']); ?><br>
