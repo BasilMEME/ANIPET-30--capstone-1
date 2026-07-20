@@ -4,6 +4,7 @@ require_once __DIR__ . '/auth_helper.php';
 require_once __DIR__ . '/smtp_config.php';
 require_once __DIR__ . '/application_status_helper.php';
 require_once __DIR__ . '/role_permissions_helper.php';
+require_once __DIR__ . '/admin_pages/send_email.php';
 require_api_login();
 
 $action = $_REQUEST['action'] ?? '';
@@ -146,11 +147,6 @@ function getSystemSetting($conn, $key, $default = null) {
     return getPolicySetting($conn, $key, $default);
 }
 
-function sendEmail($conn, $toEmail, $subject, $body) {
-    $toEmail = trim($toEmail);
-    if (!$toEmail) {
-        return [false, 'Recipient email is required'];
-    }
     $useSmtp = intval(getSystemSetting($conn, 'use_smtp', defined('USE_SMTP') ? (USE_SMTP ? 1 : 0) : 1)) === 1;
     $smtpHost = getSystemSetting($conn, 'smtp_host', SMTP_HOST);
     $smtpPort = intval(getSystemSetting($conn, 'smtp_port', SMTP_PORT));
@@ -193,7 +189,6 @@ function sendEmail($conn, $toEmail, $subject, $body) {
         return [true, 'Email sent successfully via mail().'];
     }
     return [false, 'Mail delivery failed.'];
-}
 
 
 function ensureScheduledReportsTable($conn) {
@@ -371,7 +366,7 @@ function runScheduledReport($conn, $schedule) {
     $sent = false;
     $message = 'Report generated to ' . $path;
     if (!empty($schedule['recipient_email'])) {
-        list($success, $emailMessage) = sendEmail($conn, $schedule['recipient_email'], $report['subject'], $report['body']);
+        list($success, $emailMessage) = sendEmail($schedule['recipient_email'], $report['subject'], $report['body']);
         $sent = $success;
         $message = $emailMessage;
     }
@@ -404,7 +399,7 @@ function sendAlertNotification($conn, $subject, $body) {
     $sentAny = false;
     $lastMessage = '';
     foreach ($recipients as $recipient) {
-        list($success, $message) = sendEmail($conn, $recipient, $subject, $body);
+        list($success, $message) = sendEmail($recipient, $subject, $body);
         $sentAny = $sentAny || $success;
         $lastMessage = $message;
     }
@@ -1184,7 +1179,7 @@ try {
             $subject = safeValue($conn, $_POST['subject'] ?? 'AniPet SMTP Test Email');
             $body = safeValue($conn, $_POST['body'] ?? '<p>This is a test email from AniPet Super Admin.</p>');
             if (!$recipient) { respond(['success' => false, 'message' => 'Missing recipient email']); }
-            list($success, $message) = sendEmail($conn, $recipient, $subject, $body);
+            list($success, $message) = sendEmail($recipient, $subject, $body);
             if ($success) {
                 logAudit($conn, $actor_id, 'send_test_email', 'system_settings', null, "Sent SMTP test email to {$recipient}");
                 respond(['success' => true, 'message' => $message]);
