@@ -209,7 +209,7 @@ try {
     http_response_code(500);
 
     echo json_encode([
-        'status' => 'error',
-        'message' => 'Server error: ' . $e->getMessage()
-    ]);
+    "status" => "error",
+    "message" => $e->getMessage()
+]);
 }
