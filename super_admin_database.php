@@ -86,41 +86,32 @@ if ($perfCheck && ($row = $perfCheck->fetch_assoc()) && intval($row['total']) > 
     }
 }
 
-$replicaStatus = null;
+$replicationStatus = null;
 
 try {
     $replicaResult = $conn->query("SHOW REPLICA STATUS");
 
     if ($replicaResult && $replicaResult->num_rows > 0) {
         $replicaStatus = $replicaResult->fetch_assoc();
-    }
-} catch (mysqli_sql_exception $e) {
-    error_log('Replica status check failed: ' . $e->getMessage());
-}
-
-if ($replicaStatus) {
-    $replicationStatus = [
-        'role' => 'replica',
-        'status' => ($replicaStatus['Replica_IO_Running'] ?? 'unknown')
-            . ' / '
-            . ($replicaStatus['Replica_SQL_Running'] ?? 'unknown'),
-        'seconds_behind' => $replicaStatus['Seconds_Behind_Source'] ?? 'N/A',
-        'source_host' => $replicaStatus['Source_Host'] ?? 'N/A',
-    ];
-} else {
-    $sourceStatusResult = $conn->query("SHOW SOURCE STATUS");
-
-    if ($sourceStatusResult && $sourceStatusResult->num_rows > 0) {
-        $sourceStatus = $sourceStatusResult->fetch_assoc();
 
         $replicationStatus = [
-            'role' => 'source',
-            'file' => $sourceStatus['File'] ?? 'N/A',
-            'position' => $sourceStatus['Position'] ?? 'N/A',
+            'role' => 'replica',
+            'status' =>
+                ($replicaStatus['Replica_IO_Running'] ?? 'unknown')
+                . ' / ' .
+                ($replicaStatus['Replica_SQL_Running'] ?? 'unknown'),
+            'seconds_behind' =>
+                $replicaStatus['Seconds_Behind_Source'] ?? 'N/A',
+            'source_host' =>
+                $replicaStatus['Source_Host'] ?? 'N/A',
         ];
-    } else {
-        $replicationStatus = null;
     }
+} catch (mysqli_sql_exception $e) {
+    error_log(
+        'Replication status unavailable: ' . $e->getMessage()
+    );
+
+    $replicationStatus = null;
 }
 
 $backupDir = __DIR__ . '/backups';
@@ -309,23 +300,31 @@ $conn->close();
     </div>
 
     <div class="card" style="margin-bottom:24px;">
-        <h2>Replication Status</h2>
-        <div class="note">
-            <?php if (!empty($replicationStatus)): ?>
-                <?php if ($replicationStatus['role'] === 'replica'): ?>
-                    Source host: <?php echo htmlspecialchars($replicationStatus['source_host']); ?><br>
-                    Replica status: <?php echo htmlspecialchars($replicationStatus['status']); ?><br>
-                    Seconds behind source: <?php echo htmlspecialchars($replicationStatus['seconds_behind']); ?>
-                <?php else: ?>
-                    Role: Master<br>
-                    File: <?php echo htmlspecialchars($replicationStatus['file']); ?><br>
-                    Position: <?php echo htmlspecialchars($replicationStatus['position']); ?>
-                <?php endif; ?>
-            <?php else: ?>
-                Replication is not configured or status cannot be determined.
-            <?php endif; ?>
-        </div>
+    <h2>Replication Status</h2>
+    <div class="note">
+        <?php if (!empty($replicationStatus)): ?>
+            Source host:
+            <?php echo htmlspecialchars(
+                $replicationStatus['source_host']
+            ); ?>
+            <br>
+
+            Replica status:
+            <?php echo htmlspecialchars(
+                $replicationStatus['status']
+            ); ?>
+            <br>
+
+            Seconds behind source:
+            <?php echo htmlspecialchars(
+                (string) $replicationStatus['seconds_behind']
+            ); ?>
+        <?php else: ?>
+            Replication status is unavailable or not configured
+            on this managed database.
+        <?php endif; ?>
     </div>
+</div>
 
     <div class="card" style="margin-bottom:24px;">
         <h2>Backup & Restore Actions</h2>
