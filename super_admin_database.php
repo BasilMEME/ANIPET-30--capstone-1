@@ -108,15 +108,15 @@ if ($replicaStatus) {
         'source_host' => $replicaStatus['Source_Host'] ?? 'N/A',
     ];
 } else {
-    $masterStatusResult = $conn->query("SHOW MASTER STATUS");
+    $sourceStatusResult = $conn->query("SHOW SOURCE STATUS");
 
-    if ($masterStatusResult && $masterStatusResult->num_rows > 0) {
-        $masterStatus = $masterStatusResult->fetch_assoc();
+    if ($sourceStatusResult && $sourceStatusResult->num_rows > 0) {
+        $sourceStatus = $sourceStatusResult->fetch_assoc();
 
         $replicationStatus = [
-            'role' => 'master',
-            'file' => $masterStatus['File'] ?? 'N/A',
-            'position' => $masterStatus['Position'] ?? 'N/A',
+            'role' => 'source',
+            'file' => $sourceStatus['File'] ?? 'N/A',
+            'position' => $sourceStatus['Position'] ?? 'N/A',
         ];
     } else {
         $replicationStatus = null;
