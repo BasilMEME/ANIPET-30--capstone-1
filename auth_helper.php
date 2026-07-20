@@ -1,15 +1,13 @@
 <?php
+
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/db_connect.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
-}
-
-function require_login(): void {
-    if (empty($_SESSION['user_id'])) {
-        header('Location: login_form.php');
-        exit;
-    }
 }
 
 function require_api_login(): void {
@@ -100,14 +98,16 @@ function require_admin_or_super(): void {
     }
 }
 
-function require_super_admin(mysqli $conn = null): void {
+function require_super_admin(): void {
     require_login();
+
     $role = current_user_role();
+
     if ($role === 'admin') {
-        // Admin trying super admin portal — redirect to their own dashboard
         header('Location: admin_workspace.php');
         exit;
     }
+
     if ($role !== 'super_admin') {
         header('Location: login_form.php');
         exit;
