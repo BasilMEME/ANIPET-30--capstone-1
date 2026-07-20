@@ -1,4 +1,12 @@
 <?php
+
+declare(strict_types=1);
+
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+error_reporting(E_ALL);
+
+header('Content-Type: application/json; charset=utf-8');
 // Renamed from apply_adoption_with_docs.php — consolidated handler supporting files and form_data
 header("Content-Type: application/json");
 header('Access-Control-Allow-Origin: *');
