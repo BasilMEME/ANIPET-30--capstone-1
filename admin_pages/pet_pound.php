@@ -109,7 +109,7 @@ function poundBadgeClass($status){
                             <?php if(!empty($row['pet_photo'])): ?>
 
                                 <img
-                                    src="images/pet_pound/<?= htmlspecialchars($row['pet_photo']) ?>"
+                                    src="images/<?= htmlspecialchars($row['pet_photo']) ?>"
                                     class="pet-thumb">
 
                             <?php endif; ?>
@@ -248,7 +248,7 @@ function poundBadgeClass($status){
                             <?php if(!empty($row['pet_photo'])): ?>
 
                                 <img
-                                    src="images/pet_pound/<?= htmlspecialchars($row['pet_photo']) ?>"
+                                    src="images/<?= htmlspecialchars($row['pet_photo']) ?>"
                                     class="pet-thumb">
 
                             <?php endif; ?>
@@ -368,7 +368,7 @@ ADD IMPOUNDED PET MODAL
 
                 <div class="form-group">
                     <p class="note" style="margin:0;color:var(--muted);font-size:.85rem;">
-                        The owner gets a fixed <strong>14-day grace period</strong> from now to claim this pet before it becomes eligible for adoption posting.
+                        The owner gets a fixed <strong>48-hour grace period</strong> from now to claim this pet before it becomes eligible for adoption posting.
                     </p>
                 </div>
 
@@ -516,102 +516,6 @@ MARK AS DECEASED MODAL
             </button>
 
         </div>
-
-    </div>
-
-</div>
-
-
-<!-- ===========================
-POST FOR ADOPTION MODAL
-=========================== -->
-
-<div id="adoptionPostModal" class="modal-backdrop">
-
-    <div class="modal modal-lg">
-
-        <div class="modal-header">
-            <div class="modal-title">Post Pet for Adoption</div>
-
-            <button
-                type="button"
-                class="modal-close"
-                onclick="closeAdoptionPostModal()">
-                &times;
-            </button>
-        </div>
-
-        <form id="adoptionPostForm">
-
-            <div class="modal-body">
-
-                <input
-                    type="hidden"
-                    id="adoptionPoundId"
-                    name="id">
-
-                <p style="margin-bottom:18px;color:var(--text-light);">
-                    Review and complete the pet information before publishing it
-                    on the adoption page.
-                </p>
-
-                <div class="form-row cols-2">
-
-                    <div class="form-group">
-                        <label class="form-label" for="adoptionName">Pet Name</label>
-                        <input type="text" id="adoptionName" name="name" class="form-control" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="adoptionSpecies">Species</label>
-                        <select id="adoptionSpecies" name="species" class="form-control" required>
-                            <option value="">Select Species</option>
-                            <option value="Dog">Dog</option>
-                            <option value="Cat">Cat</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="adoptionBreed">Breed</label>
-                        <input type="text" id="adoptionBreed" name="breed" class="form-control">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="adoptionAge">Age</label>
-                        <input type="text" id="adoptionAge" name="age" class="form-control" placeholder="Example: 2 years">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="adoptionGender">Gender</label>
-                        <select id="adoptionGender" name="gender" class="form-control" required>
-                            <option value="">Select Gender</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Unknown">Unknown</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="adoptionHealthStatus">Health Status</label>
-                        <input type="text" id="adoptionHealthStatus" name="health_status" class="form-control" placeholder="Healthy and vaccinated">
-                    </div>
-
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="adoptionDescription">Adoption Description</label>
-                    <textarea id="adoptionDescription" name="description" class="form-control" rows="6" placeholder="Describe the pet's personality and condition..." required></textarea>
-                </div>
-
-            </div>
-
-            <div class="modal-footer">
-                <button type="button" class="btn btn-ghost" onclick="closeAdoptionPostModal()">Cancel</button>
-                <button type="submit" class="btn btn-info" id="publishAdoptionButton">Finish and Publish</button>
-            </div>
-
-        </form>
 
     </div>
 
@@ -845,7 +749,7 @@ function openAdoptionPostModal(button){
     document.getElementById("adoptionHealthStatus").value=button.dataset.health||"";
     document.getElementById("adoptionDescription").value=button.dataset.description||"";
 
-    modal.style.display="flex";
+    modal.style.display="block";
 
 }
 
