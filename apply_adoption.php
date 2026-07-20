@@ -150,31 +150,35 @@ if (empty($_FILES['id_document']) || $_FILES['id_document']['error'] === UPLOAD_
     echo json_encode(["status"=>"error","message"=>"Valid ID upload is required"]);
     exit;
 }
+
 if ($_FILES['id_document']['error'] !== UPLOAD_ERR_OK) {
 
-    $uploadError = (int) $_FILES['id_document']['error'];
+    switch ($_FILES['id_document']['error']) {
 
-    $uploadMessages = [
-        UPLOAD_ERR_INI_SIZE =>
-            "The ID image exceeds the image size limit. Please upload a smaller image.",
-        UPLOAD_ERR_FORM_SIZE =>
-            "The ID image is too large.",
-        UPLOAD_ERR_PARTIAL =>
-            "The ID image was only partially uploaded. Please try again.",
-        UPLOAD_ERR_NO_FILE =>
-            "No ID image was received.",
-        UPLOAD_ERR_NO_TMP_DIR =>
-            "Your temporary upload folder is missing.",
-        UPLOAD_ERR_CANT_WRITE =>
-            "Could not save the ID image.",
-        UPLOAD_ERR_EXTENSION =>
-            "The ID file is not compatible."
-    ];
+        case UPLOAD_ERR_INI_SIZE:
+        case UPLOAD_ERR_FORM_SIZE:
+            $message = "The selected ID image exceeds the maximum allowed file size (8 MB). Please choose a smaller image.";
+            break;
 
-    error_log(
-        "ID upload error code: " . $uploadError .
-        " | File: " . print_r($_FILES['id_document'], true)
-    );
+        case UPLOAD_ERR_PARTIAL:
+            $message = "The ID image was only partially uploaded. Please try again.";
+            break;
+
+        case UPLOAD_ERR_NO_FILE:
+            $message = "Please upload a valid ID image.";
+            break;
+
+        default:
+            $message = "Unable to upload the ID image. Please try again.";
+    }
+
+    echo json_encode([
+        "status" => "error",
+        "message" => $message
+    ]);
+
+    exit;
+}
 
     echo json_encode([
         "status" => "error",
