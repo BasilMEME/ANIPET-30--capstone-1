@@ -1,35 +1,22 @@
 <?php
 
-define('USE_SMTP', true);
+declare(strict_types=1);
 
 define(
-    'SMTP_HOST',
-    getenv('SMTP_HOST') ?: 'smtp.gmail.com'
+    'RESEND_API_KEY',
+    getenv('RESEND_API_KEY') ?: ''
 );
 
 define(
-    'SMTP_PORT',
-    (int) (getenv('SMTP_PORT') ?: 587)
+    'RESEND_FROM_EMAIL',
+    getenv('RESEND_FROM_EMAIL')
+        ?: 'onboarding@resend.dev'
 );
 
 define(
-    'SMTP_USER',
-    getenv('anipet.adoption@gmail.com') ?: ''
-);
-
-define(
-    'SMTP_PASS',
-    getenv('ubqy lqbh jxfx vnny') ?: ''
-);
-
-define(
-    'SMTP_FROM_EMAIL',
-    getenv('anipet.adoption@gmail.com') ?: SMTP_USER
-);
-
-define(
-    'SMTP_FROM_NAME',
-    getenv('Anipet') ?: 'Anipet'
+    'RESEND_FROM_NAME',
+    getenv('RESEND_FROM_NAME')
+        ?: 'Anipet'
 );
 
 define(
