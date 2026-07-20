@@ -516,17 +516,21 @@ case 'update_appointment_status':
 
         if ($user) {
 
-            sendEmail(
-                $user['email'],
-                $subject,
-                nl2br(str_replace(
-                    ['[Name]', '[name]'],
-                    [$user['full_name'], $user['full_name']],
-                    $message
-                ))
-            );
+            $result = sendEmail(
+    $user['email'],
+    $subject,
+    nl2br(str_replace(
+        ['[Name]', '[name]'],
+        [$user['full_name'], $user['full_name']],
+        $message
+    ))
+);
 
-            $sent++;
+if ($result['success']) {
+    $sent++;
+} else {
+    error_log("Notification email failed: " . $result['message']);
+}
         }
     }
 
@@ -544,17 +548,21 @@ case 'update_appointment_status':
 
         while ($user = $users->fetch_assoc()) {
 
-            sendEmail(
-                $user['email'],
-                $subject,
-                nl2br(str_replace(
-                    ['[Name]', '[name]'],
-                    [$user['full_name'], $user['full_name']],
-                    $message
-                ))
-            );
+            $result = sendEmail(
+    $user['email'],
+    $subject,
+    nl2br(str_replace(
+        ['[Name]', '[name]'],
+        [$user['full_name'], $user['full_name']],
+        $message
+    ))
+);
 
-            $sent++;
+if ($result['success']) {
+    $sent++;
+} else {
+    error_log("Notification email failed: " . $result['message']);
+}
         }
     }
 
@@ -574,24 +582,24 @@ case 'update_appointment_status':
 
         while ($user = $users->fetch_assoc()) {
 
-            sendEmail(
-                $user['email'],
-                $subject,
-                nl2br(str_replace(
-                    ['[Name]', '[name]'],
-                    [$user['full_name'], $user['full_name']],
-                    $message
-                ))
-            );
+            $result = sendEmail(
+    $user['email'],
+    $subject,
+    nl2br(str_replace(
+        ['[Name]', '[name]'],
+        [$user['full_name'], $user['full_name']],
+        $message
+    ))
+);
 
-            $sent++;
-        }
-    }
+if ($sent == 0) {
+    respondJSON(false, "No emails were sent. Check Railway logs.");
+}
 
-    respondJSON(
-        true,
-        "Notification sent successfully to {$sent} recipient(s)."
-    );
+respondJSON(
+    true,
+    "Notification sent successfully to {$sent} recipient(s)."
+);
 
     break;
 
