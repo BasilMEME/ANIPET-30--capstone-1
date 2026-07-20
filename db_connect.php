@@ -24,11 +24,40 @@ $conn = new mysqli(
 
 $conn->set_charset('utf8mb4');
 
-// Auto-migrate: ensure audit_logs has columns referenced by admin/super admin panels.
-// (Base schema file was updated after this DB was created, so the live table can lag behind.)
-$conn->query("ALTER TABLE `audit_logs`
-    ADD COLUMN IF NOT EXISTS `before_data` JSON DEFAULT NULL AFTER `details`,
-    ADD COLUMN IF NOT EXISTS `after_data` JSON DEFAULT NULL AFTER `before_data`");
+function columnExists(mysqli $conn, string $table, string $column): bool
+{
+    $sql = "
+        SELECT COUNT(*) AS total
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND COLUMN_NAME = ?
+    ";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ss", $table, $column);
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+
+    return (int)$row["total"] > 0;
+}
+
+if (!columnExists($conn, "audit_logs", "before_data")) {
+    $conn->query("
+        ALTER TABLE `audit_logs`
+        ADD COLUMN `before_data` JSON DEFAULT NULL AFTER `details`
+    ");
+}
+
+if (!columnExists($conn, "audit_logs", "after_data")) {
+    $conn->query("
+        ALTER TABLE `audit_logs`
+        ADD COLUMN `after_data` JSON DEFAULT NULL AFTER `before_data`
+    ");
+}
 
 // Auto-migrate: sso_tokens isn't in the base schema dump but is used by sso_login.php,
 // cleanup_sso_tokens.php, and super_admin_api.php's create_sso_token/cleanup_sso_tokens actions.
