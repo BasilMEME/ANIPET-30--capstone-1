@@ -598,7 +598,7 @@ grid-template-columns:1fr;
 
         <a class="details"
            href="super_admin_donation_detail.php?id=<?php echo $donation['id']; ?>">
-            View Details
+            View
         </a>
 
     </td>
