@@ -26,31 +26,39 @@ $sent = false;
 $sendError = '';
 
 if (defined('USE_SMTP') && USE_SMTP) {
-    // Try to send via PHPMailer
-    if (file_exists(PHPMailer_AUTOLOAD)) {
-        require PHPMailer_AUTOLOAD;
+    if (defined('PHPMailer_AUTOLOAD') && file_exists(PHPMailer_AUTOLOAD)) {
+        require_once PHPMailer_AUTOLOAD;
+
         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
         try {
-            $mail->isSMTP();
-            $mail->Host = SMTP_HOST;
-            $mail->SMTPAuth = true;
-            $mail->Username = SMTP_USER;
-            $mail->Password = SMTP_PASS;
-            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port = SMTP_PORT;
+    $mail->isSMTP();
+    $mail->Host = SMTP_HOST;
+    $mail->SMTPAuth = true;
+    $mail->Username = SMTP_USER;
+    $mail->Password = SMTP_PASS;
+    $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->Port = SMTP_PORT;
 
-            $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
-            $mail->addAddress($email);
-            $mail->isHTML(true);
-            $mail->Subject = 'Your Anipet OTP';
-            $mail->Body = "Your OTP code: <b>{$otp}</b>. It expires in 5 minutes.";
+    $mail->Timeout = 20;
+    $mail->Timelimit = 20;
+    $mail->SMTPKeepAlive = false;
 
-            $mail->send();
-            $sent = true;
-        } catch (Exception $e) {
-            $sendError = $e->getMessage();
-            error_log('send_otp.php mail error: ' . $sendError);
-        }
+    $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+    $mail->addAddress($email);
+    $mail->isHTML(true);
+    $mail->Subject = 'Your Anipet OTP';
+    $mail->Body = "Your OTP code: <b>{$otp}</b>. It expires in 5 minutes.";
+
+    error_log("send_otp.php: attempting SMTP send to $email");
+
+    $mail->send();
+
+    error_log("send_otp.php: SMTP send successful to $email");
+    $sent = true;
+} catch (Throwable $e) {
+    $sendError = $mail->ErrorInfo ?: $e->getMessage();
+    error_log('send_otp.php mail error: ' . $sendError);
+}
     } else {
         $sendError = 'PHPMailer autoload not found; run composer require phpmailer/phpmailer in php-backend';
         error_log('send_otp.php: ' . $sendError);
