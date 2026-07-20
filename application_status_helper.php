@@ -143,7 +143,34 @@ function applyApplicationStatusChange(mysqli $conn, int $application_id, string 
     }
 
     // Self-heal older installs that predate the qr_data column
-    $conn->query("ALTER TABLE `adoption_applications` ADD COLUMN IF NOT EXISTS `qr_data` VARCHAR(255) DEFAULT NULL AFTER `qr_code`");
+    if (!function_exists('columnExists')) {
+    function columnExists(mysqli $conn, string $table, string $column): bool
+    {
+        $sql = "
+            SELECT COUNT(*) AS total
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = ?
+              AND COLUMN_NAME = ?
+        ";
+
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("ss", $table, $column);
+        $stmt->execute();
+
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        return (int)($row['total'] ?? 0) > 0;
+    }
+}
+
+if (!columnExists($conn, 'adoption_applications', 'qr_data')) {
+    $conn->query("
+        ALTER TABLE `adoption_applications`
+        ADD COLUMN `qr_data` VARCHAR(255) DEFAULT NULL AFTER `qr_code`
+    ");
+}
 
     try {
         $conn->begin_transaction();
