@@ -461,24 +461,43 @@ case 'update_appointment_status':
 
     require_once __DIR__ . '/admin_pages/send_email.php';
 
-    $recipient_group   = trim($_POST['recipient_group'] ?? '');
-    $notification_type = trim($_POST['notification_type'] ?? 'announcement');
-    $subject           = trim($_POST['subject'] ?? '');
-    $message           = trim($_POST['message'] ?? '');
+    $recipient_group =
+        trim($_POST['recipient_group'] ?? '');
 
-    if (!$recipient_group || !$subject || !$message) {
-        respondJSON(false, 'Missing required fields');
+    $notification_type =
+        trim($_POST['notification_type'] ?? 'announcement');
+
+    $subject =
+        trim($_POST['subject'] ?? '');
+
+    $message =
+        trim($_POST['message'] ?? '');
+
+    if (
+        !$recipient_group ||
+        !$subject ||
+        !$message
+    ) {
+        respondJSON(
+            false,
+            'Missing required fields'
+        );
     }
 
-    // Save notification
     $stmt = $conn->prepare("
         INSERT INTO notifications
-        (recipient_group, notification_type, subject, message, created_at)
+        (
+            recipient_group,
+            notification_type,
+            subject,
+            message,
+            created_at
+        )
         VALUES (?, ?, ?, ?, NOW())
     ");
 
     $stmt->bind_param(
-        "ssss",
+        'ssss',
         $recipient_group,
         $notification_type,
         $subject,
@@ -486,17 +505,78 @@ case 'update_appointment_status':
     );
 
     if (!$stmt->execute()) {
-        respondJSON(false, $conn->error);
+        respondJSON(
+            false,
+            $conn->error
+        );
     }
 
+    $stmt->close();
+
     $sent = 0;
+    $failed = 0;
+    $errors = [];
 
-    // ==========================
-    // SEND TO SINGLE APPLICANT
-    // ==========================
-    if ($recipient_group == "applicant") {
+    $sendToUser = function (
+        array $user
+    ) use (
+        $subject,
+        $message,
+        &$sent,
+        &$failed,
+        &$errors
+    ): void {
+        $personalizedMessage = nl2br(
+            str_replace(
+                ['[Name]', '[name]'],
+                [
+                    $user['full_name'],
+                    $user['full_name']
+                ],
+                $message
+            )
+        );
 
-        $applicationId = intval($_POST['applicant_id'] ?? 0);
+        $result = sendEmail(
+            $user['email'],
+            $subject,
+            $personalizedMessage,
+            true
+        );
+
+        if (
+            isset($result['success']) &&
+            $result['success'] === true
+        ) {
+            $sent++;
+        } else {
+            $failed++;
+
+            $errors[] =
+                $user['email'] .
+                ': ' .
+                ($result['message'] ?? 'Unknown error');
+
+            error_log(
+                'Notification email failed for ' .
+                $user['email'] .
+                ': ' .
+                ($result['message'] ?? 'Unknown error')
+            );
+        }
+    };
+
+    if ($recipient_group === 'applicant') {
+        $applicationId = intval(
+            $_POST['applicant_id'] ?? 0
+        );
+
+        if ($applicationId <= 0) {
+            respondJSON(
+                false,
+                'Invalid applicant ID'
+            );
+        }
 
         $getUser = $conn->prepare("
             SELECT
@@ -509,68 +589,52 @@ case 'update_appointment_status':
             LIMIT 1
         ");
 
-        $getUser->bind_param("i", $applicationId);
+        $getUser->bind_param(
+            'i',
+            $applicationId
+        );
+
         $getUser->execute();
 
-        $user = $getUser->get_result()->fetch_assoc();
+        $user = $getUser
+            ->get_result()
+            ->fetch_assoc();
 
-        if ($user) {
+        $getUser->close();
 
-            $result = sendEmail(
-    $user['email'],
-    $subject,
-    nl2br(str_replace(
-        ['[Name]', '[name]'],
-        [$user['full_name'], $user['full_name']],
-        $message
-    ))
-);
-
-if ($result['success']) {
-    $sent++;
-} else {
-    error_log("Notification email failed: " . $result['message']);
-}
+        if (!$user) {
+            respondJSON(
+                false,
+                'Applicant email was not found'
+            );
         }
-    }
 
-    // ==========================
-    // SEND TO ALL USERS
-    // ==========================
-    elseif ($recipient_group == "all") {
-
+        $sendToUser($user);
+    } elseif ($recipient_group === 'all') {
         $users = $conn->query("
-            SELECT email, full_name
+            SELECT
+                email,
+                full_name
             FROM users
-            WHERE role='user'
-            AND is_verified=1
+            WHERE role = 'user'
+            AND is_verified = 1
+            AND email IS NOT NULL
+            AND email != ''
         ");
 
-        while ($user = $users->fetch_assoc()) {
-
-            $result = sendEmail(
-    $user['email'],
-    $subject,
-    nl2br(str_replace(
-        ['[Name]', '[name]'],
-        [$user['full_name'], $user['full_name']],
-        $message
-    ))
-);
-
-if ($result['success']) {
-    $sent++;
-} else {
-    error_log("Notification email failed: " . $result['message']);
-}
+        if (!$users) {
+            respondJSON(
+                false,
+                $conn->error
+            );
         }
-    }
 
-    // ==========================
-    // SEND TO ALL APPLICANTS
-    // ==========================
-    elseif ($recipient_group == "applicants") {
-
+        while (
+            $user = $users->fetch_assoc()
+        ) {
+            $sendToUser($user);
+        }
+    } elseif ($recipient_group === 'applicants') {
         $users = $conn->query("
             SELECT DISTINCT
                 u.email,
@@ -578,28 +642,42 @@ if ($result['success']) {
             FROM adoption_applications aa
             INNER JOIN users u
                 ON aa.user_id = u.id
+            WHERE u.email IS NOT NULL
+            AND u.email != ''
         ");
 
-        while ($user = $users->fetch_assoc()) {
+        if (!$users) {
+            respondJSON(
+                false,
+                $conn->error
+            );
+        }
 
-            $result = sendEmail(
-    $user['email'],
-    $subject,
-    nl2br(str_replace(
-        ['[Name]', '[name]'],
-        [$user['full_name'], $user['full_name']],
-        $message
-    ))
-);
+        while (
+            $user = $users->fetch_assoc()
+        ) {
+            $sendToUser($user);
+        }
+    } else {
+        respondJSON(
+            false,
+            'Unsupported recipient group'
+        );
+    }
 
-if ($sent == 0) {
-    respondJSON(false, "No emails were sent. Check Railway logs.");
-}
+    if ($sent === 0) {
+        respondJSON(
+            false,
+            $errors[0]
+                ?? 'No notification emails were sent'
+        );
+    }
 
-respondJSON(
-    true,
-    "Notification sent successfully to {$sent} recipient(s)."
-);
+    respondJSON(
+        true,
+        "Sent to {$sent} recipient(s). " .
+        "Failed: {$failed}."
+    );
 
     break;
 
