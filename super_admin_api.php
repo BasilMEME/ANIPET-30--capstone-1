@@ -147,49 +147,6 @@ function getSystemSetting($conn, $key, $default = null) {
     return getPolicySetting($conn, $key, $default);
 }
 
-    $useSmtp = intval(getSystemSetting($conn, 'use_smtp', defined('USE_SMTP') ? (USE_SMTP ? 1 : 0) : 1)) === 1;
-    $smtpHost = getSystemSetting($conn, 'smtp_host', SMTP_HOST);
-    $smtpPort = intval(getSystemSetting($conn, 'smtp_port', SMTP_PORT));
-    $smtpUser = getSystemSetting($conn, 'smtp_user', SMTP_USER);
-    $smtpPass = getSystemSetting($conn, 'smtp_pass', SMTP_PASS);
-    $fromEmail = getSystemSetting($conn, 'smtp_from_email', SMTP_FROM_EMAIL);
-    $fromName = getSystemSetting($conn, 'smtp_from_name', SMTP_FROM_NAME);
-    $fromEmail = $fromEmail ?: SMTP_FROM_EMAIL;
-    $fromName = $fromName ?: SMTP_FROM_NAME;
-
-    if ($useSmtp && file_exists(PHPMailer_AUTOLOAD)) {
-        require_once PHPMailer_AUTOLOAD;
-        try {
-            $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
-            $mail->isSMTP();
-            $mail->Host = $smtpHost;
-            $mail->SMTPAuth = true;
-            if ($smtpUser !== '') {
-                $mail->Username = $smtpUser;
-                $mail->Password = $smtpPass;
-            }
-            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port = $smtpPort;
-            $mail->setFrom($fromEmail, $fromName);
-            $mail->addAddress($toEmail);
-            $mail->isHTML(true);
-            $mail->Subject = $subject;
-            $mail->Body = $body;
-            $mail->send();
-            return [true, 'Email sent successfully.'];
-        } catch (Throwable $t) {
-            return [false, 'Email send failed: ' . $t->getMessage()];
-        }
-    }
-
-    $headers = "From: {$fromName} <{$fromEmail}>\r\n";
-    $headers .= "MIME-Version: 1.0\r\n";
-    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-    if (mail($toEmail, $subject, $body, $headers)) {
-        return [true, 'Email sent successfully via mail().'];
-    }
-    return [false, 'Mail delivery failed.'];
-
 
 function ensureScheduledReportsTable($conn) {
     $conn->query("CREATE TABLE IF NOT EXISTS `report_schedules` (
