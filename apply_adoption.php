@@ -143,7 +143,37 @@ if (empty($_FILES['id_document']) || $_FILES['id_document']['error'] === UPLOAD_
     exit;
 }
 if ($_FILES['id_document']['error'] !== UPLOAD_ERR_OK) {
-    echo json_encode(["status"=>"error","message"=>"Error uploading ID document"]);
+
+    $uploadError = (int) $_FILES['id_document']['error'];
+
+    $uploadMessages = [
+        UPLOAD_ERR_INI_SIZE =>
+            "The ID image exceeds the server upload limit.",
+        UPLOAD_ERR_FORM_SIZE =>
+            "The ID image is too large.",
+        UPLOAD_ERR_PARTIAL =>
+            "The ID image was only partially uploaded. Please try again.",
+        UPLOAD_ERR_NO_FILE =>
+            "No ID image was received.",
+        UPLOAD_ERR_NO_TMP_DIR =>
+            "The server temporary upload folder is missing.",
+        UPLOAD_ERR_CANT_WRITE =>
+            "The server could not save the ID image.",
+        UPLOAD_ERR_EXTENSION =>
+            "The ID upload was blocked by a server extension."
+    ];
+
+    error_log(
+        "ID upload error code: " . $uploadError .
+        " | File: " . print_r($_FILES['id_document'], true)
+    );
+
+    echo json_encode([
+        "status" => "error",
+        "message" => $uploadMessages[$uploadError]
+            ?? "ID upload failed with error code: $uploadError"
+    ]);
+
     exit;
 }
 if ($_FILES['id_document']['size'] > $MAX_BYTES) {
