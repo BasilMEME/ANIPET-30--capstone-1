@@ -30,12 +30,29 @@ $result = $conn->query($sql);
 if ($result) while ($row = $result->fetch_assoc()) $appointments[] = $row;
 
 // Calendar: appointments for current month
-$calYear  = (int)($_GET['cy'] ?? date('Y'));
-$calMonth = (int)($_GET['cm'] ?? date('n'));
-if ($calMonth < 1) { $calMonth = 12; $calYear--; }
-if ($calMonth >12) { $calMonth = 1;  $calYear++; }
-$calDays = cal_days_in_month(CAL_GREGORIAN, $calMonth, $calYear);
-$calFirst = date('w', mktime(0,0,0,$calMonth,1,$calYear)); // 0=Sun
+// Calendar: appointments for current month
+$calYear  = (int) ($_GET['cy'] ?? date('Y'));
+$calMonth = (int) ($_GET['cm'] ?? date('n'));
+
+if ($calMonth < 1) {
+    $calMonth = 12;
+    $calYear--;
+}
+
+if ($calMonth > 12) {
+    $calMonth = 1;
+    $calYear++;
+}
+
+$calDays = (int) date(
+    't',
+    mktime(0, 0, 0, $calMonth, 1, $calYear)
+);
+
+$calFirst = (int) date(
+    'w',
+    mktime(0, 0, 0, $calMonth, 1, $calYear)
+);
 
 $calEvents = [];
 $r2 = $conn->query(
