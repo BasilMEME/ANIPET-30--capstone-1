@@ -196,7 +196,7 @@ function require_super_or_permission(
     global $conn;
 
     if (!isset($conn) || !($conn instanceof mysqli)) {
-        require __DIR__ . '/db_connect.php';
+        require_once __DIR__ . '/db_connect.php';
     }
 
     if (has_permission($conn, $permissionKey)) {

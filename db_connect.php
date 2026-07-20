@@ -147,14 +147,28 @@ if (!columnExists($conn, "appointments", "appointment_type")) {
 // appear — INSERT IGNORE backfills just the missing rows without touching any permission
 // a super admin has since customized.
 require_once __DIR__ . '/role_permissions_helper.php';
-ensureRolePermissionsTable($conn);
-$conn->query("INSERT IGNORE INTO role_permissions (role, permission_key, is_allowed) VALUES
-    ('super_admin','manage_returns',1),
-    ('super_admin','manage_settings',1),
-    ('admin','manage_returns',1),
-    ('admin','manage_settings',1),
-    ('user','manage_returns',0),
-    ('user','manage_settings',0)");
+try {
+    ensureRolePermissionsTable($conn);
+
+    $conn->query("INSERT IGNORE INTO role_permissions
+        (role, permission_key, is_allowed)
+        VALUES
+        ('super_admin','manage_returns',1),
+        ('super_admin','manage_settings',1),
+        ('admin','manage_returns',1),
+        ('admin','manage_settings',1),
+        ('user','manage_returns',0),
+        ('user','manage_settings',0)");
+} catch (mysqli_sql_exception $e) {
+    if ($e->getCode() != 1213) {
+        throw $e;
+    }
+
+    error_log(
+        'Role permission migration skipped: '
+        . $e->getMessage()
+    );
+}
 
 // Auto-migrate: admin_notes for the admin returns/penalties view (admin_pages/returns.php),
 // not present in the base return_requests table.
