@@ -1,6 +1,6 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
 error_reporting(E_ALL);
 
 header('Content-Type: application/json');
@@ -119,19 +119,12 @@ try {
     }
 
 } catch (Throwable $t) {
+    error_log("login.php error: " . $t->getMessage());
+
     http_response_code(500);
 
     echo json_encode([
         "status" => "error",
-        "message" => $t->getMessage(),
-        "file" => $t->getFile(),
-        "line" => $t->getLine()
+        "message" => "Internal server error"
     ]);
-} finally {
-    if (isset($stmt) && $stmt) {
-        $stmt->close();
-    }
-    if (isset($conn) && $conn) {
-        $conn->close();
-    }
 }
