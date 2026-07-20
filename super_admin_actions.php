@@ -17,7 +17,6 @@ $admins = fetchRows($conn, "SELECT id, username, full_name, email, role, is_veri
 $users = fetchRows($conn, "SELECT id, username, full_name, email, role, is_verified, is_suspended, is_deleted, created_at FROM users WHERE role NOT IN ('admin', 'super_admin', 'super') ORDER BY created_at DESC");
 $pets = fetchRows($conn, "SELECT id, name, breed, age, gender, status, health_status, description, is_archived, shelter_id, created_at FROM pets ORDER BY created_at DESC");
 $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
-$conn->close();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -262,235 +261,603 @@ $conn->close();
 <script>
     const apiEndpoint = 'super_admin_api.php';
     const petsData = <?php echo json_encode($pets); ?>;
+    const adminsData = <?php echo json_encode($admins); ?>;
+
+    async function apiRequest(formData) {
+        const response = await fetch(apiEndpoint, {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+
+        const responseText = await response.text();
+
+        let data;
+
+        try {
+            data = JSON.parse(responseText);
+        } catch (error) {
+            console.error('Invalid API response:', responseText);
+            throw new Error(
+                'The server returned an invalid response. Check Railway logs.'
+            );
+        }
+
+        if (
+            response.status === 401 ||
+            data.message === 'Unauthorized'
+        ) {
+            alert('Your login session has expired. Please log in again.');
+            window.location.href = 'login_form.php';
+            throw new Error('Unauthorized');
+        }
+
+        return data;
+    }
+
+    function handleApiError(error, fallbackMessage) {
+        if (error.message === 'Unauthorized') {
+            return;
+        }
+
+        console.error(error);
+        alert(error.message || fallbackMessage);
+    }
 
     function resetAdminPassword(id) {
         const password = prompt('Enter new password for admin:');
-        if (!password) return;
+
+        if (!password) {
+            return;
+        }
+
         const formData = new FormData();
         formData.append('action', 'reset_admin_password');
         formData.append('id', id);
         formData.append('password', password);
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Password reset'))
-            .catch(() => alert('Reset failed'));
+
+        apiRequest(formData)
+            .then(data => {
+                alert(data.message || (
+                    data.success
+                        ? 'Password reset successfully.'
+                        : 'Password reset failed.'
+                ));
+            })
+            .catch(error => {
+                handleApiError(error, 'Reset failed.');
+            });
     }
 
     function toggleAdminState(id, suspend) {
-        const action = suspend ? 'suspend_user' : 'restore_user';
+        const admin = adminsData.find(item => item.id == id);
+
+        if (!admin) {
+            alert('Admin record not found.');
+            return;
+        }
+
         const formData = new FormData();
-        formData.append('action', action);
+        formData.append('action', 'update_admin');
         formData.append('id', id);
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Action completed'))
-            .catch(() => alert('Action failed'));
+        formData.append('full_name', admin.full_name || '');
+        formData.append('email', admin.email || '');
+        formData.append('role', admin.role || 'admin');
+        formData.append('is_suspended', suspend ? '1' : '0');
+        formData.append(
+            'is_deleted',
+            admin.is_deleted ? '1' : '0'
+        );
+
+        apiRequest(formData)
+            .then(data => {
+                alert(data.message || (
+                    suspend
+                        ? 'Admin suspended.'
+                        : 'Admin unsuspended.'
+                ));
+
+                if (data.success) {
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                handleApiError(
+                    error,
+                    'Admin state update failed.'
+                );
+            });
     }
 
     function deleteAdmin(id) {
-        if (!confirm('Delete this admin account?')) return;
+        if (!confirm('Delete this admin account?')) {
+            return;
+        }
+
         const formData = new FormData();
         formData.append('action', 'delete_admin');
         formData.append('id', id);
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Admin deleted'))
-            .catch(() => alert('Delete failed'));
+
+        apiRequest(formData)
+            .then(data => {
+                alert(data.message || (
+                    data.success
+                        ? 'Admin deleted.'
+                        : 'Admin deletion failed.'
+                ));
+
+                if (data.success) {
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                handleApiError(error, 'Delete failed.');
+            });
     }
 
     function restoreAdmin(id) {
         const formData = new FormData();
         formData.append('action', 'restore_admin');
         formData.append('id', id);
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Admin restored'))
-            .catch(() => alert('Restore failed'));
+
+        apiRequest(formData)
+            .then(data => {
+                alert(data.message || (
+                    data.success
+                        ? 'Admin restored.'
+                        : 'Admin restore failed.'
+                ));
+
+                if (data.success) {
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                handleApiError(error, 'Restore failed.');
+            });
     }
 
-    const adminsData = <?php echo json_encode($admins); ?>;
-    document.getElementById('updateAdminSelect').addEventListener('change', (event) => {
-        const id = parseInt(event.target.value, 10);
-        const admin = adminsData.find((item) => item.id == id);
-        if (!admin) return;
-        document.getElementById('updateFullName').value = admin.full_name;
-        document.getElementById('updateEmail').value = admin.email;
-        document.getElementById('updateRole').value = admin.role;
-        document.getElementById('updateState').value = admin.is_deleted ? '2' : (admin.is_suspended ? '1' : '0');
-    });
+    document
+        .getElementById('updateAdminSelect')
+        .addEventListener('change', event => {
+            const id = parseInt(event.target.value, 10);
 
-    document.getElementById('adminCreateForm').addEventListener('submit', (event) => {
-        event.preventDefault();
-        const form = event.target;
-        const formData = new FormData(form);
-        formData.append('action', 'create_admin');
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Admin created'))
-            .catch(() => alert('Admin creation failed'));
-    });
+            const admin = adminsData.find(
+                item => item.id == id
+            );
 
-    document.getElementById('adminUpdateForm').addEventListener('submit', (event) => {
-        event.preventDefault();
-        const form = event.target;
-        const formData = new FormData(form);
-        const state = formData.get('state');
-        formData.append('action', 'update_admin');
-        formData.append('is_suspended', state === '1' ? 1 : 0);
-        formData.append('is_deleted', state === '2' ? 1 : 0);
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Admin updated'))
-            .catch(() => alert('Update failed'));
-    });
+            if (!admin) {
+                return;
+            }
+
+            document.getElementById('updateFullName').value =
+                admin.full_name || '';
+
+            document.getElementById('updateEmail').value =
+                admin.email || '';
+
+            document.getElementById('updateRole').value =
+                admin.role || 'admin';
+
+            document.getElementById('updateState').value =
+                admin.is_deleted
+                    ? '2'
+                    : (
+                        admin.is_suspended
+                            ? '1'
+                            : '0'
+                    );
+        });
+
+    document
+        .getElementById('adminCreateForm')
+        .addEventListener('submit', event => {
+            event.preventDefault();
+
+            const form = event.target;
+            const formData = new FormData(form);
+
+            formData.append('action', 'create_admin');
+
+            apiRequest(formData)
+                .then(data => {
+                    alert(data.message || (
+                        data.success
+                            ? 'Admin created successfully.'
+                            : 'Admin creation failed.'
+                    ));
+
+                    if (data.success) {
+                        form.reset();
+                        window.location.reload();
+                    }
+                })
+                .catch(error => {
+                    handleApiError(
+                        error,
+                        'Admin creation failed.'
+                    );
+                });
+        });
+
+    document
+        .getElementById('adminUpdateForm')
+        .addEventListener('submit', event => {
+            event.preventDefault();
+
+            const form = event.target;
+            const formData = new FormData(form);
+            const state = formData.get('state');
+
+            formData.append('action', 'update_admin');
+
+            formData.append(
+                'is_suspended',
+                state === '1' ? '1' : '0'
+            );
+
+            formData.append(
+                'is_deleted',
+                state === '2' ? '1' : '0'
+            );
+
+            apiRequest(formData)
+                .then(data => {
+                    alert(data.message || (
+                        data.success
+                            ? 'Admin updated.'
+                            : 'Admin update failed.'
+                    ));
+
+                    if (data.success) {
+                        window.location.reload();
+                    }
+                })
+                .catch(error => {
+                    handleApiError(
+                        error,
+                        'Update failed.'
+                    );
+                });
+        });
 
     function suspendUser(id) {
         const formData = new FormData();
         formData.append('action', 'suspend_user');
         formData.append('id', id);
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'User suspended'))
-            .catch(() => alert('Suspend failed'));
+
+        apiRequest(formData)
+            .then(data => {
+                alert(data.message || (
+                    data.success
+                        ? 'User suspended.'
+                        : 'User suspension failed.'
+                ));
+
+                if (data.success) {
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                handleApiError(error, 'Suspend failed.');
+            });
     }
 
     function deleteUser(id) {
+        if (!confirm('Delete this user account?')) {
+            return;
+        }
+
         const formData = new FormData();
         formData.append('action', 'delete_user');
         formData.append('id', id);
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'User deleted'))
-            .catch(() => alert('Delete failed'));
+
+        apiRequest(formData)
+            .then(data => {
+                alert(data.message || (
+                    data.success
+                        ? 'User deleted.'
+                        : 'User deletion failed.'
+                ));
+
+                if (data.success) {
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                handleApiError(error, 'Delete failed.');
+            });
     }
 
     function restoreUser(id) {
         const formData = new FormData();
         formData.append('action', 'restore_user');
         formData.append('id', id);
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'User restored'))
-            .catch(() => alert('Restore failed'));
+
+        apiRequest(formData)
+            .then(data => {
+                alert(data.message || (
+                    data.success
+                        ? 'User restored.'
+                        : 'User restore failed.'
+                ));
+
+                if (data.success) {
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                handleApiError(error, 'Restore failed.');
+            });
     }
 
     function populatePetForm(id) {
-        const pet = petsData.find((item) => item.id == id);
-        if (!pet) return;
-        document.getElementById('petId').value = pet.id;
-        document.getElementById('petName').value = pet.name;
-        document.getElementById('petBreed').value = pet.breed;
-        document.getElementById('petAge').value = pet.age;
-        document.getElementById('petGender').value = pet.gender;
-        document.getElementById('petStatus').value = pet.status;
-        document.getElementById('petShelter').value = pet.shelter_id || 0;
-        document.getElementById('petDescription').value = pet.description || '';
-        document.getElementById('petHealth').value = pet.health_status || '';
-        document.getElementById('petFormTitle').textContent = 'Edit Pet — ' + pet.name;
-        document.getElementById('petFormSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const pet = petsData.find(item => item.id == id);
+
+        if (!pet) {
+            alert('Pet record not found.');
+            return;
+        }
+
+        document.getElementById('petId').value =
+            pet.id || '';
+
+        document.getElementById('petName').value =
+            pet.name || '';
+
+        document.getElementById('petBreed').value =
+            pet.breed || '';
+
+        document.getElementById('petAge').value =
+            pet.age || '';
+
+        document.getElementById('petGender').value =
+            pet.gender || 'Unknown';
+
+        document.getElementById('petStatus').value =
+            pet.status || 'available';
+
+        document.getElementById('petShelter').value =
+            pet.shelter_id || 0;
+
+        document.getElementById('petDescription').value =
+            pet.description || '';
+
+        document.getElementById('petHealth').value =
+            pet.health_status || '';
+
+        document.getElementById(
+            'petFormTitle'
+        ).textContent = 'Edit Pet — ' + (pet.name || '');
+
+        document
+            .getElementById('petFormSection')
+            .scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
     }
 
     function resetPetForm() {
         document.getElementById('petForm').reset();
         document.getElementById('petId').value = '';
-        document.getElementById('petFormTitle').textContent = 'Create / Edit Pet';
+
+        document.getElementById(
+            'petFormTitle'
+        ).textContent = 'Create / Edit Pet';
     }
 
     function quickSetArchived(id, archive) {
         const formData = new FormData();
-        formData.append('action', archive ? 'archive_pet' : 'unarchive_pet');
+
+        formData.append(
+            'action',
+            archive
+                ? 'archive_pet'
+                : 'unarchive_pet'
+        );
+
         formData.append('id', id);
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
+
+        apiRequest(formData)
             .then(data => {
-                alert(data.message || (archive ? 'Pet archived' : 'Pet unarchived'));
+                alert(data.message || (
+                    archive
+                        ? 'Pet archived.'
+                        : 'Pet unarchived.'
+                ));
+
                 if (data.success) {
                     window.location.reload();
                 }
             })
-            .catch(() => alert(archive ? 'Archive failed' : 'Unarchive failed'));
+            .catch(error => {
+                handleApiError(
+                    error,
+                    archive
+                        ? 'Archive failed.'
+                        : 'Unarchive failed.'
+                );
+            });
     }
 
     function savePet() {
         const form = document.getElementById('petForm');
         const formData = new FormData(form);
-        const action = formData.get('id') ? 'update_pet' : 'create_pet';
+
+        const action = formData.get('id')
+            ? 'update_pet'
+            : 'create_pet';
+
         formData.append('action', action);
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
+
+        apiRequest(formData)
             .then(data => {
-                alert(data.message || 'Pet saved');
+                alert(data.message || (
+                    data.success
+                        ? 'Pet saved.'
+                        : 'Pet save failed.'
+                ));
+
                 if (data.success) {
                     window.location.reload();
                 }
             })
-            .catch(() => alert('Save failed'));
+            .catch(error => {
+                handleApiError(error, 'Save failed.');
+            });
     }
 
     function deletePet(id) {
-        if (!confirm('Delete this pet record?')) return;
+        if (!confirm('Delete this pet record?')) {
+            return;
+        }
+
         const formData = new FormData();
         formData.append('action', 'delete_pet');
         formData.append('id', id);
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
+
+        apiRequest(formData)
             .then(data => {
-                alert(data.message || 'Pet deleted');
+                alert(data.message || (
+                    data.success
+                        ? 'Pet deleted.'
+                        : 'Pet deletion failed.'
+                ));
+
                 if (data.success) {
                     window.location.reload();
                 }
             })
-            .catch(() => alert('Delete failed'));
+            .catch(error => {
+                handleApiError(error, 'Delete failed.');
+            });
     }
 
     function transferPet() {
-        const form = document.getElementById('petActionForm');
+        const form =
+            document.getElementById('petActionForm');
+
         const formData = new FormData(form);
         formData.append('action', 'transfer_pet');
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Pet transferred'))
-            .catch(() => alert('Transfer failed'));
+
+        apiRequest(formData)
+            .then(data => {
+                alert(data.message || (
+                    data.success
+                        ? 'Pet transferred.'
+                        : 'Pet transfer failed.'
+                ));
+
+                if (data.success) {
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                handleApiError(error, 'Transfer failed.');
+            });
     }
 
     function archivePet() {
-        const form = document.getElementById('petActionForm');
+        const form =
+            document.getElementById('petActionForm');
+
         const formData = new FormData(form);
         formData.append('action', 'archive_pet');
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Pet archived'))
-            .catch(() => alert('Archive failed'));
+
+        apiRequest(formData)
+            .then(data => {
+                alert(data.message || (
+                    data.success
+                        ? 'Pet archived.'
+                        : 'Pet archive failed.'
+                ));
+
+                if (data.success) {
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                handleApiError(error, 'Archive failed.');
+            });
     }
 
     function unarchivePet() {
-        const form = document.getElementById('petActionForm');
+        const form =
+            document.getElementById('petActionForm');
+
         const formData = new FormData(form);
         formData.append('action', 'unarchive_pet');
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Pet unarchived'))
-            .catch(() => alert('Unarchive failed'));
+
+        apiRequest(formData)
+            .then(data => {
+                alert(data.message || (
+                    data.success
+                        ? 'Pet unarchived.'
+                        : 'Pet unarchive failed.'
+                ));
+
+                if (data.success) {
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                handleApiError(error, 'Unarchive failed.');
+            });
     }
 
     function overrideApplication() {
-        const form = document.getElementById('appActionForm');
+        const form =
+            document.getElementById('appActionForm');
+
         const formData = new FormData(form);
-        formData.append('action', 'override_application');
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Application overridden'))
-            .catch(() => alert('Override failed'));
+        formData.append(
+            'action',
+            'override_application'
+        );
+
+        apiRequest(formData)
+            .then(data => {
+                alert(data.message || (
+                    data.success
+                        ? 'Application overridden.'
+                        : 'Application override failed.'
+                ));
+
+                if (data.success) {
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                handleApiError(error, 'Override failed.');
+            });
     }
 
     function reopenApplication() {
-        const form = document.getElementById('appActionForm');
+        const form =
+            document.getElementById('appActionForm');
+
         const formData = new FormData(form);
-        formData.append('action', 'reopen_application');
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Application reopened'))
-            .catch(() => alert('Reopen failed'));
+        formData.append(
+            'action',
+            'reopen_application'
+        );
+
+        apiRequest(formData)
+            .then(data => {
+                alert(data.message || (
+                    data.success
+                        ? 'Application reopened.'
+                        : 'Failed to reopen application.'
+                ));
+
+                if (data.success) {
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                handleApiError(error, 'Reopen failed.');
+            });
     }
 </script>
 </body>

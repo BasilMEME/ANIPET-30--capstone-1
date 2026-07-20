@@ -1,8 +1,8 @@
 <?php
 
-ini_set('display_errors', '0');
-ini_set('log_errors', '1');
-error_reporting(E_ALL);
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
 
 require_once __DIR__ . '/db_connect.php';
 
@@ -20,9 +20,12 @@ function require_login(): void
 
 function require_api_login(): void
 {
-    if (empty($_SESSION['user_id'])) {
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+
+    if (current_user_id() === null) {
         http_response_code(401);
-        header('Content-Type: application/json; charset=utf-8');
 
         echo json_encode([
             'success' => false,
@@ -35,9 +38,21 @@ function require_api_login(): void
 
 function current_user_id(): ?int
 {
-    return !empty($_SESSION['user_id'])
-        ? (int) $_SESSION['user_id']
-        : null;
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+
+    $userId =
+        $_SESSION['user_id']
+        ?? $_SESSION['admin_id']
+        ?? $_SESSION['id']
+        ?? null;
+
+    if ($userId === null || !is_numeric($userId)) {
+        return null;
+    }
+
+    return (int) $userId;
 }
 
 function current_user_role(): ?string
