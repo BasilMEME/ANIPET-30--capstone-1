@@ -126,9 +126,19 @@ $conn->query("CREATE TABLE IF NOT EXISTS `notifications` (
 // (application_status_helper.php auto-creates/updates one when an application enters
 // 'screening'), so the existing Appointments booking/management UI doubles as the
 // interview-scheduling surface instead of a separate feature.
-$conn->query("ALTER TABLE `appointments`
-    ADD COLUMN IF NOT EXISTS `application_id` INT DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `appointment_type` VARCHAR(20) NOT NULL DEFAULT 'general'");
+if (!columnExists($conn, "appointments", "application_id")) {
+    $conn->query("
+        ALTER TABLE `appointments`
+        ADD COLUMN `application_id` INT DEFAULT NULL
+    ");
+}
+
+if (!columnExists($conn, "appointments", "appointment_type")) {
+    $conn->query("
+        ALTER TABLE `appointments`
+        ADD COLUMN `appointment_type` VARCHAR(20) NOT NULL DEFAULT 'general'
+    ");
+}
 
 // Auto-migrate: manage_returns / manage_settings are new permission keys added for the
 // return & penalty management feature (admin_pages/returns.php, admin_pages/settings.php).
@@ -148,8 +158,12 @@ $conn->query("INSERT IGNORE INTO role_permissions (role, permission_key, is_allo
 
 // Auto-migrate: admin_notes for the admin returns/penalties view (admin_pages/returns.php),
 // not present in the base return_requests table.
-$conn->query("ALTER TABLE `return_requests`
-    ADD COLUMN IF NOT EXISTS `admin_notes` TEXT DEFAULT NULL");
+if (!columnExists($conn, "return_requests", "admin_notes")) {
+    $conn->query("
+        ALTER TABLE `return_requests`
+        ADD COLUMN `admin_notes` TEXT DEFAULT NULL
+    ");
+}
 
 // Auto-migrate: donations table used by submit_donation.php / super_admin_donations.php /
 // super_admin_donation_detail.php / super_admin_refund_donation.php. Like pet_pound, this
@@ -213,14 +227,26 @@ $conn->query("CREATE TABLE IF NOT EXISTS `pet_pound` (
 
 // Upgrade older pet_pound tables that already existed before the
 // cause_of_death, death_remarks, and death_date columns were added.
-$conn->query("ALTER TABLE `pet_pound`
-    ADD COLUMN IF NOT EXISTS `cause_of_death`
-        VARCHAR(50) DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `death_remarks`
-        TEXT DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `death_date`
-        DATETIME DEFAULT NULL
-");
+if (!columnExists($conn, "pet_pound", "cause_of_death")) {
+    $conn->query("
+        ALTER TABLE `pet_pound`
+        ADD COLUMN `cause_of_death` VARCHAR(50) DEFAULT NULL
+    ");
+}
+
+if (!columnExists($conn, "pet_pound", "death_remarks")) {
+    $conn->query("
+        ALTER TABLE `pet_pound`
+        ADD COLUMN `death_remarks` TEXT DEFAULT NULL
+    ");
+}
+
+if (!columnExists($conn, "pet_pound", "death_date")) {
+    $conn->query("
+        ALTER TABLE `pet_pound`
+        ADD COLUMN `death_date` DATETIME DEFAULT NULL
+    ");
+}
 
 // Auto-migrate: penalty payment records tied to a pet_pound row. payment_date defaults to
 // CURRENT_TIMESTAMP so the "date" is always the moment the payment was recorded as complete,
