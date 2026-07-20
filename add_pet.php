@@ -3,7 +3,7 @@ require_once __DIR__ . "/db_connect.php";
 header("Content-Type: application/json");
 
 // Use 10.0.2.2 for Emulator or your IP for physical device
-$base_url = "http://192.168.100.18/pet_adoption_api/images/";
+$base_url = "https://php-backend-production-ee9d.up.railway.app/images/";
 
 $sql = "SELECT * FROM pets";
 $result = $conn->query($sql);
