@@ -156,7 +156,7 @@ if ($_FILES['id_document']['error'] !== UPLOAD_ERR_OK) {
 
     $uploadMessages = [
         UPLOAD_ERR_INI_SIZE =>
-            "The ID image exceeds the server upload limit.",
+            "The ID image exceeds the image size limit. Please upload a smaller image.",
         UPLOAD_ERR_FORM_SIZE =>
             "The ID image is too large.",
         UPLOAD_ERR_PARTIAL =>
@@ -164,11 +164,11 @@ if ($_FILES['id_document']['error'] !== UPLOAD_ERR_OK) {
         UPLOAD_ERR_NO_FILE =>
             "No ID image was received.",
         UPLOAD_ERR_NO_TMP_DIR =>
-            "The server temporary upload folder is missing.",
+            "Your temporary upload folder is missing.",
         UPLOAD_ERR_CANT_WRITE =>
-            "The server could not save the ID image.",
+            "Could not save the ID image.",
         UPLOAD_ERR_EXTENSION =>
-            "The ID upload was blocked by a server extension."
+            "The ID file is not compatible."
     ];
 
     error_log(
