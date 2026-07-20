@@ -1,9 +1,5 @@
 <?php
 
-ini_set('display_errors', '0');
-ini_set('display_startup_errors', '0');
-error_reporting(E_ALL);
-
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 $host = getenv('MYSQLHOST');
@@ -13,16 +9,9 @@ $password = getenv('MYSQLPASSWORD');
 $database = getenv('MYSQLDATABASE');
 
 if (!$host || !$port || !$username || !$password || !$database) {
-    error_log('Missing Railway MySQL environment variables');
-
-    http_response_code(500);
-    header('Content-Type: application/json');
-
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'Database configuration is incomplete'
-    ]);
-    exit;
+    throw new RuntimeException(
+        'Missing Railway MySQL environment variables'
+    );
 }
 
 $conn = new mysqli(
