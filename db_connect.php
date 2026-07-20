@@ -4,11 +4,26 @@ ini_set('display_errors', '0');
 ini_set('display_startup_errors', '0');
 error_reporting(E_ALL);
 
-$host = getenv('MYSQLHOST') ?: 'tokaido.proxy.rlwy.net';
-$port = (int) (getenv('MYSQLPORT') ?: 29989);
-$username = getenv('MYSQLUSER') ?: 'root';
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+$host = getenv('MYSQLHOST');
+$port = (int) getenv('MYSQLPORT');
+$username = getenv('MYSQLUSER');
 $password = getenv('MYSQLPASSWORD');
-$database = getenv('MYSQLDATABASE') ?: 'anipet_db';
+$database = getenv('MYSQLDATABASE');
+
+if (!$host || !$port || !$username || !$password || !$database) {
+    error_log('Missing Railway MySQL environment variables');
+
+    http_response_code(500);
+    header('Content-Type: application/json');
+
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Database configuration is incomplete'
+    ]);
+    exit;
+}
 
 $conn = new mysqli(
     $host,
@@ -17,19 +32,6 @@ $conn = new mysqli(
     $database,
     $port
 );
-
-if ($conn->connect_error) {
-    error_log('Database connection failed: ' . $conn->connect_error);
-
-    http_response_code(500);
-    header('Content-Type: application/json');
-
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'Database connection failed'
-    ]);
-    exit;
-}
 
 $conn->set_charset('utf8mb4');
 
