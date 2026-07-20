@@ -3,23 +3,28 @@
 declare(strict_types=1);
 
 define(
-    'RESEND_API_KEY',
-    getenv('RESEND_API_KEY') ?: ''
+    'GOOGLE_CLIENT_ID',
+    getenv('GOOGLE_CLIENT_ID') ?: ''
 );
 
 define(
-    'RESEND_FROM_EMAIL',
-    getenv('RESEND_FROM_EMAIL')
-        ?: 'onboarding@resend.dev'
+    'GOOGLE_CLIENT_SECRET',
+    getenv('GOOGLE_CLIENT_SECRET') ?: ''
 );
 
 define(
-    'RESEND_FROM_NAME',
-    getenv('RESEND_FROM_NAME')
-        ?: 'Anipet'
+    'GOOGLE_REFRESH_TOKEN',
+    getenv('GOOGLE_REFRESH_TOKEN') ?: ''
 );
 
 define(
-    'PHPMailer_AUTOLOAD',
-    __DIR__ . '/vendor/autoload.php'
+    'GMAIL_FROM_EMAIL',
+    getenv('GMAIL_FROM_EMAIL')
+        ?: 'anipet.adoption@gmail.com'
+);
+
+define(
+    'GMAIL_FROM_NAME',
+    getenv('GMAIL_FROM_NAME')
+        ?: 'AniPet'
 );
