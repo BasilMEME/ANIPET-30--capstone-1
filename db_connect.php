@@ -8,7 +8,7 @@ $host = getenv('MYSQLHOST') ?: 'tokaido.proxy.rlwy.net';
 $port = (int) (getenv('MYSQLPORT') ?: 29989);
 $username = getenv('MYSQLUSER') ?: 'root';
 $password = getenv('MYSQLPASSWORD');
-$database = getenv('MYSQLDATABASE') ?: 'railway';
+$database = getenv('MYSQLDATABASE') ?: 'anipet_db';
 
 $conn = new mysqli(
     $host,
