@@ -82,11 +82,19 @@ try {
             $requiresVerification = isset($row["is_verified"]) && $row["is_verified"] == 0;
             $isRegularUser = $row["role"] === 'user';
             if ($isRegularUser && $requiresVerification) {
-                echo json_encode([
-                    "status" => "unverified",
-                    "message" => "Account not verified"
-                ]);
-            } else {
+    echo json_encode([
+        "status" => "unverified",
+        "message" => "Account not verified",
+        "user" => [
+            "id" => $row["id"],
+            "username" => $row["username"],
+            "full_name" => $row["full_name"],
+            "email" => $row["email"],
+            "role" => $row["role"]
+        ]
+    ]);
+    exit;
+} else {
                 $_SESSION['user_id'] = $row["id"];
                 $_SESSION['username'] = $row["username"];
                 $_SESSION['email'] = $row["email"];
