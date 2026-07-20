@@ -22,24 +22,55 @@ function sendApplicationReceived($email, $name)
     return sendEmail($email, $subject, nl2br($message));
 }
 
-function sendApplicationApproved($email, $name)
+function sendApplicationApproved(
+    $email,
+    $name,
+    $qrUrl = null,
+    $petName = null
+)
 {
-    $subject = "Congratulations! Your Application Has Been Approved";
+    $subject = "Congratulations! Your Adoption Application Has Been Approved";
 
     $message = "
-    Hello $name,
+    <h2>Congratulations {$name}!</h2>
 
-    Congratulations!
+    <p>
+    We are pleased to inform you that your adoption application has been approved.
+    </p>";
 
-    Your adoption application has been approved.
+    if ($petName) {
+        $message .= "
+        <p>
+        Pet: <strong>{$petName}</strong>
+        </p>";
+    }
 
-    Please log in to AniPet to view the next steps.
+    if ($qrUrl) {
+        $message .= "
+        <p>
+        Please use the QR Code below when visiting the shelter.
+        </p>
 
-    Regards,
-    AniPet Team
-    ";
+        <p>
+        <a href='{$qrUrl}'>
+        View Your QR Code
+        </a>
+        </p>";
+    }
 
-    return sendEmail($email, $subject, nl2br($message));
+    $message .= "
+    <br>
+
+    <p>
+    Thank you for choosing AniPet.
+    </p>";
+
+    return sendEmail(
+        $email,
+        $subject,
+        $message,
+        true
+    );
 }
 
 function sendApplicationRejected($email, $name)
