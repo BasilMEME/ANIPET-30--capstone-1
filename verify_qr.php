@@ -1,10 +1,10 @@
 <?php
 header("Content-Type: application/json");
-header('Access-Control-Allow-Origin: *');
+header("Access-Control-Allow-Origin: *");
+
 require_once __DIR__ . "/db_connect.php";
 
-// Self-heal older installs that predate the qr_data column
-$conn->query("ALTER TABLE `adoption_applications` ADD COLUMN IF NOT EXISTS `qr_data` VARCHAR(255) DEFAULT NULL AFTER `qr_code`");
+$qr_data = $_GET['qr_code'] ?? '';
 
 // The scanner decodes the QR image back into the string that was encoded into it
 // ("ANIPET|APP:...|PET:...|DATE:..."), which is stored in qr_data — not qr_code,
