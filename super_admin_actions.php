@@ -219,7 +219,7 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
                 </select></div>
                 <div class="input-group"><label>Description</label><textarea name="description" id="petDescription" rows="4"></textarea></div>
                 <div class="input-group"><label>Health Status</label><input type="text" name="health_status" id="petHealth"></div>
-                <div class="input-group"><label>Pet Image</label><input type="file" name="image" id="petImage" accept="image/*"></div>
+                <div class="input-group"><label>Pet Image</label><input type="file" id="petImages" name="images[]" accept="image/jpeg,image/png,image/webp"multiple></div>
                 <div class="action-row"><button class="btn btn-primary" type="button" onclick="savePet()">Save Pet</button><button class="btn btn-secondary" type="button" onclick="resetPetForm()">Clear</button></div>
             </form>
         </div>

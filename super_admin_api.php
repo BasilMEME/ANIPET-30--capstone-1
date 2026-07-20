@@ -109,38 +109,149 @@ function handlePetImageUpload($uploadedFile) {
     return $filename;
 }
 
-function handleMultiplePetImageUploads($filesArray) {
-    // $filesArray is $_FILES['images'] in the standard multi-file array shape
-    $uploaded = [];
-    if (!isset($filesArray) || !is_array($filesArray['name'] ?? null)) {
-        return $uploaded;
+function handleMultiplePetImageUploads(?array $files): array
+{
+    if (
+        !$files ||
+        !isset($files['name']) ||
+        !isset($files['tmp_name']) ||
+        !isset($files['error']) ||
+        !isset($files['size'])
+    ) {
+        return [];
     }
 
-    $uploadDir = __DIR__ . '/images';
-    if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0755, true);
-    }
-    $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $uploadDirectory = __DIR__ . '/images/';
 
-    $count = count($filesArray['name']);
-    for ($i = 0; $i < $count; $i++) {
-        if ($filesArray['error'][$i] !== UPLOAD_ERR_OK) continue;
-        if (!is_uploaded_file($filesArray['tmp_name'][$i])) continue;
-
-        $mimeType = finfo_file($finfo, $filesArray['tmp_name'][$i]);
-        if (!in_array($mimeType, $allowedMimeTypes, true)) continue;
-
-        $extension = strtolower(pathinfo($filesArray['name'][$i], PATHINFO_EXTENSION) ?: 'jpg');
-        $filename = 'pet_' . time() . '_' . bin2hex(random_bytes(4)) . '_' . $i . '.' . $extension;
-        $targetPath = $uploadDir . '/' . $filename;
-
-        if (move_uploaded_file($filesArray['tmp_name'][$i], $targetPath)) {
-            $uploaded[] = $filename;
+    if (!is_dir($uploadDirectory)) {
+        if (!mkdir($uploadDirectory, 0775, true)) {
+            throw new RuntimeException(
+                'Unable to create the pet image directory.'
+            );
         }
     }
-    finfo_close($finfo);
-    return $uploaded;
+
+    if (!is_writable($uploadDirectory)) {
+        throw new RuntimeException(
+            'The pet image directory is not writable.'
+        );
+    }
+
+    $allowedMimeTypes = [
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/webp' => 'webp'
+    ];
+
+    $maximumFileSize = 5 * 1024 * 1024;
+    $uploadedFilenames = [];
+
+    $fileNames = is_array($files['name'])
+        ? $files['name']
+        : [$files['name']];
+
+    $temporaryNames = is_array($files['tmp_name'])
+        ? $files['tmp_name']
+        : [$files['tmp_name']];
+
+    $errors = is_array($files['error'])
+        ? $files['error']
+        : [$files['error']];
+
+    $sizes = is_array($files['size'])
+        ? $files['size']
+        : [$files['size']];
+
+    $fileInfo = new finfo(FILEINFO_MIME_TYPE);
+
+    foreach ($fileNames as $index => $originalName) {
+        $error = $errors[$index] ?? UPLOAD_ERR_NO_FILE;
+
+        if ($error === UPLOAD_ERR_NO_FILE) {
+            continue;
+        }
+
+        if ($error !== UPLOAD_ERR_OK) {
+            throw new RuntimeException(
+                getUploadErrorMessage($error)
+            );
+        }
+
+        $temporaryName = $temporaryNames[$index] ?? '';
+        $fileSize = (int) ($sizes[$index] ?? 0);
+
+        if (
+            $temporaryName === '' ||
+            !is_uploaded_file($temporaryName)
+        ) {
+            throw new RuntimeException(
+                'Invalid uploaded image.'
+            );
+        }
+
+        if ($fileSize <= 0 || $fileSize > $maximumFileSize) {
+            throw new RuntimeException(
+                'Each image must be smaller than 5 MB.'
+            );
+        }
+
+        $mimeType = $fileInfo->file($temporaryName);
+
+        if (!isset($allowedMimeTypes[$mimeType])) {
+            throw new RuntimeException(
+                'Only JPG, PNG, and WEBP images are allowed.'
+            );
+        }
+
+        $extension = $allowedMimeTypes[$mimeType];
+
+        $filename =
+            'pet_' .
+            bin2hex(random_bytes(12)) .
+            '.' .
+            $extension;
+
+        $destination = $uploadDirectory . $filename;
+
+        if (!move_uploaded_file(
+            $temporaryName,
+            $destination
+        )) {
+            throw new RuntimeException(
+                'Failed to save uploaded image.'
+            );
+        }
+
+        $uploadedFilenames[] = $filename;
+    }
+
+    return $uploadedFilenames;
+}
+
+function getUploadErrorMessage(int $error): string
+{
+    return match ($error) {
+        UPLOAD_ERR_INI_SIZE =>
+            'The uploaded image exceeds the server upload limit.',
+
+        UPLOAD_ERR_FORM_SIZE =>
+            'The uploaded image exceeds the form upload limit.',
+
+        UPLOAD_ERR_PARTIAL =>
+            'The image was only partially uploaded.',
+
+        UPLOAD_ERR_NO_TMP_DIR =>
+            'The server temporary upload directory is missing.',
+
+        UPLOAD_ERR_CANT_WRITE =>
+            'The server could not write the image to storage.',
+
+        UPLOAD_ERR_EXTENSION =>
+            'A PHP extension stopped the image upload.',
+
+        default =>
+            'An unknown image upload error occurred.'
+    };
 }
 
 function getSystemSetting($conn, $key, $default = null) {
@@ -855,7 +966,18 @@ try {
 
     if (!$name || !$breed) { respond(['success' => false, 'message' => 'Name and breed are required']); }
 
-    $uploadedFilenames = handleMultiplePetImageUploads($_FILES['images'] ?? null);
+    try {
+    $uploadedFilenames =
+        handleMultiplePetImageUploads(
+            $_FILES['images'] ?? null
+        );
+} catch (Throwable $error) {
+    respond([
+        'success' => false,
+        'message' => $error->getMessage()
+    ], 422);
+}
+
     if (count($uploadedFilenames) > 10) { respond(['success' => false, 'message' => 'Maximum 10 photos per pet']); }
     $imageString = $uploadedFilenames ? implode(',', $uploadedFilenames) : null;
 
@@ -887,6 +1009,7 @@ try {
     $cur->bind_param('i', $id);
     $cur->execute();
     $row = $cur->get_result()->fetch_assoc();
+    $cur->close();
     $existing = $row && $row['image'] ? explode(',', $row['image']) : [];
 
     // Remove any the super admin deleted in the UI
@@ -901,7 +1024,18 @@ try {
     }
 
     // Add newly uploaded files
-    $uploadedFilenames = handleMultiplePetImageUploads($_FILES['images'] ?? null);
+    try {
+    $uploadedFilenames =
+        handleMultiplePetImageUploads(
+            $_FILES['images'] ?? null
+        );
+} catch (Throwable $error) {
+    respond([
+        'success' => false,
+        'message' => $error->getMessage()
+    ], 422);
+}
+
     if (count($existing) + count($uploadedFilenames) > 10) {
         respond(['success' => false, 'message' => 'Maximum 10 photos per pet']);
     }
