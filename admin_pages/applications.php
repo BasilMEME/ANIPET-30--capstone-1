@@ -3,7 +3,9 @@ require_permission($conn, 'manage_applications');
 
 // Kept in sync with APPLICATION_STATUS_PIPELINE in application_status_helper.php,
 // which drives QR generation and the user-facing tracking screen.
-$validStatuses = ['pending','screening','approved','for_releasing','ready_pickup','completed','rejected'];
+// 'withdrawn' is set outside that pipeline (by the applicant's Withdraw action),
+// so it's included here for filtering/display but not part of the admin status dropdown.
+$validStatuses = ['pending','screening','approved','for_releasing','ready_pickup','completed','rejected','withdrawn'];
 $filter = $_GET['status'] ?? '';
 if (!in_array($filter, $validStatuses)) $filter = '';
 
@@ -36,6 +38,7 @@ $pillLabels = [
     'ready_pickup'   => 'Ready for Pick-up',
     'completed'      => 'Completed',
     'rejected'       => 'Rejected',
+    'withdrawn'      => 'Withdrawn',
 ];
 ?>
 
