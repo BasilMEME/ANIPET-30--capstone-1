@@ -179,15 +179,6 @@ if ($_FILES['id_document']['error'] !== UPLOAD_ERR_OK) {
 
     exit;
 }
-
-    echo json_encode([
-        "status" => "error",
-        "message" => $uploadMessages[$uploadError]
-            ?? "ID upload failed with error code: $uploadError"
-    ]);
-
-    exit;
-}
 if ($_FILES['id_document']['size'] > $MAX_BYTES) {
     echo json_encode(["status"=>"error","message"=>"ID document exceeds 8MB limit"]);
     exit;
