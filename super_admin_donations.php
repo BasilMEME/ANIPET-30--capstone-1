@@ -17,10 +17,10 @@ function fetchScalar(mysqli $conn, string $sql)
 ================================ */
 
 $totalDonations = fetchScalar($conn,
-    "SELECT COUNT(*) FROM donations");
+    "SELECT COUNT(*) FROM donations WHERE payment_status = 'Successful'");
 
 $totalAmount = fetchScalar($conn,
-    "SELECT SUM(amount) FROM donations");
+    "SELECT IFNULL(SUM(amount), 0) FROM donations WHERE payment_status = 'Successful'");
 
 /* ===============================
    Monthly Donations
@@ -38,7 +38,8 @@ for($i=5;$i>=0;$i--)
     $amount = fetchScalar($conn,"
         SELECT IFNULL(SUM(amount),0)
         FROM donations
-        WHERE DATE_FORMAT(donation_date,'%Y-%m')='$month'
+        WHERE payment_status = 'Successful'
+          AND DATE_FORMAT(donation_date,'%Y-%m')='$month'
     ");
 
     $monthlyAmounts[] = $amount;
@@ -57,6 +58,7 @@ SELECT
 FROM donations d
 LEFT JOIN users u
     ON d.user_id = u.id
+WHERE d.payment_status = 'Successful'
 ORDER BY donation_date DESC
 LIMIT 20
 ";
@@ -342,6 +344,33 @@ background:#d76f68;
 
 }
 
+
+.payment-status{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    padding:7px 11px;
+    border-radius:999px;
+    font-size:.82rem;
+    font-weight:600;
+    white-space:nowrap;
+}
+
+.payment-status.successful{
+    color:#86efac;
+    background:rgba(34,197,94,.14);
+    border:1px solid rgba(34,197,94,.28);
+}
+
+.payment-status.successful::before{
+    content:"";
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:#22c55e;
+    box-shadow:0 0 0 3px rgba(34,197,94,.12);
+}
+
 @media(max-width:1100px){
 
 .grid{
@@ -393,26 +422,26 @@ grid-template-columns:1fr;
 <div class="grid">
 
     <div class="card">
-        <h2>Total Donations</h2>
+        <h2>Successful Donations</h2>
 
         <div class="metric">
             <?php echo number_format($totalDonations); ?>
         </div>
 
         <div class="metric-label">
-            Total donations received
+            Completed payments received
         </div>
     </div>
 
     <div class="card">
-        <h2>Total Amount</h2>
+        <h2>Total Amount Received</h2>
 
         <div class="metric">
             ₱<?php echo number_format($totalAmount,2); ?>
         </div>
 
         <div class="metric-label">
-            Total donation amount
+            Successful donation amount
         </div>
     </div>
 
@@ -455,6 +484,7 @@ grid-template-columns:1fr;
     <th>Amount</th>
     <th>Reference No.</th>
     <th>Payment</th>
+    <th>Status</th>
     <th>Receipt</th>
     <th>Date</th>
     <th>Action</th>
@@ -492,6 +522,12 @@ grid-template-columns:1fr;
 
     <td>
         <?php echo htmlspecialchars($donation['payment_method']); ?>
+    </td>
+
+    <td>
+        <span class="payment-status successful">
+            <?php echo htmlspecialchars($donation['payment_status']); ?>
+        </span>
     </td>
 
     <td>
@@ -533,7 +569,7 @@ grid-template-columns:1fr;
 
 <tr>
 
-    <td colspan="9" style="text-align:center;">
+    <td colspan="10" style="text-align:center;">
         No donations found.
     </td>
 
