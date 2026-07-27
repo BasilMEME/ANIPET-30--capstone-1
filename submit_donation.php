@@ -82,6 +82,8 @@ if (
 }
 
 // Save donation
+$payment_status = "Successful";
+
 $stmt = $conn->prepare("
 INSERT INTO donations
 (
@@ -92,23 +94,25 @@ INSERT INTO donations
     reference_number,
     payment_method,
     receipt_image,
-    donation_date
+    donation_date,
+    payment_status
 )
 VALUES
 (
-    ?, ?, ?, ?, ?, ?, ?, NOW()
+    ?, ?, ?, ?, ?, ?, ?, NOW(), ?
 )
 ");
 
 $stmt->bind_param(
-    "issdsss",
+    "issdssss",
     $user_id,
     $donor_name,
     $pet_name,
     $amount,
     $reference_number,
     $payment_method,
-    $receiptFilename
+    $receiptFilename,
+    $payment_status
 );
 
 if ($stmt->execute()) {
