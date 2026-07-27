@@ -193,11 +193,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS `donations` (
     `payment_method` VARCHAR(50) NOT NULL DEFAULT 'GCash',
     `receipt_image` VARCHAR(255) DEFAULT NULL,
     `donation_date` DATETIME NOT NULL,
-    `refund_deadline` DATETIME DEFAULT NULL,
-    `refund_status` VARCHAR(20) NOT NULL DEFAULT 'Not Refunded',
-    `refunded_at` DATETIME DEFAULT NULL,
-    INDEX `idx_donation_date` (`donation_date`),
-    INDEX `idx_refund_status` (`refund_status`)
+    INDEX `idx_donation_date` (`donation_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
 // Auto-migrate: Pet Pound feature (admin_pages/pet_pound.php and friends).

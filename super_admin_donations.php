@@ -22,18 +22,6 @@ $totalDonations = fetchScalar($conn,
 $totalAmount = fetchScalar($conn,
     "SELECT SUM(amount) FROM donations");
 
-$refundedCount = fetchScalar($conn,
-    "SELECT COUNT(*) FROM donations
-     WHERE refund_status='Refunded'");
-
-$expiredRefunds = fetchScalar($conn,
-    "SELECT COUNT(*) FROM donations
-     WHERE refund_status='Expired'");
-
-$notRefunded = fetchScalar($conn,
-    "SELECT COUNT(*) FROM donations
-     WHERE refund_status='Not Refunded'");
-
 /* ===============================
    Monthly Donations
 ================================ */
@@ -332,38 +320,6 @@ background:rgba(242,134,126,.08);
 
 }
 
-.status{
-
-padding:6px 12px;
-
-border-radius:30px;
-
-font-size:.82rem;
-
-font-weight:600;
-
-display:inline-block;
-
-}
-
-.not{
-
-color:#facc15;
-
-}
-
-.refunded{
-
-color:#22c55e;
-
-}
-
-.expired{
-
-color:#fb7185;
-
-}
-
 .details{
 
 background:#F2867E;
@@ -420,7 +376,7 @@ grid-template-columns:1fr;
 
 <h1>Donation Monitoring</h1>
 
-<p>Monitor donations, refunds, payment methods, and donor activities.</p>
+<p>Monitor successful donations, payment methods, and donor activities.</p>
 
 </div>
 
@@ -457,18 +413,6 @@ grid-template-columns:1fr;
 
         <div class="metric-label">
             Total donation amount
-        </div>
-    </div>
-
-    <div class="card">
-        <h2>Refunded</h2>
-
-        <div class="metric">
-            <?php echo number_format($refundedCount); ?>
-        </div>
-
-        <div class="metric-label">
-            Successfully refunded
         </div>
     </div>
 
@@ -513,7 +457,6 @@ grid-template-columns:1fr;
     <th>Payment</th>
     <th>Receipt</th>
     <th>Date</th>
-    <th>Refund Status</th>
     <th>Action</th>
 </tr>
 
@@ -575,27 +518,6 @@ grid-template-columns:1fr;
 
     <td>
 
-        <?php
-
-        $status = $donation['refund_status'];
-
-        if($status=="Refunded")
-            $class="refunded";
-        elseif($status=="Expired")
-            $class="expired";
-        else
-            $class="not";
-
-        ?>
-
-        <span class="status <?php echo $class; ?>">
-            <?php echo htmlspecialchars($status); ?>
-        </span>
-
-    </td>
-
-    <td>
-
         <a class="details"
            href="super_admin_donation_detail.php?id=<?php echo $donation['id']; ?>">
             View
@@ -611,7 +533,7 @@ grid-template-columns:1fr;
 
 <tr>
 
-    <td colspan="10" style="text-align:center;">
+    <td colspan="9" style="text-align:center;">
         No donations found.
     </td>
 

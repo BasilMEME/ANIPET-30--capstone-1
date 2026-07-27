@@ -81,11 +81,6 @@ if (
     );
 }
 
-$refund_deadline = date(
-    "Y-m-d H:i:s",
-    strtotime("+48 hours")
-);
-
 // Save donation
 $stmt = $conn->prepare("
 INSERT INTO donations
@@ -97,25 +92,23 @@ INSERT INTO donations
     reference_number,
     payment_method,
     receipt_image,
-    donation_date,
-    refund_deadline
+    donation_date
 )
 VALUES
 (
-    ?, ?, ?, ?, ?, ?, ?, NOW(), ?
+    ?, ?, ?, ?, ?, ?, ?, NOW()
 )
 ");
 
 $stmt->bind_param(
-    "issdssss",
+    "issdsss",
     $user_id,
     $donor_name,
     $pet_name,
     $amount,
     $reference_number,
     $payment_method,
-    $receiptFilename,
-    $refund_deadline
+    $receiptFilename
 );
 
 if ($stmt->execute()) {
