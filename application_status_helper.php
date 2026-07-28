@@ -489,7 +489,7 @@ if (!columnExists($conn, 'adoption_applications', 'qr_data')) {
             aa.completed_photo,
             p.name AS pet_name,
             u.email AS user_email,
-            u.full_name AS user_full_name
+            u.full_name AS user_full_name,
             u.fcm_token AS user_fcm_token
             FROM adoption_applications aa
             JOIN users u ON aa.user_id = u.id
