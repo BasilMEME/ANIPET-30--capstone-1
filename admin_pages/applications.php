@@ -137,17 +137,32 @@ $pillLabels = [
     <div class="modal-body">
         <input type="hidden" id="statusAppId">
         <div class="form-group">
-            <label class="form-label">New Status *</label>
-            <select id="newStatus" class="form-control">
-                <option value="pending">Pending</option>
-                <option value="screening">Screening</option>
-                <option value="approved">Approved</option>
-                <option value="for_releasing">For Release</option>
-                <option value="ready_pickup">Ready for Pick-up</option>
-                <option value="completed">Completed</option>
-                <option value="rejected">Rejected</option>
-            </select>
-        </div>
+    <label class="form-label">New Status *</label>
+    <select id="newStatus" class="form-control">
+        <option value="pending">Pending</option>
+        <option value="screening">Screening</option>
+        <option value="approved">Approved</option>
+        <option value="for_releasing">For Release</option>
+        <option value="ready_pickup">Ready for Pick-up</option>
+        <option value="completed">Completed</option>
+        <option value="rejected">Rejected</option>
+    </select>
+</div>
+
+<div id="completedPhotoGroup" class="form-group" style="display:none;">
+    <label class="form-label">Completed Adoption Photo *</label>
+
+    <input
+        type="file"
+        id="completedPhoto"
+        class="form-control"
+        accept="image/jpeg,image/png,image/webp">
+
+    <small style="display:block;margin-top:6px;color:#666;">
+        Upload a photo of the adopter together with the adopted pet.
+        JPG, PNG, or WEBP only. Maximum 5 MB.
+    </small>
+</div>
         <div id="interviewDateGroup" class="form-group" style="display:none;">
             <label class="form-label">Interview / Screening Date &amp; Time</label>
             <input type="datetime-local" id="interviewDate" class="form-control">
@@ -256,41 +271,215 @@ async function viewApplication(id) {
     }
 }
 
-function e(str) { const d=document.createElement('div'); d.textContent=str||''; return d.innerHTML; }
-function fmtDate(s) { try { return new Date(s).toLocaleString(); } catch(e){ return s||'—'; } }
+function e(str) {
+    const d = document.createElement('div');
+    d.textContent = str || '';
+    return d.innerHTML;
+}
+
+function fmtDate(s) {
+    try {
+        return new Date(s).toLocaleString();
+    } catch (e) {
+        return s || '—';
+    }
+}
 
 function changeStatusModal(id, currentStatus) {
     document.getElementById('statusAppId').value = id;
-    setSelectVal('newStatus', currentStatus||'pending');
+    setSelectVal('newStatus', currentStatus || 'pending');
+
     document.getElementById('adminNotes').value = '';
     document.getElementById('interviewDate').value = '';
-    toggleInterviewField();
+
+    const completedPhoto = document.getElementById('completedPhoto');
+
+    if (completedPhoto) {
+        completedPhoto.value = '';
+    }
+
+    toggleStatusFields();
     openModal('statusModal');
 }
 
-function toggleInterviewField() {
-    const v   = document.getElementById('newStatus').value;
-    const grp = document.getElementById('interviewDateGroup');
-    grp.style.display = v==='screening' ? 'block' : 'none';
+function toggleStatusFields() {
+    const status = document.getElementById('newStatus').value;
+
+    const interviewGroup =
+        document.getElementById('interviewDateGroup');
+
+    const completedPhotoGroup =
+        document.getElementById('completedPhotoGroup');
+
+    interviewGroup.style.display =
+        status === 'screening' ? 'block' : 'none';
+
+    completedPhotoGroup.style.display =
+        status === 'completed' ? 'block' : 'none';
 }
-document.getElementById('newStatus').addEventListener('change', toggleInterviewField);
+
+document
+    .getElementById('newStatus')
+    .addEventListener('change', toggleStatusFields);
 
 async function submitStatusChange() {
-    const id     = document.getElementById('statusAppId').value;
-    const status = document.getElementById('newStatus').value;
-    const notes  = document.getElementById('adminNotes').value;
-    const intDt  = document.getElementById('interviewDate').value;
+    const id =
+        document.getElementById('statusAppId').value;
 
-    const body = new URLSearchParams({
-        action: 'update_application_status',
-        id, status,
-        admin_notes: notes,
-        interview_datetime: intDt,
-    });
-    const res  = await fetch('admin_api.php', {method:'POST', body});
-    const data = await res.json();
-    if (data.success) { showToast('Application updated!'); closeModal('statusModal'); location.reload(); }
-    else showToast(data.message,'error');
+    const status =
+        document.getElementById('newStatus').value;
+
+    const notes =
+        document.getElementById('adminNotes').value.trim();
+
+    const interviewDate =
+        document.getElementById('interviewDate').value;
+
+    const completedPhoto =
+        document.getElementById('completedPhoto');
+
+    if (status === 'screening' && !interviewDate) {
+        showToast(
+            'Please select an interview date and time.',
+            'error'
+        );
+        return;
+    }
+
+    if (
+        status === 'completed' &&
+        (!completedPhoto || completedPhoto.files.length === 0)
+    ) {
+        showToast(
+            'Please upload the completed adoption photo.',
+            'error'
+        );
+        return;
+    }
+
+    try {
+        /*
+         * Upload the completed-adoption photo first.
+         * This prevents the application from becoming Completed
+         * when the photo upload fails.
+         */
+        if (status === 'completed') {
+            const photoFile = completedPhoto.files[0];
+
+            const allowedTypes = [
+                'image/jpeg',
+                'image/png',
+                'image/webp'
+            ];
+
+            if (!allowedTypes.includes(photoFile.type)) {
+                showToast(
+                    'Only JPG, PNG, and WEBP images are allowed.',
+                    'error'
+                );
+                return;
+            }
+
+            if (photoFile.size > 5 * 1024 * 1024) {
+                showToast(
+                    'The photo must not exceed 5 MB.',
+                    'error'
+                );
+                return;
+            }
+
+            const uploadBody = new FormData();
+
+            uploadBody.append('application_id', id);
+            uploadBody.append('admin_role', 'admin');
+            uploadBody.append('completed_photo', photoFile);
+
+            const uploadResponse = await fetch(
+                'upload_completed_photo.php',
+                {
+                    method: 'POST',
+                    body: uploadBody
+                }
+            );
+
+            const uploadText = await uploadResponse.text();
+
+            let uploadData;
+
+            try {
+                uploadData = JSON.parse(uploadText);
+            } catch (error) {
+                console.error('Upload response:', uploadText);
+
+                showToast(
+                    'The photo upload returned an invalid response.',
+                    'error'
+                );
+                return;
+            }
+
+            if (!uploadResponse.ok || !uploadData.success) {
+                showToast(
+                    uploadData.message || 'Photo upload failed.',
+                    'error'
+                );
+                return;
+            }
+        }
+
+        const statusBody = new URLSearchParams({
+            action: 'update_application_status',
+            id: id,
+            status: status,
+            admin_notes: notes,
+            interview_datetime: interviewDate
+        });
+
+        const statusResponse = await fetch(
+            'admin_api.php',
+            {
+                method: 'POST',
+                body: statusBody
+            }
+        );
+
+        const statusText = await statusResponse.text();
+
+        let statusData;
+
+        try {
+            statusData = JSON.parse(statusText);
+        } catch (error) {
+            console.error('Status response:', statusText);
+
+            showToast(
+                'The status update returned an invalid response.',
+                'error'
+            );
+            return;
+        }
+
+        if (statusResponse.ok && statusData.success) {
+            showToast('Application updated!');
+            closeModal('statusModal');
+
+            setTimeout(() => {
+                location.reload();
+            }, 600);
+        } else {
+            showToast(
+                statusData.message || 'Status update failed.',
+                'error'
+            );
+        }
+    } catch (error) {
+        console.error(error);
+
+        showToast(
+            'Unable to update the application. Please try again.',
+            'error'
+        );
+    }
 }
 
 function scheduleInterviewModal(id, currentDatetime) {
