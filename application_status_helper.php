@@ -139,10 +139,17 @@ function sendApplicationStatusEmail(
     int $applicationId,
     string $status,
     ?string $interviewDatetime = null,
-    string $adminNotes = ''
+    string $adminNotes = '',
+    ?string $completedPhoto = null,
+    string $baseUrl = ''
 ): bool {
     $safeName = htmlspecialchars(
         trim($applicantName) !== '' ? $applicantName : 'Applicant',
+        ENT_QUOTES,
+        'UTF-8'
+    );
+    $safePetName = htmlspecialchars(
+        $petName,
         ENT_QUOTES,
         'UTF-8'
     );
@@ -163,6 +170,19 @@ function sendApplicationStatusEmail(
         "
         : '';
 
+    $completedPhotoBlock = '';
+
+    if ($status === 'completed' && !empty($completedPhoto) && !empty($baseUrl)) {
+        $photoUrl = rtrim($baseUrl, '/') . '/' . ltrim($completedPhoto, '/');
+        $safePhotoUrl = htmlspecialchars($photoUrl, ENT_QUOTES, 'UTF-8');
+        $completedPhotoBlock = "
+            <div style=\"margin-top:24px;padding:16px;background:#f7f3f1;border-radius:10px;text-align:center;\">
+                <h3 style=\"color:#7a3e2b;\">Completed Adoption Photo</h3>
+                <p>Here is a photo from the successful release of <strong>{$safePetName}</strong>.</p>
+                <img src=\"{$safePhotoUrl}\" style=\"width:100%;max-width:520px;border-radius:10px;border:1px solid #ddd;\">
+            </div>";
+    }
+
     $htmlBody = "
         <div style=\"font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#333;line-height:1.6;\">
             <h2 style=\"color:#7a3e2b;\">{$content['heading']}</h2>
@@ -172,6 +192,7 @@ function sendApplicationStatusEmail(
             <p>{$content['message']}</p>
 
             {$notesBlock}
+            {$completedPhotoBlock}
             <p>
                 Please continue checking your AniPet application tracker and
                 your email for further updates.
@@ -331,6 +352,7 @@ if (!columnExists($conn, 'adoption_applications', 'qr_data')) {
             aa.status AS current_status,
             aa.qr_code AS existing_qr_code,
             aa.qr_data AS existing_qr_data,
+            aa.completed_photo,
             p.name AS pet_name,
             u.email AS user_email,
             u.full_name AS user_full_name
@@ -460,7 +482,9 @@ if ($status === 'approved') {
                     $application_id,
                     $status,
                     $interview_datetime,
-                    $admin_notes
+                    $admin_notes,
+                    $appData['completed_photo'] ?? null,
+                    $base_url
                 );
             }
         }
