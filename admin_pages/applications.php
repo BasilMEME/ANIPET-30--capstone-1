@@ -264,6 +264,30 @@ async function viewApplication(id) {
 
         ${housePhotos.length ? `<div class="divider"></div><h4 style="font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">House Photos</h4><div style="display:flex;gap:8px;flex-wrap:wrap;">${housePhotos.map(p=>`<a href="${e(p)}" target="_blank"><img src="${e(p)}" style="width:80px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border);"></a>`).join('')}</div>` : ''}
 
+        ${a.completed_photo ? `
+            <div class="divider"></div>
+            <h4 style="font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;">
+                Completed Adoption Photo
+            </h4>
+            <div style="padding:14px;background:var(--surface-alt);border-radius:10px;text-align:center;">
+                <a href="${e(a.completed_photo)}" target="_blank" rel="noopener noreferrer">
+                    <img
+                        src="${e(a.completed_photo)}"
+                        alt="Completed adoption photo"
+                        style="display:block;width:100%;max-width:520px;max-height:420px;object-fit:contain;margin:0 auto;border-radius:10px;border:1px solid var(--border);"
+                        onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+                    <span style="display:none;color:var(--danger);font-size:.85rem;">
+                        The saved photo could not be loaded. Click here to open it directly.
+                    </span>
+                </a>
+                <div style="margin-top:10px;">
+                    <a href="${e(a.completed_photo)}" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-sm">
+                        🔍 View Full Photo
+                    </a>
+                </div>
+            </div>
+        ` : ''}
+
         ${formDataHtml}
         `;
     } catch(err) {
