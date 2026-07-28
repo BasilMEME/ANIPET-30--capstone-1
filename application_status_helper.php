@@ -4,10 +4,197 @@
 // (approve link, admin_api.php status modal, update_application_status.php)
 // stay in sync.
 require_once __DIR__ . '/smtp_config.php';
+require_once __DIR__ . '/gmail_api_helper.php';
 require_once __DIR__ . '/admin_pages/send_email.php';
 require_once __DIR__ . '/admin_pages/email_templates.php';
 
 const APPLICATION_STATUS_PIPELINE = ['pending', 'screening', 'approved', 'for_releasing', 'ready_pickup', 'completed', 'rejected'];
+
+
+function getApplicationStatusEmailContent(
+    string $status,
+    string $petName,
+    ?string $interviewDatetime = null
+): array {
+    $safePetName = htmlspecialchars($petName, ENT_QUOTES, 'UTF-8');
+
+    switch ($status) {
+        case 'pending':
+            return [
+                'subject' => 'AniPet Application Update: Pending',
+                'heading' => 'Your application is pending',
+                'message' => "
+                    Your adoption application for <strong>{$safePetName}</strong>
+                    is currently marked as <strong>Pending</strong>.
+                    It is waiting for review by the AniPet team.
+                "
+            ];
+
+        case 'screening':
+            $scheduleMessage = '';
+            if ($interviewDatetime) {
+                $formattedDate = date(
+                    'F j, Y \a\t g:i A',
+                    strtotime($interviewDatetime)
+                );
+                $safeDate = htmlspecialchars($formattedDate, ENT_QUOTES, 'UTF-8');
+                $scheduleMessage = "
+                    <p>
+                        <strong>Interview schedule:</strong> {$safeDate}
+                    </p>
+                ";
+            }
+
+            return [
+                'subject' => 'AniPet Application Update: Screening',
+                'heading' => 'Your application is now under screening',
+                'message' => "
+                    Your adoption application for <strong>{$safePetName}</strong>
+                    has moved to the <strong>Screening</strong> stage.
+                    Our team is reviewing your submitted information.
+                    {$scheduleMessage}
+                "
+            ];
+
+        case 'for_releasing':
+            return [
+                'subject' => 'AniPet Application Update: For Releasing',
+                'heading' => 'Your adopted pet is being prepared for release',
+                'message' => "
+                    Your application for <strong>{$safePetName}</strong>
+                    has moved to <strong>For Releasing</strong>.
+                    The AniPet team is preparing the remaining release requirements.
+                "
+            ];
+
+        case 'ready_pickup':
+            return [
+                'subject' => 'AniPet Application Update: Ready for Pickup',
+                'heading' => 'Your adopted pet is ready for pickup',
+                'message' => "
+                    Good news! <strong>{$safePetName}</strong> is now marked as
+                    <strong>Ready for Pickup</strong>.
+                    Please check your tracking details and follow the pickup
+                    instructions provided by the AniPet team.
+                "
+            ];
+
+        case 'completed':
+            return [
+                'subject' => 'AniPet Adoption Completed',
+                'heading' => 'Your adoption has been completed',
+                'message' => "
+                    Your adoption process for <strong>{$safePetName}</strong>
+                    is now marked as <strong>Completed</strong>.
+                    Thank you for giving a pet a loving home.
+                "
+            ];
+
+        case 'rejected':
+            return [
+                'subject' => 'AniPet Application Update',
+                'heading' => 'Update regarding your adoption application',
+                'message' => "
+                    Your adoption application for <strong>{$safePetName}</strong>
+                    has been marked as <strong>Rejected</strong>.
+                    Please check your AniPet tracking page or contact the AniPet
+                    team if additional details were provided.
+                "
+            ];
+
+        default:
+            return [
+                'subject' => 'AniPet Application Status Update',
+                'heading' => 'Your application status has changed',
+                'message' => "
+                    The status of your adoption application for
+                    <strong>{$safePetName}</strong> has been updated.
+                "
+            ];
+    }
+}
+
+function sendApplicationStatusEmail(
+    string $recipientEmail,
+    string $applicantName,
+    string $petName,
+    int $applicationId,
+    string $status,
+    ?string $interviewDatetime = null,
+    string $adminNotes = ''
+): bool {
+    $safeName = htmlspecialchars(
+        trim($applicantName) !== '' ? $applicantName : 'Applicant',
+        ENT_QUOTES,
+        'UTF-8'
+    );
+    $safeApplicationId = htmlspecialchars(
+        (string)$applicationId,
+        ENT_QUOTES,
+        'UTF-8'
+    );
+    $safeNotes = htmlspecialchars(trim($adminNotes), ENT_QUOTES, 'UTF-8');
+
+    $content = getApplicationStatusEmailContent(
+        $status,
+        $petName,
+        $interviewDatetime
+    );
+
+    $notesBlock = $safeNotes !== ''
+        ? "
+            <div style=\"margin-top:20px;padding:14px;background:#f7f3f1;border-radius:8px;\">
+                <strong>Message from AniPet:</strong><br>
+                " . nl2br($safeNotes) . "
+            </div>
+        "
+        : '';
+
+    $htmlBody = "
+        <div style=\"font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#333;line-height:1.6;\">
+            <h2 style=\"color:#7a3e2b;\">{$content['heading']}</h2>
+
+            <p>Hello {$safeName},</p>
+
+            <p>{$content['message']}</p>
+
+            {$notesBlock}
+
+            <p>
+                <strong>Application ID:</strong> {$safeApplicationId}
+            </p>
+
+            <p>
+                Please continue checking your AniPet application tracker and
+                your email for further updates.
+            </p>
+
+            <p style=\"margin-top:30px;\">
+                Regards,<br>
+                <strong>AniPet Team</strong>
+            </p>
+        </div>
+    ";
+
+    try {
+        sendGmailMessage(
+            $recipientEmail,
+            $content['subject'],
+            $htmlBody
+        );
+        return true;
+    } catch (Throwable $e) {
+        error_log(
+            'Application status email failed for application ' .
+            $applicationId .
+            ' (' .
+            $status .
+            '): ' .
+            $e->getMessage()
+        );
+        return false;
+    }
+}
 
 function generateApplicationQRCode($data, $app_id) {
     $qr_dir = __DIR__ . '/qrcodes';
@@ -160,6 +347,8 @@ $isNewApproval = (
     && $previousStatus !== 'approved'
 );
 
+$statusChanged = ($status !== $previousStatus);
+
 $qr_code = null;
 $qr_data = null;
 
@@ -239,37 +428,48 @@ if ($status === 'approved') {
 
         $emailSent = null;
 
-if (
-    $isNewApproval
-    && $qr_code
-    && !empty($appData['user_email'])
-) {
-    $emailSent = sendApplicationApproved(
-    $appData['user_email'],
-    $appData['user_full_name'],
-    $base_url . $qr_code,
-    $appData['pet_name']
-);
-}
+        if (
+            $statusChanged
+            && !empty($appData['user_email'])
+        ) {
+            if (
+                $status === 'approved'
+                && $qr_code
+            ) {
+                // The existing approval email already includes the QR code,
+                // so do not send a second generic status email.
+                $emailSent = sendApplicationApproved(
+                    $appData['user_email'],
+                    $appData['user_full_name'],
+                    $base_url . $qr_code,
+                    $appData['pet_name']
+                );
+            } else {
+                $emailSent = sendApplicationStatusEmail(
+                    $appData['user_email'],
+                    $appData['user_full_name'] ?: $appData['applicant_name'],
+                    $appData['pet_name'],
+                    $application_id,
+                    $status,
+                    $interview_datetime,
+                    $admin_notes
+                );
+            }
+        }
 
         return [
-    "success" => true,
-    "message" =>
-        $status === 'approved'
-            ? (
-                $emailSent === true
-                    ? "Application approved and the QR email was sent."
-                    : (
-                        $isNewApproval
-                            ? "Application approved, but the QR email could not be sent."
-                            : "Application remains approved."
-                    )
-            )
-            : "Application status updated to " . $status,
-    "status" => $status,
-    "qr_code" => $qr_code,
-    "email_sent" => $emailSent
-];
+            "success" => true,
+            "message" => !$statusChanged
+                ? "Application remains " . $status . ". No duplicate email was sent."
+                : (
+                    $emailSent === true
+                        ? "Application status updated to " . $status . " and the applicant was emailed."
+                        : "Application status updated to " . $status . ", but the email could not be sent."
+                ),
+            "status" => $status,
+            "qr_code" => $qr_code,
+            "email_sent" => $emailSent
+        ];
     } catch (Exception $e) {
         $conn->rollback();
         return ["success" => false, "message" => "Error: " . $e->getMessage()];
