@@ -302,6 +302,84 @@ function syncInterviewAppointment(mysqli $conn, int $application_id, array $appD
     $stmt->close();
 }
 
+function createApplicationNotification(
+    mysqli $conn,
+    int $userId,
+    int $applicationId,
+    string $status,
+    string $petName
+): void {
+
+    switch ($status) {
+
+        case 'pending':
+            $title = "Application Reopened";
+            $message = "Your application for {$petName} has been moved back to Pending.";
+            break;
+
+        case 'screening':
+            $title = "Application Under Screening";
+            $message = "Your application for {$petName} is now under screening.";
+            break;
+
+        case 'approved':
+            $title = "Application Approved";
+            $message = "Congratulations! Your application for {$petName} has been approved.";
+            break;
+
+        case 'for_releasing':
+            $title = "For Releasing";
+            $message = "Your adopted pet {$petName} is now being prepared for release.";
+            break;
+
+        case 'ready_pickup':
+            $title = "Ready for Pickup";
+            $message = "Your adopted pet {$petName} is ready for pickup.";
+            break;
+
+        case 'completed':
+            $title = "Adoption Completed";
+            $message = "Congratulations! Your adoption of {$petName} has been completed.";
+            break;
+
+        case 'rejected':
+            $title = "Application Rejected";
+            $message = "We're sorry. Your application for {$petName} has been rejected.";
+            break;
+
+        default:
+            return;
+    }
+
+    $stmt = $conn->prepare("
+        INSERT INTO user_notifications
+        (
+            user_id,
+            application_id,
+            title,
+            message,
+            type,
+            is_read,
+            created_at
+        )
+        VALUES
+        (
+            ?, ?, ?, ?, 'application', 0, NOW()
+        )
+    ");
+
+    $stmt->bind_param(
+        "iiss",
+        $userId,
+        $applicationId,
+        $title,
+        $message
+    );
+
+    $stmt->execute();
+    $stmt->close();
+}
+
 // Moves an application to a new pipeline status, generating/emailing the QR on
 // approval and keeping the linked pet's status in sync. Returns the same
 // success/message/qr_code shape regardless of caller (HTTP endpoint or admin action).
@@ -456,7 +534,17 @@ if ($status === 'approved') {
 
         $conn->commit();
 
-        $emailSent = null;
+if ($statusChanged) {
+    createApplicationNotification(
+        $conn,
+        (int)$appData['user_id'],
+        $application_id,
+        $status,
+        $appData['pet_name']
+    );
+}
+
+$emailSent = null;
 
         if (
             $statusChanged
