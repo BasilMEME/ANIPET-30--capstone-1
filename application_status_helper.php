@@ -74,8 +74,26 @@ function getApplicationStatusEmailContent(
                 'message' => "
                     Good news! <strong>{$safePetName}</strong> is now marked as
                     <strong>Ready for Pickup</strong>.
-                    Please check your tracking details and follow the pickup
-                    instructions provided by the AniPet team.
+                </p>
+
+                <p>
+                    You may pick up your pet at:
+                </p>
+
+                <p>
+                    <strong>Caloocan City Animal Pound</strong><br>
+                    Q356+R7W, Barangay 178, Caloocan, Metro Manila
+                </p>
+
+                <p>
+                    <a
+                     href='https://www.google.com/maps/search/?api=1&amp;query=Caloocan+City+Animal+Pound%2C+Q356%2BR7W%2C+Barangay+178%2C+Caloocan%2C+Metro+Manila'
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        style='display:inline-block;padding:10px 16px;background:#7a3e2b;color:#ffffff;text-decoration:none;border-radius:6px;'
+                    >
+                        Open location in Google Maps
+                    </a>
                 "
             ];
 
@@ -128,11 +146,6 @@ function sendApplicationStatusEmail(
         ENT_QUOTES,
         'UTF-8'
     );
-    $safeApplicationId = htmlspecialchars(
-        (string)$applicationId,
-        ENT_QUOTES,
-        'UTF-8'
-    );
     $safeNotes = htmlspecialchars(trim($adminNotes), ENT_QUOTES, 'UTF-8');
 
     $content = getApplicationStatusEmailContent(
@@ -159,11 +172,6 @@ function sendApplicationStatusEmail(
             <p>{$content['message']}</p>
 
             {$notesBlock}
-
-            <p>
-                <strong>Application ID:</strong> {$safeApplicationId}
-            </p>
-
             <p>
                 Please continue checking your AniPet application tracker and
                 your email for further updates.
