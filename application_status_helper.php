@@ -7,6 +7,7 @@ require_once __DIR__ . '/smtp_config.php';
 require_once __DIR__ . '/gmail_api_helper.php';
 require_once __DIR__ . '/admin_pages/send_email.php';
 require_once __DIR__ . '/admin_pages/email_templates.php';
+require_once __DIR__ . '/firebase_helper.php';
 
 const APPLICATION_STATUS_PIPELINE = ['pending', 'screening', 'approved', 'for_releasing', 'ready_pickup', 'completed', 'rejected'];
 
@@ -302,6 +303,61 @@ function syncInterviewAppointment(mysqli $conn, int $application_id, array $appD
     $stmt->close();
 }
 
+function getApplicationPushContent(
+    string $status,
+    string $petName
+): array {
+    switch ($status) {
+        case 'pending':
+            return [
+                'title' => 'Application Reopened',
+                'message' => "Your application for {$petName} has been moved back to Pending."
+            ];
+
+        case 'screening':
+            return [
+                'title' => 'Application Under Screening',
+                'message' => "Your application for {$petName} is now under screening."
+            ];
+
+        case 'approved':
+            return [
+                'title' => 'Application Approved',
+                'message' => "Congratulations! Your application for {$petName} has been approved."
+            ];
+
+        case 'for_releasing':
+            return [
+                'title' => 'For Releasing',
+                'message' => "{$petName} is now being prepared for release."
+            ];
+
+        case 'ready_pickup':
+            return [
+                'title' => 'Ready for Pickup',
+                'message' => "{$petName} is ready for pickup."
+            ];
+
+        case 'completed':
+            return [
+                'title' => 'Adoption Completed',
+                'message' => "Your adoption of {$petName} has been completed."
+            ];
+
+        case 'rejected':
+            return [
+                'title' => 'Application Rejected',
+                'message' => "Your application for {$petName} has been rejected."
+            ];
+
+        default:
+            return [
+                'title' => 'AniPet Application Update',
+                'message' => "Your application for {$petName} has been updated."
+            ];
+    }
+}
+
 function createApplicationNotification(
     mysqli $conn,
     int $userId,
@@ -434,6 +490,7 @@ if (!columnExists($conn, 'adoption_applications', 'qr_data')) {
             p.name AS pet_name,
             u.email AS user_email,
             u.full_name AS user_full_name
+            u.fcm_token AS user_fcm_token
             FROM adoption_applications aa
             JOIN users u ON aa.user_id = u.id
             JOIN pets p ON aa.pet_id = p.id
@@ -534,6 +591,8 @@ if ($status === 'approved') {
 
         $conn->commit();
 
+$pushSent = null;
+
 if ($statusChanged) {
     createApplicationNotification(
         $conn,
@@ -542,6 +601,30 @@ if ($statusChanged) {
         $status,
         $appData['pet_name']
     );
+
+    if (!empty($appData['user_fcm_token'])) {
+        $pushContent = getApplicationPushContent(
+            $status,
+            $appData['pet_name']
+        );
+
+        $pushSent = sendFirebaseNotification(
+            $appData['user_fcm_token'],
+            $pushContent['title'],
+            $pushContent['message'],
+            [
+                'type' => 'application',
+                'application_id' => (string)$application_id,
+                'status' => $status
+            ]
+        );
+    } else {
+        error_log(
+            "No FCM token found for user " . $appData['user_id']
+        );
+
+        $pushSent = false;
+    }
 }
 
 $emailSent = null;
@@ -588,7 +671,8 @@ $emailSent = null;
                 ),
             "status" => $status,
             "qr_code" => $qr_code,
-            "email_sent" => $emailSent
+            "email_sent" => $emailSent,
+            "push_sent" => $pushSent
         ];
     } catch (Exception $e) {
         $conn->rollback();
