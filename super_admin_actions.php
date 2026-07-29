@@ -23,7 +23,7 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AniPet Super Admin Actions</title>
+    <title>Staff Management</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -78,8 +78,8 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
 <div class="container">
     <div class="header">
         <div>
-            <h1>Super Admin Operations</h1>
-            <p class="note">Execute admin, user, pet, and application actions directly from one panel.</p>
+            <h1>Staff Management</h1>
+            <p>Manage pet pound staff accounts, permissions, and access.</p>
         </div>
         <a class="btn btn-secondary" href="super_admin_dashboard.php">Return to Dashboard</a>
     </div>
@@ -138,127 +138,8 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
                 <div class="action-row"><button class="btn btn-primary" type="submit">Create Admin</button></div>
             </form>
         </div>
-        <div class="card">
-            <h2>User Accounts</h2>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>State</th><th>Actions</th></tr></thead>
-                    <tbody>
-                    <?php foreach ($users as $user): ?>
-                        <tr>
-                            <td><?php echo $user['id']; ?></td>
-                            <td><?php echo htmlspecialchars($user['username']); ?></td>
-                            <td><?php echo htmlspecialchars($user['full_name']); ?></td>
-                            <td><?php echo htmlspecialchars($user['email']); ?></td>
-                            <td><?php echo htmlspecialchars($user['role']); ?></td>
-                            <td><?php echo $user['is_deleted'] ? 'Deleted' : ($user['is_suspended'] ? 'Suspended' : 'Active'); ?></td>
-                            <td class="inline-actions">
-                                <?php if (!$user['is_deleted']): ?>
-                                    <button class="btn btn-secondary" onclick="suspendUser(<?php echo $user['id']; ?>)">Suspend</button>
-                                    <button class="btn btn-secondary" onclick="deleteUser(<?php echo $user['id']; ?>)">Delete</button>
-                                <?php else: ?>
-                                    <button class="btn btn-primary" onclick="restoreUser(<?php echo $user['id']; ?>)">Restore</button>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
     </section>
 
-    <section class="section">
-        <div class="card">
-            <h2>Pet Records</h2>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>ID</th><th>Name</th><th>Breed</th><th>Age</th><th>Gender</th><th>Status</th><th>Shelter</th><th>Actions</th></tr></thead>
-                    <tbody>
-                    <?php foreach ($pets as $pet): ?>
-                        <tr>
-                            <td><?php echo $pet['id']; ?></td>
-                            <td><?php echo htmlspecialchars($pet['name']); ?><?php if ($pet['is_archived']): ?> <em style="color:var(--muted);font-style:normal;font-size:.78rem;">(archived)</em><?php endif; ?></td>
-                            <td><?php echo htmlspecialchars($pet['breed']); ?></td>
-                            <td><?php echo htmlspecialchars($pet['age']); ?></td>
-                            <td><?php echo htmlspecialchars($pet['gender']); ?></td>
-                            <td><?php echo htmlspecialchars($pet['status']); ?></td>
-                            <td><?php echo htmlspecialchars($pet['shelter_id'] ?? ''); ?></td>
-                            <td class="inline-actions">
-                                <button class="btn btn-secondary" type="button" onclick="populatePetForm(<?php echo $pet['id']; ?>)">Edit</button>
-                                <?php if ($pet['is_archived']): ?>
-                                <button class="btn btn-secondary" type="button" onclick="quickSetArchived(<?php echo $pet['id']; ?>, false)">Unarchive</button>
-                                <?php else: ?>
-                                <button class="btn btn-secondary" type="button" onclick="quickSetArchived(<?php echo $pet['id']; ?>, true)">Archive</button>
-                                <?php endif; ?>
-                                <button class="btn btn-secondary" type="button" onclick="deletePet(<?php echo $pet['id']; ?>)">Delete</button>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
-    <section class="section grid" id="petFormSection">
-        <div class="card">
-            <h2 id="petFormTitle">Create / Edit Pet</h2>
-            <form id="petForm" enctype="multipart/form-data">
-                <input type="hidden" name="id" id="petId">
-                <div class="input-group"><label>Name</label><input type="text" name="name" id="petName" required></div>
-                <div class="input-group"><label>Breed</label><input type="text" name="breed" id="petBreed" required></div>
-                <div class="input-group"><label>Age</label><input type="text" name="age" id="petAge"></div>
-                <div class="input-group"><label>Gender</label><select name="gender" id="petGender"><option value="Male">Male</option><option value="Female">Female</option><option value="Unknown">Unknown</option></select></div>
-                <div class="input-group"><label>Status</label><select name="status" id="petStatus"><option value="available">Available</option><option value="reserved">Reserved</option><option value="in_adoption">In Adoption</option><option value="adopted">Adopted</option><option value="under_treatment">Under Treatment</option></select></div>
-                <div class="input-group"><label>Shelter</label><select name="shelter_id" id="petShelter">
-                    <option value="0">None</option>
-                    <?php foreach ($shelters as $shelter): ?>
-                        <option value="<?php echo $shelter['id']; ?>"><?php echo htmlspecialchars($shelter['name']); ?></option>
-                    <?php endforeach; ?>
-                </select></div>
-                <div class="input-group"><label>Description</label><textarea name="description" id="petDescription" rows="4"></textarea></div>
-                <div class="input-group"><label>Health Status</label><input type="text" name="health_status" id="petHealth"></div>
-                <div class="input-group"><label>Pet Image</label><input type="file" id="petImages" name="images[]" accept="image/jpeg,image/png,image/webp"multiple></div>
-                <div class="action-row"><button class="btn btn-primary" type="button" onclick="savePet()">Save Pet</button><button class="btn btn-secondary" type="button" onclick="resetPetForm()">Clear</button></div>
-            </form>
-        </div>
-    </section>
-
-    <section class="section grid">
-        <div class="card">
-            <h2>Pet Actions</h2>
-            <form id="petActionForm">
-                <div class="input-group"><label>Pet ID</label><input type="number" name="id" required></div>
-                <div class="input-group"><label>Transfer to Shelter</label><select name="shelter_id" required>
-                    <option value="">Select shelter</option>
-                    <?php foreach ($shelters as $shelter): ?>
-                        <option value="<?php echo $shelter['id']; ?>"><?php echo htmlspecialchars($shelter['name']); ?></option>
-                    <?php endforeach; ?>
-                </select></div>
-                <div class="action-row"><button class="btn btn-primary" type="button" onclick="transferPet()">Transfer Pet</button><button class="btn btn-secondary" type="button" onclick="archivePet()">Archive Pet</button><button class="btn btn-secondary" type="button" onclick="unarchivePet()">Unarchive Pet</button></div>
-            </form>
-        </div>
-        <div class="card">
-            <h2>Application Override</h2>
-            <form id="appActionForm">
-                <div class="input-group"><label>Application ID</label><input type="number" name="id" required></div>
-                <div class="input-group"><label>New Status</label><select name="status" required>
-                    <option value="pending">Pending</option>
-                    <option value="screening">Screening</option>
-                    <option value="approved">Approved</option>
-                    <option value="for_releasing">For Releasing</option>
-                    <option value="ready_pickup">Ready Pickup</option>
-                    <option value="completed">Completed</option>
-                    <option value="rejected">Rejected</option>
-                </select></div>
-                <div class="input-group"><label>Admin Notes</label><input type="text" name="admin_notes" placeholder="Reason for override"></div>
-                <div class="action-row"><button class="btn btn-primary" type="button" onclick="overrideApplication()">Override</button><button class="btn btn-secondary" type="button" onclick="reopenApplication()">Reopen</button></div>
-            </form>
-        </div>
-    </section>
-</div>
-<script>
     const apiEndpoint = 'super_admin_api.php';
     const petsData = <?php echo json_encode($pets); ?>;
     const adminsData = <?php echo json_encode($admins); ?>;
@@ -521,75 +402,6 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
                 });
         });
 
-    function suspendUser(id) {
-        const formData = new FormData();
-        formData.append('action', 'suspend_user');
-        formData.append('id', id);
-
-        apiRequest(formData)
-            .then(data => {
-                alert(data.message || (
-                    data.success
-                        ? 'User suspended.'
-                        : 'User suspension failed.'
-                ));
-
-                if (data.success) {
-                    window.location.reload();
-                }
-            })
-            .catch(error => {
-                handleApiError(error, 'Suspend failed.');
-            });
-    }
-
-    function deleteUser(id) {
-        if (!confirm('Delete this user account?')) {
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('action', 'delete_user');
-        formData.append('id', id);
-
-        apiRequest(formData)
-            .then(data => {
-                alert(data.message || (
-                    data.success
-                        ? 'User deleted.'
-                        : 'User deletion failed.'
-                ));
-
-                if (data.success) {
-                    window.location.reload();
-                }
-            })
-            .catch(error => {
-                handleApiError(error, 'Delete failed.');
-            });
-    }
-
-    function restoreUser(id) {
-        const formData = new FormData();
-        formData.append('action', 'restore_user');
-        formData.append('id', id);
-
-        apiRequest(formData)
-            .then(data => {
-                alert(data.message || (
-                    data.success
-                        ? 'User restored.'
-                        : 'User restore failed.'
-                ));
-
-                if (data.success) {
-                    window.location.reload();
-                }
-            })
-            .catch(error => {
-                handleApiError(error, 'Restore failed.');
-            });
-    }
 
     function populatePetForm(id) {
         const pet = petsData.find(item => item.id == id);
