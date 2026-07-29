@@ -236,7 +236,6 @@ $conn->close();
 
         <div class="nav-title">Overview</div>
         <a class="nav-link active" href="#dashboard">Dashboard</a>
-        <a class="nav-link" href="#statistics">Pound Statistics</a>
 
         <div class="nav-title">Pound Operations</div>
         <a class="nav-link" href="admin_workspace.php?page=pets">Pet Management</a>
@@ -246,15 +245,13 @@ $conn->close();
         <a class="nav-link" href="admin_workspace.php?page=pet_pound">Pet Pound</a>
         <a class="nav-link" href="admin_workspace.php?page=returns">Returns & Penalties</a>
         <a class="nav-link" href="admin_workspace.php?page=notifications">Notifications</a>
-        <a class="nav-link" href="admin_workspace.php?page=reports">Reports</a>
 
-        <div class="nav-title">Owner Management</div>
+        <div class="nav-title">Owner Tools</div>
         <a class="nav-link" href="super_admin_actions.php">Staff Management</a>
-        <a class="nav-link" href="super_admin_donations.php">Donation Management</a>
+        <a class="nav-link" href="super_admin_donations.php">Donations</a>
+        <a class="nav-link" href="admin_workspace.php?page=reports">Reports</a>
         <a class="nav-link" href="super_admin_activity.php">Activity History</a>
         <a class="nav-link" href="super_admin_settings.php">System Settings</a>
-
-        <div class="nav-title">Protected Tools</div>
         <a class="nav-link" href="super_admin_security.php">Account Safety</a>
         <a class="nav-link" href="super_admin_database.php">Backup & Recovery</a>
 
@@ -361,14 +358,15 @@ $conn->close();
         </section>
 
         <section class="section">
-            <div class="section-head"><div><h2>Owner Tools</h2><p>Existing Super Admin functions remain available using clearer labels.</p></div></div>
+            <div class="section-head"><div><h2>Owner Tools</h2><p>Owner-only controls for staff, reports, security, and system maintenance.</p></div></div>
             <div class="grid quick-grid">
-                <div class="card quick-card"><h3>Activity History</h3><p>See who logged in and what changes were made in the system.</p><a href="super_admin_activity.php">View Activity History →</a></div>
+                <div class="card quick-card"><h3>Staff Management</h3><p>Create staff accounts, update permissions, reset passwords, and suspend access.</p><a href="super_admin_actions.php">Open Staff Management →</a></div>
+                <div class="card quick-card"><h3>Donations</h3><p>Review donation records, verify submissions, and monitor incoming support.</p><a href="super_admin_donations.php">Open Donations →</a></div>
+                <div class="card quick-card"><h3>Reports</h3><p>Review adoption, pet, user, appointment, return, and donation information.</p><a href="admin_workspace.php?page=reports">Open Reports →</a></div>
+                <div class="card quick-card"><h3>Activity History</h3><p>See who logged in and what important changes were made in the system.</p><a href="super_admin_activity.php">View Activity History →</a></div>
                 <div class="card quick-card"><h3>System Settings</h3><p>Manage pound information, email, notifications, and other system options.</p><a href="super_admin_settings.php">Open System Settings →</a></div>
                 <div class="card quick-card"><h3>Account Safety</h3><p>Review staff permissions, password rules, and account protection options.</p><a href="super_admin_security.php">Open Account Safety →</a></div>
                 <div class="card quick-card"><h3>Backup & Recovery</h3><p>Create or restore a system backup when maintenance is required.</p><a href="super_admin_database.php">Open Backup & Recovery →</a></div>
-                <div class="card quick-card"><h3>Adoption Monitoring</h3><p>Review the overall movement and progress of adoption applications.</p><a href="super_admin_monitoring.php">Open Adoption Monitoring →</a></div>
-                <div class="card quick-card"><h3>User Accounts</h3><p>Review adopter accounts and perform owner-level account actions.</p><a href="super_admin_control_panel.php">Open User Accounts →</a></div>
             </div>
         </section>
 
