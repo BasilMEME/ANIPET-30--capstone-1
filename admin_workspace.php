@@ -51,6 +51,7 @@ $pageInfo = [
     'settings'          => ['title' => 'Settings',               'icon' => '⚙️', 'sub' => 'Penalty, beneficiary & donation settings'],
 ];
 $pi = $pageInfo[$page];
+$isSuperAdmin = current_user_role() === 'super_admin';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -270,6 +271,13 @@ select.form-control{cursor:pointer;}
         Dashboard
     </a>
 
+    <?php if ($isSuperAdmin): ?>
+<a href="super_admin_dashboard.php" class="nav-link">
+    <span class="nav-icon">👑</span>
+    Owner Panel
+</a>
+<?php endif; ?>
+
     <div class="nav-label" style="margin-top:8px;">Operations</div>
 
     <a href="?page=pets" class="nav-link <?php echo $page==='pets'?'active':''; ?>">
@@ -360,14 +368,32 @@ select.form-control{cursor:pointer;}
             <small><?php echo htmlspecialchars($pi['sub']); ?></small>
         </div>
         <div class="topbar-right">
-            <span class="topbar-date"><?php echo date('F j, Y'); ?></span>
-            <button class="notif-btn" onclick="location.href='?page=applications'" title="Pending alerts">
-                🔔
-                <?php if ($notifBadge > 0): ?>
-                <span class="notif-count"><?php echo $notifBadge; ?></span>
-                <?php endif; ?>
-            </button>
-        </div>
+
+    <?php if ($isSuperAdmin): ?>
+        <a href="super_admin_dashboard.php" class="btn btn-ghost btn-sm">
+            ← Back to Owner Panel
+        </a>
+    <?php endif; ?>
+
+    <span class="topbar-date">
+        <?php echo date('F j, Y'); ?>
+    </span>
+
+    <button
+        class="notif-btn"
+        onclick="location.href='?page=applications'"
+        title="Pending alerts"
+    >
+        🔔
+
+        <?php if ($notifBadge > 0): ?>
+            <span class="notif-count">
+                <?php echo $notifBadge; ?>
+            </span>
+        <?php endif; ?>
+    </button>
+
+</div>
     </header>
 
     <div class="content">
