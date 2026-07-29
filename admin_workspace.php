@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/auth_helper.php';
-require_admin();
+require_admin_or_super();
 
 $page = $_GET['page'] ?? 'dashboard';
 
