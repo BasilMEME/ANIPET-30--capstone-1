@@ -70,8 +70,15 @@ if ($method === "POST") {
     $query = $conn->prepare("
         SELECT
             aa.id, aa.pet_id, aa.user_id, aa.applicant_name, aa.message,
-            aa.status, aa.qr_code, aa.admin_notes, aa.interview_datetime, aa.form_data,
-            aa.created_at, aa.screened_by,
+            aa.status,
+            aa.qr_code,
+            aa.admin_notes,
+            aa.interview_datetime,
+            aa.ready_pickup_at,
+            aa.pickup_deadline,
+            aa.form_data,
+            aa.created_at,
+            aa.screened_by,
             p.name as pet_name, p.image as pet_image,
             u.full_name as user_name, u.email as user_email
         FROM adoption_applications aa

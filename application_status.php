@@ -27,6 +27,25 @@ $statuses = ['pending','screening','approved','for_releasing','ready_pickup','co
 $current_index = array_search($app['status'], $statuses);
 $completed_steps = $current_index !== false ? $current_index + 1 : 0;
 
+$pickupDeadlineText = '';
+$pickupDeadlineExpired = false;
+
+if (
+    $app['status'] === 'ready_pickup' &&
+    !empty($app['pickup_deadline'])
+) {
+    $deadlineTimestamp = strtotime($app['pickup_deadline']);
+
+    if ($deadlineTimestamp !== false) {
+        $pickupDeadlineText = date(
+            'F j, Y \a\t g:i A',
+            $deadlineTimestamp
+        );
+
+        $pickupDeadlineExpired = time() > $deadlineTimestamp;
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -41,6 +60,27 @@ $completed_steps = $current_index !== false ? $current_index + 1 : 0;
         .progress{display:flex;gap:8px;margin-top:12px}
         .step{flex:1;padding:8px;border-radius:6px;background:#eee;text-align:center}
         .step.done{background:#cfead7}
+
+        .pickup-deadline{
+            margin-top:16px;
+            padding:16px;
+            border-radius:8px;
+            background:#fff4d6;
+            border:1px solid #f0d58c;
+        }
+
+        .pickup-deadline.expired{
+            background:#ffe5e5;
+            border-color:#e8a2a2;
+        }
+
+        .pickup-deadline h3{
+            margin:0 0 8px;
+        }
+
+        .pickup-deadline p{
+            margin:5px 0;
+        }
     </style>
 </head>
 <body>
@@ -48,6 +88,57 @@ $completed_steps = $current_index !== false ? $current_index + 1 : 0;
     <h2>Application #<?php echo $app['id']; ?> — <?php echo htmlspecialchars($app['applicant_name']); ?></h2>
     <p class="muted">Pet: <?php echo htmlspecialchars($app['pet_name']); ?></p>
     <p>Status: <strong><?php echo htmlspecialchars(ucfirst($app['status'])); ?></strong></p>
+    <?php if (
+    $app['status'] === 'ready_pickup' &&
+    !empty($pickupDeadlineText)
+    ): ?>
+
+        <div class="pickup-deadline <?php echo $pickupDeadlineExpired ? 'expired' : ''; ?>">
+
+            <?php if ($pickupDeadlineExpired): ?>
+
+                <h3>⚠ Pickup Deadline Expired</h3>
+
+                <p>
+                    The required 3-business-day pickup period has ended.
+                </p>
+
+                <p>
+                    Your application may now be rejected because the pet
+                    was not collected before the deadline.
+                </p>
+
+                <p>
+                    <strong>Deadline:</strong>
+                    <?php echo htmlspecialchars($pickupDeadlineText); ?>
+                </p>
+
+            <?php else: ?>
+
+                <h3>📅 Pickup Deadline</h3>
+
+                <p>Your pet is ready for pick-up.</p>
+
+                <p>
+                    Please collect the pet on or before:
+                </p>
+
+                <p>
+                    <strong>
+                        <?php echo htmlspecialchars($pickupDeadlineText); ?>
+                    </strong>
+                </p>
+
+                <p class="muted">
+                    Failure to collect the pet within 3 business days may
+                    result in rejection of the application.
+                </p>
+
+            <?php endif; ?>
+
+        </div>
+
+    <?php endif; ?>
 
     <div class="progress">
         <?php foreach ($statuses as $i => $s):
