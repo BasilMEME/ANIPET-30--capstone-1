@@ -590,7 +590,13 @@ if (
     }
 }
 
-if ($status === 'approved') {
+if (
+    in_array(
+        $status,
+        ['approved', 'for_releasing', 'ready_pickup'],
+        true
+    )
+) {
     $existingQrPath = $appData['existing_qr_code'] ?? '';
     $existingQrFile = !empty($existingQrPath)
         ? __DIR__ . '/' . ltrim($existingQrPath, '/')
@@ -686,7 +692,7 @@ if ($status === 'approved') {
             throw new Exception("Failed to update application");
         }
 
-        if ($status === 'approved') {
+        if (in_array($status, ['approved', 'for_releasing', 'ready_pickup'], true)) {
             $petStmt = $conn->prepare("UPDATE pets SET status = 'in_adoption' WHERE id = ?");
             $petStmt->bind_param("i", $appData['pet_id']);
             $petStmt->execute();

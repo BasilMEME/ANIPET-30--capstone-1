@@ -1299,7 +1299,7 @@ try {
             $filename = 'anipet_export_' . date('Ymd_His') . '.sql';
             $tempPath = $backupDir . '/' . $filename . '.tmp';
             $finalPath = $backupDir . '/' . $filename;
-            $tables = ['users', 'pets', 'adoption_applications', 'return_requests', 'adoption_records', 'appointments', 'shelters', 'system_settings', 'audit_logs'];
+            $tables = ['users', 'pets', 'adoption_applications', 'adoption_records', 'appointments', 'shelters', 'system_settings', 'audit_logs'];
             $dump = "-- AniPet export generated " . date('c') . "\n";
             foreach ($tables as $table) {
                 $res = $conn->query("SHOW CREATE TABLE `{$table}`");
@@ -1409,7 +1409,7 @@ try {
             if (!is_dir($backupDir)) { mkdir($backupDir, 0755, true); }
             $filename = 'anipet_backup_' . date('Ymd_His') . '.sql';
             $path = $backupDir . '/' . $filename;
-            $tables = ['users', 'pets', 'adoption_applications', 'return_requests', 'adoption_records', 'appointments', 'shelters', 'system_settings', 'audit_logs'];
+            $tables = ['users', 'pets', 'adoption_applications', 'adoption_records', 'appointments', 'shelters', 'system_settings', 'audit_logs'];
             $dump = "-- AniPet backup generated " . date('c') . "\n";
             foreach ($tables as $table) {
                 $res = $conn->query("SHOW CREATE TABLE `{$table}`");

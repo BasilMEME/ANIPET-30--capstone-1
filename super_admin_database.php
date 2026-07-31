@@ -17,7 +17,7 @@ function formatSizeMB($bytes) {
     return round($bytes / 1024 / 1024, 2);
 }
 
-$tables = ['users', 'pets', 'adoption_applications', 'return_requests', 'adoption_records', 'appointments', 'shelters', 'system_settings', 'audit_logs'];
+$tables = ['users', 'pets', 'adoption_applications', 'adoption_records', 'appointments', 'shelters', 'system_settings', 'audit_logs'];
 $dbHealth = [];
 $totalRows = 0;
 $totalSize = 0;

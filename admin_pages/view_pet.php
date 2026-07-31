@@ -94,17 +94,18 @@ $graceExpired = (
 <?php if (!$isDeceased && !$isPosted && !$isClaimed): ?>
     <div class="divider"></div>
 
-    <?php if ($graceExpired): ?>
-        <p style="color:var(--danger);font-weight:600;">
-            The 14-day grace period has expired. This pet is now eligible to be posted for adoption.
-        </p>
-    <?php else: ?>
-        <p style="color:var(--muted);">
-            The owner has until
-            <strong><?= date("M d, Y g:i A", strtotime($row['claim_deadline'])) ?></strong>
-            (14 days from impoundment) to claim this pet before it can be posted for adoption.
-        </p>
-    <?php endif; ?>
+<p style="color:var(--danger);font-weight:600;">
+    The 14-day grace period has expired. This pet is now eligible to be posted for adoption.
+</p>
+
+<?php else: ?>
+
+<p style="color:var(--muted);">
+    The owner has until
+    <strong><?= date("M d, Y g:i A", strtotime($row['claim_deadline'])) ?></strong>
+    (14 days from impoundment) to claim this pet before it can be posted for adoption.
+</p>
+
 <?php endif; ?>
 
 <?php if ($isDeceased): ?>
@@ -216,6 +217,13 @@ FREE STATUS CHANGE
 </button>
 <?php endif; ?>
 
+<?php if (!$isPosted): ?>
+    <button class="btn btn-danger" onclick="openDeceasedModal()">
+        ☠ Mark as Deceased
+    </button>
+<?php endif; ?>
+
+</div>
 <?php if (!$isPosted): ?>
     <button class="btn btn-danger" onclick="openDeceasedModal()">
         ☠ Mark as Deceased

@@ -44,7 +44,6 @@ try {
     if (!$name || !$breed) respondJSON(false, 'Name and breed are required');
 
     $validStatuses = ['available', 'reserved', 'adopted', 'under_treatment'];
-    if (!in_array($status, $validStatuses)) $status = 'available';
 
     // ---- Handle multiple image uploads (stored comma-separated in `image`) ----
     $uploadedFilenames = [];
@@ -119,10 +118,13 @@ try {
     if (!in_array($status, $validStatuses)) $status = 'available';
 
     // Load current images
-    $cur = $conn->prepare("SELECT image FROM pets WHERE id = ?");
+    $cur = $conn->prepare("SELECT image, status FROM pets WHERE id = ?");
     $cur->bind_param('i', $id);
     $cur->execute();
     $row = $cur->get_result()->fetch_assoc();
+    if ($status === '') {
+    $status = $row['status'] ?? 'available';
+    }
     $existing = $row && $row['image'] ? explode(',', $row['image']) : [];
 
     // Remove any the user deleted in the UI

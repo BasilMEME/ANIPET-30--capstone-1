@@ -156,23 +156,6 @@ CREATE TABLE IF NOT EXISTS `adoption_applications` (
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- return requests for adopted pets with penalty tracking
-CREATE TABLE IF NOT EXISTS `return_requests` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `application_id` INT NOT NULL,
-  `user_id` INT NOT NULL,
-  `pet_id` INT NOT NULL,
-  `reason` TEXT NOT NULL,
-  `penalty_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  `penalty_paid` TINYINT(1) NOT NULL DEFAULT 0,
-  `status` VARCHAR(50) NOT NULL DEFAULT 'pending',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (`application_id`) REFERENCES `adoption_applications`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`pet_id`) REFERENCES `pets`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 -- adoption records
 CREATE TABLE IF NOT EXISTS `adoption_records` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
