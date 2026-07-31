@@ -28,7 +28,7 @@ function ensureRolePermissionsTable($conn) {
                 ['super_admin', 'manage_notifications', 1],
                 ['super_admin', 'generate_reports', 1],
                 ['super_admin', 'manage_appointments', 1],
-                ['super_admin', 'manage_returns', 1],
+                ['super_admin', 'manage_pet_pound', 1],
                 ['super_admin', 'manage_settings', 1],
                 ['admin', 'manage_admins', 0],
                 ['admin', 'view_audit_logs', 1],
@@ -42,7 +42,7 @@ function ensureRolePermissionsTable($conn) {
                 ['admin', 'manage_notifications', 1],
                 ['admin', 'generate_reports', 1],
                 ['admin', 'manage_appointments', 1],
-                ['admin', 'manage_returns', 1],
+                ['admin', 'manage_pet_pound', 1],
                 ['admin', 'manage_settings', 1],
                 ['user', 'view_audit_logs', 0],
                 ['user', 'manage_users', 0],
@@ -55,7 +55,7 @@ function ensureRolePermissionsTable($conn) {
                 ['user', 'manage_notifications', 0],
                 ['user', 'generate_reports', 0],
                 ['user', 'manage_appointments', 0],
-                ['user', 'manage_returns', 0],
+                ['user', 'manage_pet_pound', 0],
                 ['user', 'manage_settings', 0]
             ];
             $stmt = $conn->prepare("INSERT INTO role_permissions (role, permission_key, is_allowed) VALUES (?, ?, ?)");

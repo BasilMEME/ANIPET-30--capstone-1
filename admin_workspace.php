@@ -14,7 +14,6 @@ $validPages = [
     'reports',
     'pet_pound',
     'penalty_payments',
-    'returns',
     'settings'
 ];
 
@@ -34,7 +33,6 @@ $stmt->close();
 // Pending badge counts
 $pendingApps    = (int)($conn->query("SELECT COUNT(*) FROM adoption_applications WHERE status='pending'")->fetch_row()[0] ?? 0);
 $pendingApts    = (int)($conn->query("SELECT COUNT(*) FROM appointments WHERE status='pending'")->fetch_row()[0] ?? 0);
-$pendingReturns = (int)($conn->query("SELECT COUNT(*) FROM return_requests WHERE status='pending'")->fetch_row()[0] ?? 0);
 $notifBadge     = $pendingApps + $pendingApts;
 
 $pageInfo = [
@@ -45,7 +43,6 @@ $pageInfo = [
     'users'             => ['title' => 'User Management',        'icon' => '👥', 'sub' => 'Manage adopter accounts'],
     'notifications'     => ['title' => 'Notifications',          'icon' => '🔔', 'sub' => 'Send announcements & reminders'],
     'reports'           => ['title' => 'Reports',                'icon' => '📈', 'sub' => 'Generate & export reports'],
-    'returns'           => ['title' => 'Returns & Penalties',    'icon' => '↩️', 'sub' => 'Manage pet returns & penalty payments'],
     'pet_pound'         => ['title' => 'Pet Pound',              'icon' => '🏠', 'sub' => 'Manage impounded pets'],
     'penalty_payments'  => ['title' => 'Penalty Payments',       'icon' => '💳', 'sub' => 'View penalty payment history'],
     'settings'          => ['title' => 'Settings',               'icon' => '⚙️', 'sub' => 'Penalty, beneficiary & donation settings'],
@@ -301,14 +298,6 @@ select.form-control{cursor:pointer;}
         <?php endif; ?>
     </a>
 
-    <a href="?page=returns" class="nav-link <?php echo $page==='returns'?'active':''; ?>">
-        <span class="nav-icon">↩️</span>
-        Returns & Penalties
-        <?php if ($pendingReturns > 0): ?>
-            <span class="nav-badge"><?php echo $pendingReturns; ?></span>
-        <?php endif; ?>
-    </a>
-
     <a href="?page=pet_pound" class="nav-link <?php echo $page==='pet_pound'?'active':''; ?>">
         <span class="nav-icon">🏠</span>
         Pet Pound
@@ -406,7 +395,6 @@ select.form-control{cursor:pointer;}
     'users'             => 'admin_pages/users.php',
     'notifications'     => 'admin_pages/notifications.php',
     'reports'           => 'admin_pages/reports.php',
-    'returns'           => 'admin_pages/returns.php',
     'pet_pound'         => 'admin_pages/pet_pound.php',
 
     // NEW PAGE

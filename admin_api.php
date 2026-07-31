@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 require_once __DIR__ . '/auth_helper.php';
-require_once __DIR__ . '/return_policy_helper.php';
+require_once __DIR__ . '/system_settings_helper.php';
 
 $action = $_REQUEST['action'] ?? '';
 if (empty($action)) {
@@ -692,110 +692,10 @@ case 'update_appointment_status':
             break;
 
         // ================================================================
-        // RETURN REQUESTS & PENALTIES
-        // ================================================================
-
-        case 'get_return_requests':
-            require_permission($conn, 'manage_returns');
-            $validStatuses = ['pending', 'approved', 'rejected', 'completed'];
-            $filter = trim($_GET['status'] ?? '');
-            if (!in_array($filter, $validStatuses)) $filter = '';
-
-            $sql = "SELECT rr.*, p.name AS pet_name, p.breed AS pet_breed, p.image AS pet_image,
-                           u.full_name, u.email, u.phone
-                    FROM return_requests rr
-                    LEFT JOIN pets  p ON rr.pet_id  = p.id
-                    LEFT JOIN users u ON rr.user_id = u.id
-                    WHERE 1=1";
-            if ($filter) $sql .= " AND rr.status = '" . $conn->real_escape_string($filter) . "'";
-            $sql .= " ORDER BY rr.created_at DESC";
-
-            $returns = [];
-            $result  = $conn->query($sql);
-            if ($result) while ($row = $result->fetch_assoc()) $returns[] = $row;
-            respondJSON(true, '', ['return_requests' => $returns]);
-            break;
-
-        case 'get_return_request':
-            require_permission($conn, 'manage_returns');
-            $id = intval($_GET['id'] ?? 0);
-            if (!$id) respondJSON(false, 'Missing return request ID');
-
-            $stmt = $conn->prepare(
-                "SELECT rr.*, p.name AS pet_name, p.breed AS pet_breed, p.image AS pet_image,
-                        u.full_name, u.email, u.phone, u.address
-                 FROM return_requests rr
-                 LEFT JOIN pets  p ON rr.pet_id  = p.id
-                 LEFT JOIN users u ON rr.user_id = u.id
-                 WHERE rr.id = ? LIMIT 1"
-            );
-            $stmt->bind_param('i', $id);
-            $stmt->execute();
-            $rr = $stmt->get_result()->fetch_assoc();
-            if (!$rr) respondJSON(false, 'Return request not found');
-            respondJSON(true, '', ['return_request' => $rr]);
-            break;
-
-        case 'update_return_request':
-            require_permission($conn, 'manage_returns');
-            $id             = intval($_POST['id'] ?? 0);
-            $status         = trim($_POST['status'] ?? '');
-            $penalty_paid   = isset($_POST['penalty_paid']) && $_POST['penalty_paid'] !== '' ? intval($_POST['penalty_paid']) : null;
-            $penalty_amount = isset($_POST['penalty_amount']) && $_POST['penalty_amount'] !== '' ? (float)$_POST['penalty_amount'] : null;
-            $admin_notes    = trim($_POST['admin_notes'] ?? '');
-
-            if (!$id) respondJSON(false, 'Missing return request ID');
-            $validStatuses = ['pending', 'approved', 'rejected', 'completed'];
-            if ($status !== '' && !in_array($status, $validStatuses)) respondJSON(false, 'Invalid status');
-
-            $current = $conn->prepare("SELECT pet_id FROM return_requests WHERE id = ? LIMIT 1");
-            $current->bind_param('i', $id);
-            $current->execute();
-            $row = $current->get_result()->fetch_assoc();
-            $current->close();
-            if (!$row) respondJSON(false, 'Return request not found');
-
-            $setClauses = [];
-            $params     = [];
-            $types      = '';
-            if ($status !== '')        { $setClauses[] = 'status = ?';         $params[] = $status;         $types .= 's'; }
-            if ($penalty_paid !== null) { $setClauses[] = 'penalty_paid = ?';   $params[] = $penalty_paid;   $types .= 'i'; }
-            if ($penalty_amount !== null) { $setClauses[] = 'penalty_amount = ?'; $params[] = $penalty_amount; $types .= 'd'; }
-            $setClauses[] = 'admin_notes = ?';
-            $params[]     = $admin_notes;
-            $types       .= 's';
-
-            $params[] = $id;
-            $types   .= 'i';
-            $stmt = $conn->prepare("UPDATE return_requests SET " . implode(', ', $setClauses) . " WHERE id = ?");
-            $stmt->bind_param($types, ...$params);
-            if (!$stmt->execute()) respondJSON(false, $conn->error);
-
-            // Completing a return means the pet is physically back at the shelter —
-            // release it back into the adoptable pool (mirrors the rejected/pending
-            // application flow in application_status_helper.php).
-            if ($status === 'completed') {
-                $petStmt = $conn->prepare("UPDATE pets SET status = 'available' WHERE id = ?");
-                $petStmt->bind_param('i', $row['pet_id']);
-                $petStmt->execute();
-                $petStmt->close();
-            }
-
-            respondJSON(true, 'Return request updated');
-            break;
-
-        // ================================================================
         // RETURN PENALTY & DONATION SETTINGS
         // ================================================================
 
-        case 'get_return_policy_settings':
-            require_permission($conn, 'manage_settings');
-            $settings = [];
-            foreach (RETURN_POLICY_KEYS as $key) $settings[$key] = get_return_policy_setting($conn, $key, '');
-            respondJSON(true, '', ['settings' => $settings]);
-            break;
-
-        case 'update_return_policy_settings':
+        case 'update_donation_settings':
             require_permission($conn, 'manage_settings');
 
             $donationKeys = ['donation_gcash_name', 'donation_gcash_number', 'donation_notes'];
@@ -809,16 +709,22 @@ case 'update_appointment_status':
                 respondJSON(false, 'Only Super Admin can edit donation settings');
             }
 
-            if (isset($_POST['return_penalty_type']) && !in_array($_POST['return_penalty_type'], ['fixed', 'percentage'])) {
-                respondJSON(false, 'Invalid penalty type');
-            }
 
-            foreach (RETURN_POLICY_KEYS as $key) {
-                if ($key === 'donation_qr_filename') continue; // handled via file upload below
-                if (isset($_POST[$key])) {
-                    save_return_policy_setting($conn, $key, trim($_POST[$key]));
-                }
-            }
+            $donationKeys = [
+    'donation_gcash_name',
+    'donation_gcash_number',
+    'donation_notes'
+];
+
+foreach ($donationKeys as $key) {
+    if (isset($_POST[$key])) {
+        save_system_setting(
+            $conn,
+            $key,
+            trim($_POST[$key])
+        );
+    }
+}
 
             if (!empty($_FILES['donation_qr']['name'])) {
                 $uploadDir = __DIR__ . '/images/';
@@ -831,11 +737,192 @@ case 'update_appointment_status':
                 if (!move_uploaded_file($_FILES['donation_qr']['tmp_name'], $uploadDir . $filename)) {
                     respondJSON(false, 'QR image upload failed');
                 }
-                save_return_policy_setting($conn, 'donation_qr_filename', $filename);
+                save_system_setting(
+    $conn,
+    'donation_qr_filename',
+    $filename
+);
             }
 
             respondJSON(true, 'Settings saved successfully');
             break;
+
+            // ================================================================
+// SYSTEM SETTINGS
+// ================================================================
+
+case 'update_pet_pound_settings':
+    require_permission($conn, 'manage_settings');
+    require_once __DIR__ . '/system_settings_helper.php';
+
+    $petPoundKeys = [
+        'pet_pound_name',
+        'pet_pound_contact',
+        'pet_pound_address',
+        'pet_pound_notes'
+    ];
+
+    foreach ($petPoundKeys as $key) {
+        if (isset($_POST[$key])) {
+            save_system_setting(
+                $conn,
+                $key,
+                trim($_POST[$key])
+            );
+        }
+    }
+
+    respondJSON(
+        true,
+        'Pet Pound information saved successfully'
+    );
+
+    break;
+
+
+case 'update_donation_settings':
+    require_permission($conn, 'manage_settings');
+    require_once __DIR__ . '/system_settings_helper.php';
+
+    if (current_user_role() !== 'super_admin') {
+        respondJSON(
+            false,
+            'Only Super Admin can edit donation settings'
+        );
+    }
+
+    $donationKeys = [
+        'donation_gcash_name',
+        'donation_gcash_number',
+        'donation_notes'
+    ];
+
+    foreach ($donationKeys as $key) {
+        if (isset($_POST[$key])) {
+            save_system_setting(
+                $conn,
+                $key,
+                trim($_POST[$key])
+            );
+        }
+    }
+
+    if (
+        isset($_FILES['donation_qr']) &&
+        $_FILES['donation_qr']['error'] !== UPLOAD_ERR_NO_FILE
+    ) {
+        if (
+            $_FILES['donation_qr']['error'] !== UPLOAD_ERR_OK
+        ) {
+            respondJSON(
+                false,
+                'Donation QR upload failed'
+            );
+        }
+
+        if (
+            $_FILES['donation_qr']['size']
+            > 5 * 1024 * 1024
+        ) {
+            respondJSON(
+                false,
+                'QR image is too large. Maximum size is 5 MB.'
+            );
+        }
+
+        $extension = strtolower(
+            pathinfo(
+                $_FILES['donation_qr']['name'],
+                PATHINFO_EXTENSION
+            )
+        );
+
+        $allowedExtensions = [
+            'jpg',
+            'jpeg',
+            'png',
+            'gif',
+            'webp'
+        ];
+
+        if (
+            !in_array(
+                $extension,
+                $allowedExtensions,
+                true
+            )
+        ) {
+            respondJSON(
+                false,
+                'Invalid QR image type'
+            );
+        }
+
+        $uploadDirectory =
+            __DIR__ . '/images/';
+
+        if (!is_dir($uploadDirectory)) {
+            mkdir(
+                $uploadDirectory,
+                0755,
+                true
+            );
+        }
+
+        $oldFilename = get_system_setting(
+            $conn,
+            'donation_qr_filename',
+            ''
+        );
+
+        $newFilename =
+            'donation_qr_' .
+            bin2hex(random_bytes(8)) .
+            '.' .
+            $extension;
+
+        $destination =
+            $uploadDirectory .
+            $newFilename;
+
+        if (
+            !move_uploaded_file(
+                $_FILES['donation_qr']['tmp_name'],
+                $destination
+            )
+        ) {
+            respondJSON(
+                false,
+                'Unable to save the QR image'
+            );
+        }
+
+        save_system_setting(
+            $conn,
+            'donation_qr_filename',
+            $newFilename
+        );
+
+        if (
+            $oldFilename !== '' &&
+            $oldFilename !== $newFilename
+        ) {
+            $oldPath =
+                $uploadDirectory .
+                basename($oldFilename);
+
+            if (is_file($oldPath)) {
+                @unlink($oldPath);
+            }
+        }
+    }
+
+    respondJSON(
+        true,
+        'Donation settings saved successfully'
+    );
+
+    break;
 
         // ================================================================
         // REPORTS

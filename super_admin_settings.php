@@ -86,67 +86,332 @@ $conn->close();
 <div class="container">
     <div class="header">
         <div>
-            <h1>System Settings & Database Tools</h1>
-            <p class="note">Configure site, shelter, contact, email, notification settings, and manage backups.</p>
+            <h1>Owner Settings & Database Tools</h1>
+
+<p class="note">
+    Manage pet pound information, opening hours,
+    notification preferences, shelter details,
+    and database backups.
+</p>
         </div>
         <a class="btn btn-secondary" href="super_admin_dashboard.php">Return to Dashboard</a>
     </div>
 
-    <section class="section">
-        <div class="card">
-            <h2>Settings Overview</h2>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>Key</th><th>Value</th><th>Updated</th></tr></thead>
-                    <tbody>
-                    <?php foreach ($settings as $setting): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($setting['setting_key']); ?></td>
-                            <td><?php echo htmlspecialchars($setting['setting_value']); ?></td>
-                            <td><?php echo date('M d, Y', strtotime($setting['updated_at'])); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
 
     <section class="section grid">
         <div class="card">
-            <h2>Site & Contact Configuration</h2>
-            <form id="siteConfigForm">
-                <div class="input-group"><label>Site Name</label><input type="text" name="site_name" value="<?php echo htmlspecialchars($settingsByKey['site_name'] ?? 'AniPet'); ?>"></div>
-                <div class="input-group"><label>Site URL</label><input type="text" name="site_url" value="<?php echo htmlspecialchars($settingsByKey['site_url'] ?? ''); ?>"></div>
-                <div class="input-group"><label>Support Phone</label><input type="text" name="support_phone" value="<?php echo htmlspecialchars($settingsByKey['support_phone'] ?? ''); ?>"></div>
-                <div class="input-group"><label>Contact Email</label><input type="email" name="contact_email" value="<?php echo htmlspecialchars($settingsByKey['contact_email'] ?? ''); ?>"></div>
-                <div class="action-row"><button class="btn btn-primary" type="submit">Save Contact Settings</button></div>
-            </form>
+    <h2>Pet Pound Information</h2>
+
+    <p class="note">
+        These details represent the pet pound in the AniPet system.
+    </p>
+
+    <form id="poundInfoForm">
+
+        <div class="input-group">
+            <label>Pet Pound Name</label>
+
+            <input
+                type="text"
+                name="pound_name"
+                value="<?php
+                    echo htmlspecialchars(
+                        $settingsByKey['pound_name']
+                            ?? 'AniPet Pet Adoption Center'
+                    );
+                ?>"
+                required
+            >
         </div>
+
+        <div class="input-group">
+            <label>Contact Email</label>
+
+            <input
+                type="email"
+                name="contact_email"
+                value="<?php
+                    echo htmlspecialchars(
+                        $settingsByKey['contact_email']
+                            ?? 'anipet.adoption@gmail.com'
+                    );
+                ?>"
+                required
+            >
+        </div>
+
+        <div class="input-group">
+            <label>Contact Number</label>
+
+            <input
+                type="text"
+                name="support_phone"
+                placeholder="+63 9XX XXX XXXX"
+                value="<?php
+                    echo htmlspecialchars(
+                        $settingsByKey['support_phone'] ?? ''
+                    );
+                ?>"
+            >
+        </div>
+
+        <div class="input-group">
+            <label>Address</label>
+
+            <textarea
+                name="pound_address"
+                rows="4"
+                placeholder="Enter the pet pound address"
+            ><?php
+                echo htmlspecialchars(
+                    $settingsByKey['pound_address'] ?? ''
+                );
+            ?></textarea>
+        </div>
+
+        <div class="action-row">
+            <button class="btn btn-primary" type="submit">
+                Save Pet Pound Information
+            </button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h2>Opening Hours</h2>
+
+    <p class="note">
+        Set the regular operating hours of the pet pound.
+    </p>
+
+    <form id="openingHoursForm">
+
+        <div class="input-group">
+            <label>Monday to Friday</label>
+
+            <input
+                type="text"
+                name="hours_weekdays"
+                value="<?php
+                    echo htmlspecialchars(
+                        $settingsByKey['hours_weekdays']
+                            ?? '8:00 AM - 5:00 PM'
+                    );
+                ?>"
+            >
+        </div>
+
+        <div class="input-group">
+            <label>Saturday</label>
+
+            <input
+                type="text"
+                name="hours_saturday"
+                value="<?php
+                    echo htmlspecialchars(
+                        $settingsByKey['hours_saturday']
+                            ?? '8:00 AM - 12:00 PM'
+                    );
+                ?>"
+            >
+        </div>
+
+        <div class="input-group">
+            <label>Sunday</label>
+
+            <input
+                type="text"
+                name="hours_sunday"
+                value="<?php
+                    echo htmlspecialchars(
+                        $settingsByKey['hours_sunday']
+                            ?? 'Closed'
+                    );
+                ?>"
+            >
+        </div>
+
+        <div class="action-row">
+            <button class="btn btn-primary" type="submit">
+                Save Opening Hours
+            </button>
+        </div>
+    </form>
+</div>
+
         <div class="card">
-            <h2>Email & Notification Settings</h2>
-            <form id="notificationForm">
-                <div class="input-group"><label>SMTP Host</label><input type="text" name="smtp_host" value="<?php echo htmlspecialchars($settingsByKey['smtp_host'] ?? 'smtp.gmail.com'); ?>"></div>
-                <div class="input-group"><label>SMTP Port</label><input type="text" name="smtp_port" value="<?php echo htmlspecialchars($settingsByKey['smtp_port'] ?? '587'); ?>"></div>
-                <div class="input-group"><label>Use SMTP</label><select name="use_smtp"><option value="1" <?php echo (($settingsByKey['use_smtp'] ?? '1') === '1') ? 'selected' : ''; ?>>Yes</option><option value="0" <?php echo (($settingsByKey['use_smtp'] ?? '1') === '0') ? 'selected' : ''; ?>>No</option></select></div>
-                <div class="input-group"><label>SMTP Username</label><input type="text" name="smtp_user" value="<?php echo htmlspecialchars($settingsByKey['smtp_user'] ?? ''); ?>"></div>
-                <div class="input-group"><label>SMTP Password</label><input type="password" name="smtp_pass" value="<?php echo htmlspecialchars($settingsByKey['smtp_pass'] ?? ''); ?>"></div>
-                <div class="input-group"><label>Mail From Address</label><input type="email" name="smtp_from_email" value="<?php echo htmlspecialchars($settingsByKey['smtp_from_email'] ?? ''); ?>"></div>
-                <div class="input-group"><label>Mail From Name</label><input type="text" name="smtp_from_name" value="<?php echo htmlspecialchars($settingsByKey['smtp_from_name'] ?? 'AniPet'); ?>"></div>
-                <div class="input-group"><label>Notification Enabled</label><select name="notification_enabled"><option value="1" <?php echo (($settingsByKey['notification_enabled'] ?? '1') === '1') ? 'selected' : ''; ?>>Enabled</option><option value="0" <?php echo (($settingsByKey['notification_enabled'] ?? '1') === '0') ? 'selected' : ''; ?>>Disabled</option></select></div>
-                <div class="input-group"><label>Notification Channel</label><input type="text" name="notification_channel" placeholder="e.g. email,sms" value="<?php echo htmlspecialchars($settingsByKey['notification_channel'] ?? 'email'); ?>"></div>
-                <div class="input-group"><label>Alert Recipients</label><input type="text" name="alert_recipient_emails" placeholder="admin@example.com,ops@example.com" value="<?php echo htmlspecialchars($settingsByKey['alert_recipient_emails'] ?? ''); ?>"></div>
-                <div class="input-group"><label>Pending Application Threshold</label><input type="number" name="alert_pending_applications" min="1" value="<?php echo htmlspecialchars($settingsByKey['alert_pending_applications'] ?? '10'); ?>"></div>
-                <div class="input-group"><label>Stalled Application Threshold</label><input type="number" name="alert_stalled_applications" min="1" value="<?php echo htmlspecialchars($settingsByKey['alert_stalled_applications'] ?? '5'); ?>"></div>
-                <div class="input-group"><label>Unassigned Application Threshold</label><input type="number" name="alert_unassigned_applications" min="1" value="<?php echo htmlspecialchars($settingsByKey['alert_unassigned_applications'] ?? '5'); ?>"></div>
-                <div class="input-group"><label>DB Threads Threshold</label><input type="number" name="alert_threads_running" min="1" value="<?php echo htmlspecialchars($settingsByKey['alert_threads_running'] ?? '25'); ?>"></div>
-                <div class="input-group"><label>Aborted Connects Threshold</label><input type="number" name="alert_aborted_connects" min="1" value="<?php echo htmlspecialchars($settingsByKey['alert_aborted_connects'] ?? '10'); ?>"></div>
-                <div class="input-group"><label>Test Recipient Email</label><input type="email" id="testRecipientEmail" placeholder="admin@example.com"></div>
-                <div class="input-group"><label>Test Subject</label><input type="text" id="testEmailSubject" value="AniPet SMTP Test Email"></div>
-                <div class="input-group"><label>Message Body</label><textarea id="testEmailBody" rows="4" style="width:100%;padding:12px 14px;border-radius:14px;border:1px solid rgba(148,163,184,.14);background:rgba(255,255,255,.04);color:#e2e8f0;"><?php echo htmlspecialchars($settingsByKey['test_email_body'] ?? '<p>This is a test email from AniPet Super Admin.</p>'); ?></textarea></div>
-                <div class="action-row"><button class="btn btn-primary" type="submit">Save Email Settings</button><button class="btn btn-secondary" id="sendTestEmailBtn" type="button">Send Test Email</button></div>
-            </form>
+    <h2>Notification Preferences</h2>
+
+    <p class="note">
+        Email notifications use the existing Gmail OAuth configuration.
+        Firebase push notifications will use FCM once integration is complete.
+    </p>
+
+    <form id="notificationForm">
+
+        <div class="input-group">
+            <label>Email Notifications</label>
+
+            <select name="email_notifications_enabled">
+                <option
+                    value="1"
+                    <?php echo (
+                        ($settingsByKey['email_notifications_enabled'] ?? '1')
+                        === '1'
+                    ) ? 'selected' : ''; ?>
+                >
+                    Enabled
+                </option>
+
+                <option
+                    value="0"
+                    <?php echo (
+                        ($settingsByKey['email_notifications_enabled'] ?? '1')
+                        === '0'
+                    ) ? 'selected' : ''; ?>
+                >
+                    Disabled
+                </option>
+            </select>
         </div>
+
+        <div class="input-group">
+            <label>Firebase Push Notifications</label>
+
+            <select name="fcm_notifications_enabled">
+                <option
+                    value="1"
+                    <?php echo (
+                        ($settingsByKey['fcm_notifications_enabled'] ?? '1')
+                        === '1'
+                    ) ? 'selected' : ''; ?>
+                >
+                    Enabled
+                </option>
+
+                <option
+                    value="0"
+                    <?php echo (
+                        ($settingsByKey['fcm_notifications_enabled'] ?? '1')
+                        === '0'
+                    ) ? 'selected' : ''; ?>
+                >
+                    Disabled
+                </option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>New Adoption Application Alerts</label>
+
+            <select name="notify_new_application">
+                <option
+                    value="1"
+                    <?php echo (
+                        ($settingsByKey['notify_new_application'] ?? '1')
+                        === '1'
+                    ) ? 'selected' : ''; ?>
+                >
+                    Enabled
+                </option>
+
+                <option
+                    value="0"
+                    <?php echo (
+                        ($settingsByKey['notify_new_application'] ?? '1')
+                        === '0'
+                    ) ? 'selected' : ''; ?>
+                >
+                    Disabled
+                </option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Application Status Notifications</label>
+
+            <select name="notify_status_update">
+                <option
+                    value="1"
+                    <?php echo (
+                        ($settingsByKey['notify_status_update'] ?? '1')
+                        === '1'
+                    ) ? 'selected' : ''; ?>
+                >
+                    Enabled
+                </option>
+
+                <option
+                    value="0"
+                    <?php echo (
+                        ($settingsByKey['notify_status_update'] ?? '1')
+                        === '0'
+                    ) ? 'selected' : ''; ?>
+                >
+                    Disabled
+                </option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Donation Notifications</label>
+
+            <select name="notify_donation_received">
+                <option
+                    value="1"
+                    <?php echo (
+                        ($settingsByKey['notify_donation_received'] ?? '1')
+                        === '1'
+                    ) ? 'selected' : ''; ?>
+                >
+                    Enabled
+                </option>
+
+                <option
+                    value="0"
+                    <?php echo (
+                        ($settingsByKey['notify_donation_received'] ?? '1')
+                        === '0'
+                    ) ? 'selected' : ''; ?>
+                >
+                    Disabled
+                </option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Ready for Pick Up Reminders</label>
+
+            <select name="notify_pickup_reminder">
+                <option
+                    value="1"
+                    <?php echo (
+                        ($settingsByKey['notify_pickup_reminder'] ?? '1')
+                        === '1'
+                    ) ? 'selected' : ''; ?>
+                >
+                    Enabled
+                </option>
+
+                <option
+                    value="0"
+                    <?php echo (
+                        ($settingsByKey['notify_pickup_reminder'] ?? '1')
+                        === '0'
+                    ) ? 'selected' : ''; ?>
+                >
+                    Disabled
+                </option>
+            </select>
+        </div>
+
+        <div class="action-row">
+            <button class="btn btn-primary" type="submit">
+                Save Notification Preferences
+            </button>
+        </div>
+    </form>
+</div>
         <div class="card">
             <h2>Database Backup / Export</h2>
             <p class="note">Use these actions to create a backup or export of the current database state.</p>
@@ -214,83 +479,59 @@ $conn->close();
         return fetch(apiEndpoint, { method: 'POST', body: setForm }).then(res => res.json());
     };
 
-    document.getElementById('siteConfigForm').addEventListener('submit', (event) => {
+    async function saveFormSettings(form, successMessage) {
+    const formData = new FormData(form);
+    const settings = Array.from(formData.entries());
+
+    try {
+        await Promise.all(
+            settings.map(([key, value]) => {
+                return saveSetting(key, value);
+            })
+        );
+
+        alert(successMessage);
+    } catch (error) {
+        console.error(error);
+
+        alert(
+            error.message ||
+            'The settings could not be saved.'
+        );
+    }
+}
+
+document
+    .getElementById('poundInfoForm')
+    .addEventListener('submit', event => {
         event.preventDefault();
-        const formData = new FormData(event.target);
-        const payload = {
-            site_name: formData.get('site_name'),
-            site_url: formData.get('site_url'),
-            support_phone: formData.get('support_phone'),
-            contact_email: formData.get('contact_email')
-        };
-        Promise.all(Object.entries(payload).map(([key, value]) => saveSetting(key, value)))
-            .then(results => alert('Contact settings saved.'))
-            .catch(() => alert('Failed to save contact settings.'));
+
+        saveFormSettings(
+            event.target,
+            'Pet pound information saved successfully.'
+        );
     });
 
-    document.getElementById('notificationForm').addEventListener('submit', (event) => {
+document
+    .getElementById('openingHoursForm')
+    .addEventListener('submit', event => {
         event.preventDefault();
-        const formData = new FormData(event.target);
-        const payload = {
-            smtp_host: formData.get('smtp_host'),
-            smtp_port: formData.get('smtp_port'),
-            use_smtp: formData.get('use_smtp'),
-            smtp_user: formData.get('smtp_user'),
-            smtp_pass: formData.get('smtp_pass'),
-            smtp_from_email: formData.get('smtp_from_email'),
-            smtp_from_name: formData.get('smtp_from_name'),
-            notification_enabled: formData.get('notification_enabled'),
-            notification_channel: formData.get('notification_channel'),
-            alert_recipient_emails: formData.get('alert_recipient_emails'),
-            alert_pending_applications: formData.get('alert_pending_applications'),
-            alert_stalled_applications: formData.get('alert_stalled_applications'),
-            alert_unassigned_applications: formData.get('alert_unassigned_applications'),
-            alert_threads_running: formData.get('alert_threads_running'),
-            alert_aborted_connects: formData.get('alert_aborted_connects')
-        };
-        Promise.all(Object.entries(payload).map(([key, value]) => saveSetting(key, value)))
-            .then(results => alert('Email and notification settings saved.'))
-            .catch(() => alert('Failed to save email settings.'));
+
+        saveFormSettings(
+            event.target,
+            'Opening hours saved successfully.'
+        );
     });
 
-    document.getElementById('sendTestEmailBtn').addEventListener('click', () => {
-        const recipient = document.getElementById('testRecipientEmail').value.trim();
-        const subject = document.getElementById('testEmailSubject').value.trim();
-        const body = document.getElementById('testEmailBody').value.trim();
-        if (!recipient) { alert('Enter a recipient email for the test message.'); return; }
-        const formData = new FormData();
-        formData.append('action', 'send_test_email');
-        formData.append('recipient_email', recipient);
-        formData.append('subject', subject);
-        formData.append('body', body);
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Test email sent.'))
-            .catch(() => alert('Could not send test email.'));
-    });
+document
+    .getElementById('notificationForm')
+    .addEventListener('submit', event => {
+        event.preventDefault();
 
-    document.getElementById('backupBtn').addEventListener('click', () => {
-        fetch(apiEndpoint + '?action=backup_database', { method: 'POST' })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Backup completed.'))
-            .catch(() => alert('Backup failed.'));
-    });
-    document.getElementById('exportBtn').addEventListener('click', () => {
-        fetch(apiEndpoint + '?action=export_database', { method: 'POST' })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Export completed.'))
-            .catch(() => alert('Export failed.'));
-    });
-    document.getElementById('restoreBtn').addEventListener('click', () => {
-        const file = document.getElementById('restoreFile').value;
-        if (!file) { alert('Select a backup file to restore.'); return; }
-        const formData = new FormData();
-        formData.append('action', 'restore_database');
-        formData.append('file', file);
-        fetch(apiEndpoint, { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => alert(data.message || 'Restore completed.'))
-            .catch(() => alert('Restore failed.'));
+        saveFormSettings(
+            event.target,
+            'Notification preferences saved successfully.'
+        );
     });
 </script>
 </body>

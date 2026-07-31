@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . "/../auth_helper.php";
-require_permission($conn, 'manage_returns');
+require_permission($conn, 'manage_pet_pound');
 
 $result = $conn->query("
     SELECT pp.*, p.pet_name, p.owner_name AS pound_owner_name, p.penalty_amount

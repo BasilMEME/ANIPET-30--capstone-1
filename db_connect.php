@@ -140,43 +140,36 @@ if (!columnExists($conn, "appointments", "appointment_type")) {
     ");
 }
 
-// Auto-migrate: manage_returns / manage_settings are new permission keys added for the
-// return & penalty management feature (admin_pages/returns.php, admin_pages/settings.php).
-// ensureRolePermissionsTable() only seeds its whole default list on a completely empty
-// table, so on an install that was already seeded before these keys existed they'd never
-// appear — INSERT IGNORE backfills just the missing rows without touching any permission
-// a super admin has since customized.
 require_once __DIR__ . '/role_permissions_helper.php';
+
 try {
+
     ensureRolePermissionsTable($conn);
 
-    $conn->query("INSERT IGNORE INTO role_permissions
+    $conn->query("
+        INSERT IGNORE INTO role_permissions
         (role, permission_key, is_allowed)
         VALUES
-        ('super_admin','manage_returns',1),
+        ('super_admin','manage_pet_pound',1),
         ('super_admin','manage_settings',1),
-        ('admin','manage_returns',1),
+
+        ('admin','manage_pet_pound',1),
         ('admin','manage_settings',1),
-        ('user','manage_returns',0),
-        ('user','manage_settings',0)");
+
+        ('user','manage_pet_pound',0),
+        ('user','manage_settings',0)
+    ");
+
 } catch (mysqli_sql_exception $e) {
+
     if ($e->getCode() != 1213) {
         throw $e;
     }
 
     error_log(
-        'Role permission migration skipped: '
-        . $e->getMessage()
+        'Role permission migration skipped: ' .
+        $e->getMessage()
     );
-}
-
-// Auto-migrate: admin_notes for the admin returns/penalties view (admin_pages/returns.php),
-// not present in the base return_requests table.
-if (!columnExists($conn, "return_requests", "admin_notes")) {
-    $conn->query("
-        ALTER TABLE `return_requests`
-        ADD COLUMN `admin_notes` TEXT DEFAULT NULL
-    ");
 }
 
 // Auto-migrate: donations table used by submit_donation.php / super_admin_donations.php /
@@ -274,5 +267,5 @@ $conn->query("CREATE TABLE IF NOT EXISTS `pet_penalty_payments` (
     FOREIGN KEY (`pet_pound_id`) REFERENCES `pet_pound`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-// Auto-migrate: pet_pound/pet_penalty_payments management shares the existing manage_returns
-// permission (already granted to admin + super_admin above) rather than introducing a new key.
+// Auto-migrate: Pet Pound and Pet Penalty Payments use the
+// manage_pet_pound permission.

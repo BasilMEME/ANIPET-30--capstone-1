@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . "/../auth_helper.php";
-require_permission($conn, 'manage_returns');
+require_permission($conn, 'manage_pet_pound');
 
 // Lazy grace-period expiry: any pet still Pending once its 14-day claim_deadline has
 // passed flips to Expired, which is what makes it eligible to be posted for adoption

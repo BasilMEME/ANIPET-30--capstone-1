@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/auth_helper.php';
-require_super_or_permission('manage_returns');
+require_super_or_permission('manage_pet_pound');
 
 // Lazy grace-period expiry — see admin_pages/pet_pound.php for the same check.
 $conn->query("UPDATE pet_pound SET status='Expired' WHERE status='Pending' AND claim_deadline < NOW()");

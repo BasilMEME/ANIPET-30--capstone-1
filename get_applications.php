@@ -33,22 +33,9 @@ $stmt = $conn->prepare("
         p.breed,
         p.age,
         p.gender,
-        p.image AS pet_image,
-        rr.return_request_status,
-        rr.return_request_reason,
-        rr.penalty_amount,
-        rr.penalty_paid
+        p.image AS pet_image
     FROM adoption_applications aa
     JOIN pets p ON aa.pet_id = p.id
-    LEFT JOIN (
-        SELECT r1.application_id, r1.status AS return_request_status, r1.reason AS return_request_reason, r1.penalty_amount, r1.penalty_paid
-        FROM return_requests r1
-        JOIN (
-            SELECT application_id, MAX(id) AS latest_id
-            FROM return_requests
-            GROUP BY application_id
-        ) r2 ON r1.application_id = r2.application_id AND r1.id = r2.latest_id
-    ) rr ON rr.application_id = aa.id
     WHERE aa.user_id = ?
     ORDER BY aa.id DESC
 ");
