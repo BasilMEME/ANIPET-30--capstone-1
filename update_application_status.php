@@ -4,7 +4,23 @@ require_once __DIR__ . '/auth_helper.php';
 require_once __DIR__ . '/application_status_helper.php';
 header("Content-Type: application/json");
 
-$base_url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']) . '/';
+$protocol = 'http';
+
+if (
+    (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https'
+) {
+    $protocol = 'https';
+}
+
+$scriptDirectory = trim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+
+$base_url = $protocol . '://' . $_SERVER['HTTP_HOST'] . '/';
+
+if ($scriptDirectory !== '' && $scriptDirectory !== '.') {
+    $base_url .= $scriptDirectory . '/';
+}
+
 $method = $_SERVER["REQUEST_METHOD"];
 
 if ($method === "POST") {

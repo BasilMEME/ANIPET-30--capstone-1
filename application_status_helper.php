@@ -518,9 +518,15 @@ $qr_code = null;
 $qr_data = null;
 
 if ($status === 'approved') {
+    $existingQrPath = $appData['existing_qr_code'] ?? '';
+    $existingQrFile = !empty($existingQrPath)
+        ? __DIR__ . '/' . ltrim($existingQrPath, '/')
+        : '';
+
     if (
         !empty($appData['existing_qr_code'])
         && !empty($appData['existing_qr_data'])
+        && is_file($existingQrFile)
     ) {
         $qr_code = $appData['existing_qr_code'];
         $qr_data = $appData['existing_qr_data'];
