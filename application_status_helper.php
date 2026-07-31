@@ -663,25 +663,25 @@ if ($status === 'approved') {
                 ");
 
                 $stmt->bind_param(
-                    "ssissssssssssi",
-                    $status,
-                    $admin_notes,
-                    $admin_id,
+                "ssisssssssssi",
+                $status,
+                $admin_notes,
+                $admin_id,
 
-                    $qr_code,
-                    $qr_code,
+                $qr_code,
+                $qr_code,
 
-                    $qr_data,
-                    $qr_data,
+                $qr_data,
+                $qr_data,
 
-                    $interview_datetime,
-                    $readyPickupAt,
-                    $pickupDeadline,
-                    $rejectedAt,
-                    $rejectionReason,
+                $interview_datetime,
+                $readyPickupAt,
+                $pickupDeadline,
+                $rejectedAt,
+                $rejectionReason,
 
-                    $application_id
-                );
+                $application_id
+            );
         if (!$stmt->execute()) {
             throw new Exception("Failed to update application");
         }
