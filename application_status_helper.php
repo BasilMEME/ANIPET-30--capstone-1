@@ -436,6 +436,27 @@ function createApplicationNotification(
     $stmt->close();
 }
 
+function addBusinessDays(
+    DateTime $startDate,
+    int $businessDays
+): DateTime {
+    $deadline = clone $startDate;
+    $addedDays = 0;
+
+    while ($addedDays < $businessDays) {
+        $deadline->modify('+1 day');
+
+        $dayOfWeek = (int)$deadline->format('N');
+
+        // Monday = 1, Sunday = 7
+        if ($dayOfWeek <= 5) {
+            $addedDays++;
+        }
+    }
+
+    return $deadline;
+}
+
 // Moves an application to a new pipeline status, generating/emailing the QR on
 // approval and keeping the linked pet's status in sync. Returns the same
 // success/message/qr_code shape regardless of caller (HTTP endpoint or admin action).
@@ -487,6 +508,10 @@ if (!columnExists($conn, 'adoption_applications', 'qr_data')) {
             aa.qr_code AS existing_qr_code,
             aa.qr_data AS existing_qr_data,
             aa.completed_photo,
+            aa.ready_pickup_at,
+            aa.pickup_deadline,
+            aa.rejected_at,
+            aa.rejection_reason,
             p.name AS pet_name,
             u.email AS user_email,
             u.full_name AS user_full_name,
@@ -516,6 +541,54 @@ $statusChanged = ($status !== $previousStatus);
 
 $qr_code = null;
 $qr_data = null;
+
+$readyPickupAt = null;
+$pickupDeadline = null;
+
+if (
+    $status === 'ready_pickup' &&
+    $previousStatus !== 'ready_pickup'
+) {
+    $readyDate = new DateTime();
+
+    $deadlineDate = addBusinessDays(
+        $readyDate,
+        3
+    );
+
+    // Give the user until the end of the third business day.
+    $deadlineDate->setTime(23, 59, 59);
+
+    $readyPickupAt = $readyDate->format('Y-m-d H:i:s');
+    $pickupDeadline = $deadlineDate->format('Y-m-d H:i:s');
+}
+
+if (
+    $status === 'rejected' &&
+    $previousStatus === 'ready_pickup'
+) {
+    $savedDeadline = $appData['pickup_deadline'] ?? null;
+
+    if (empty($savedDeadline)) {
+        throw new Exception(
+            'This application does not have a pickup deadline.'
+        );
+    }
+
+    $now = new DateTime();
+    $deadline = new DateTime($savedDeadline);
+
+    if ($now <= $deadline) {
+        throw new Exception(
+            'This application cannot be rejected yet. The pickup deadline has not passed.'
+        );
+    }
+
+    if (trim($admin_notes) === '') {
+        $admin_notes =
+            'Application rejected because the pet was not picked up within the required 3 business days.';
+    }
+}
 
 if ($status === 'approved') {
     $existingQrPath = $appData['existing_qr_code'] ?? '';
@@ -550,16 +623,65 @@ if ($status === 'approved') {
     }
 }
 
-        $stmt = $conn->prepare("
-            UPDATE adoption_applications
-            SET status = ?, admin_notes = ?, screened_by = ?,
-                qr_code = IF(? IS NOT NULL, ?, qr_code),
-                qr_data = IF(? IS NOT NULL, ?, qr_data),
-                interview_datetime = COALESCE(?, interview_datetime)
-            WHERE id = ?
-        ");
-        $stmt->bind_param("ssisssssi", $status, $admin_notes, $admin_id, $qr_code, $qr_code, $qr_data, $qr_data, $interview_datetime, $application_id);
+                    $rejectedAt = null;
+            $rejectionReason = null;
 
+            if ($status === 'rejected') {
+                $rejectedAt = date('Y-m-d H:i:s');
+
+                $rejectionReason = trim($admin_notes) !== ''
+                    ? $admin_notes
+                    : 'Application rejected.';
+            }
+
+                $stmt = $conn->prepare("
+                    UPDATE adoption_applications
+                    SET
+                        status = ?,
+                        admin_notes = ?,
+                        screened_by = ?,
+
+                        qr_code = IF(? IS NOT NULL, ?, qr_code),
+                        qr_data = IF(? IS NOT NULL, ?, qr_data),
+
+                        interview_datetime =
+                            COALESCE(?, interview_datetime),
+
+                        ready_pickup_at =
+                            COALESCE(?, ready_pickup_at),
+
+                        pickup_deadline =
+                            COALESCE(?, pickup_deadline),
+
+                        rejected_at =
+                            COALESCE(?, rejected_at),
+
+                        rejection_reason =
+                            COALESCE(?, rejection_reason)
+
+                    WHERE id = ?
+                ");
+
+                $stmt->bind_param(
+                    "ssissssssssssi",
+                    $status,
+                    $admin_notes,
+                    $admin_id,
+
+                    $qr_code,
+                    $qr_code,
+
+                    $qr_data,
+                    $qr_data,
+
+                    $interview_datetime,
+                    $readyPickupAt,
+                    $pickupDeadline,
+                    $rejectedAt,
+                    $rejectionReason,
+
+                    $application_id
+                );
         if (!$stmt->execute()) {
             throw new Exception("Failed to update application");
         }

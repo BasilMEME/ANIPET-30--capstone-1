@@ -17,7 +17,12 @@ if ($r) while ($row = $r->fetch_assoc()) { $counts[$row['status']] = (int)$row['
 
 // Fetch applications
 $sql = "SELECT aa.id, aa.pet_id, aa.user_id, aa.applicant_name, aa.status, aa.created_at,
-               aa.interview_datetime, aa.admin_notes,
+               aa.interview_datetime,
+                aa.admin_notes,
+                aa.ready_pickup_at,
+                aa.pickup_deadline,
+                aa.rejected_at,
+                aa.rejection_reason,
                p.name AS pet_name, p.breed AS pet_breed
         FROM adoption_applications aa
         LEFT JOIN pets p ON aa.pet_id = p.id
@@ -95,13 +100,43 @@ $pillLabels = [
         <td><span class="badge badge-<?php echo strtolower($app['status']); ?>"><?php echo ucwords(str_replace('_',' ',$app['status'])); ?></span></td>
         <td style="font-size:.82rem;"><?php echo $app['interview_datetime'] ? date('M d, Y H:i', strtotime($app['interview_datetime'])) : '—'; ?></td>
         <td style="font-size:.8rem;color:var(--muted);"><?php echo date('M d, Y', strtotime($app['created_at'])); ?></td>
+        <?php
+        $showRejectButton = false;
+
+        if (
+            $app['status'] === 'ready_pickup' &&
+            !empty($app['pickup_deadline'])
+        ) {
+            $showRejectButton =
+                strtotime($app['pickup_deadline']) < time();
+        }
+        ?>
         <td>
-            <button class="btn btn-info btn-sm" onclick="viewApplication(<?php echo $app['id']; ?>)">View</button>
-            <button class="btn btn-primary btn-sm" onclick="changeStatusModal(<?php echo $app['id']; ?>, '<?php echo $app['status']; ?>')">Status</button>
-            <?php if (in_array($app['status'], ['pending', 'screening'])): ?>
-            <button class="btn btn-warning btn-sm" onclick="scheduleInterviewModal(<?php echo $app['id']; ?>, '<?php echo $app['interview_datetime'] ? str_replace(' ', 'T', substr($app['interview_datetime'], 0, 16)) : ''; ?>')">🎤 Interview</button>
-            <?php endif; ?>
-        </td>
+        <button class="btn btn-info btn-sm"
+            onclick="viewApplication(<?php echo $app['id']; ?>)">
+            View
+        </button>
+
+        <button class="btn btn-primary btn-sm"
+            onclick="changeStatusModal(<?php echo $app['id']; ?>, '<?php echo $app['status']; ?>')">
+            Status
+        </button>
+
+        <?php if (in_array($app['status'], ['pending', 'screening'])): ?>
+        <button class="btn btn-warning btn-sm"
+            onclick="scheduleInterviewModal(<?php echo $app['id']; ?>, '<?php echo $app['interview_datetime'] ? str_replace(' ', 'T', substr($app['interview_datetime'], 0, 16)) : ''; ?>')">
+            🎤 Interview
+        </button>
+        <?php endif; ?>
+
+        <?php if ($showRejectButton): ?>
+        <button
+            class="btn btn-danger btn-sm"
+            onclick="rejectExpiredApplication(<?php echo $app['id']; ?>)">
+            Reject
+        </button>
+        <?php endif; ?>
+    </td>
     </tr>
     <?php endforeach; ?>
     </tbody>
@@ -145,7 +180,6 @@ $pillLabels = [
         <option value="for_releasing">For Release</option>
         <option value="ready_pickup">Ready for Pick-up</option>
         <option value="completed">Completed</option>
-        <option value="rejected">Rejected</option>
     </select>
 </div>
 
@@ -501,6 +535,75 @@ async function submitStatusChange() {
 
         showToast(
             'Unable to update the application. Please try again.',
+            'error'
+        );
+    }
+}
+
+async function rejectExpiredApplication(id) {
+    const confirmed = confirm(
+        'The pickup deadline has passed. Reject this application and return the pet to Available Pets?'
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    const body = new URLSearchParams({
+        action: 'update_application_status',
+        id: String(id),
+        status: 'rejected',
+        admin_notes:
+            'Application rejected because the pet was not picked up within the required 3 business days.',
+        interview_datetime: ''
+    });
+
+    try {
+        const response = await fetch(
+            'admin_api.php',
+            {
+                method: 'POST',
+                body
+            }
+        );
+
+        const text = await response.text();
+
+        let data;
+
+        try {
+            data = JSON.parse(text);
+        } catch (error) {
+            console.error(text);
+
+            showToast(
+                'The server returned an invalid response.',
+                'error'
+            );
+
+            return;
+        }
+
+        if (response.ok && data.success) {
+            showToast(
+                'Application rejected. The pet is available again.'
+            );
+
+            setTimeout(() => {
+                location.reload();
+            }, 700);
+        } else {
+            showToast(
+                data.message ||
+                'Unable to reject the application.',
+                'error'
+            );
+        }
+    } catch (error) {
+        console.error(error);
+
+        showToast(
+            'Unable to connect to the server.',
             'error'
         );
     }
