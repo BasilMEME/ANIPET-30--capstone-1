@@ -3,9 +3,16 @@ require_once __DIR__ . "/../auth_helper.php";
 require_permission($conn, 'manage_pet_pound');
 
 $result = $conn->query("
-    SELECT pp.*, p.pet_name, p.owner_name AS pound_owner_name, p.penalty_amount
+    SELECT
+        pp.*,
+        p.pet_name,
+        p.owner_name AS pound_owner_name,
+        p.penalty_amount
     FROM pet_penalty_payments pp
-    JOIN pet_pound p ON p.id = pp.pet_pound_id
+    JOIN pet_pound p
+        ON p.id = pp.pet_pound_id
+    WHERE pp.payment_status = 'succeeded'
+      AND pp.payment_date IS NOT NULL
     ORDER BY pp.payment_date DESC
 ");
 
