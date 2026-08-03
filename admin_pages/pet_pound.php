@@ -526,128 +526,31 @@ MARK AS DECEASED MODAL
 /*=========================
 MODALS
 =========================*/
-
-function openModal(id){
-    document.getElementById(id).style.display = "flex";
-}
-
-function closeModal(id) {
-    document.getElementById(id).style.display = "none";
-
-    if (id === "paymentModal") {
-        stopPenaltyPaymentPolling();
-        activePenaltyPaymentIntentId = "";
-    }
-}
-
-window.onclick = function(e){
-    document.querySelectorAll(".modal-backdrop").forEach(function(modal){
-        if(e.target === modal){
-            modal.style.display = "none";
-        }
-    });
-
-    const adoptionModal = document.getElementById("adoptionPostModal");
-    if(adoptionModal && e.target === adoptionModal){
-        closeAdoptionPostModal();
-    }
-}
-
-/*=========================
-OPEN MANAGE MODAL
-=========================*/
-
-let currentPetId = 0;
-
-function openPet(id){
-    currentPetId = id;
-
-    fetch("admin_pages/view_pet.php?id=" + id)
-    .then(r => r.text())
-    .then(html => {
-        document.getElementById("petModalBody").innerHTML = html;
-        openModal("petModal");
-    });
-}
-
-/*=========================
-SAVE IMPOUNDED PET
-=========================*/
-
-function saveImpoundedPet(){
-    let form = document.getElementById("addPetForm");
-    let data = new FormData(form);
-
-    fetch("admin_pages/save_impounded_pet.php", {
-        method:"POST",
-        body:data
-    })
-    .then(r=>r.text())
-    .then(result=>{
-        result=result.trim();
-
-        if(result==="success"){
-            alert("Pet added successfully.");
-            closeModal("addPetModal");
-            location.reload();
-        }else{
-            alert(result);
-        }
-    });
-}
-
-/*=========================
-PAYMENT
-=========================*/
-
-function paymentPet(){
-
-    closeModal("petModal");
-
-    fetch("admin_pages/payment_pet.php?id="+currentPetId)
-    .then(r=>r.text())
-    .then(html=>{
-        document.getElementById("paymentContent").innerHTML=html;
-        openModal("paymentModal");
-    });
-
-}
-
-function viewPaymentHistory(){
-    window.open("admin_pages/payment_details.php?id="+currentPetId,"_blank");
-}
-
-function savePayment(){
-
-    let penaltyPaymentPollTimer = null;
+let penaltyPaymentPollTimer = null;
 let activePenaltyPaymentIntentId = "";
 
 async function generatePenaltyQrPayment() {
-    const petPoundId =
-        parseInt(
-            document.getElementById("penaltyPetPoundId")?.value || "0",
-            10
-        );
+    const petPoundId = Number(
+        document.getElementById("penaltyPetPoundId")?.value || 0
+    );
+
+    const button = document.getElementById("generatePenaltyQrButton");
+    const placeholder = document.getElementById("penaltyQrPlaceholder");
+    const loading = document.getElementById("penaltyQrLoading");
+    const result = document.getElementById("penaltyQrResult");
 
     if (!petPoundId) {
         alert("Invalid impoundment ID.");
         return;
     }
 
-    const generateButton =
-        document.getElementById("generatePenaltyQrButton");
+    if (!button || !placeholder || !loading || !result) {
+        alert("The payment interface is incomplete.");
+        return;
+    }
 
-    const placeholder =
-        document.getElementById("penaltyQrPlaceholder");
-
-    const loading =
-        document.getElementById("penaltyQrLoading");
-
-    const result =
-        document.getElementById("penaltyQrResult");
-
-    generateButton.disabled = true;
-    generateButton.textContent = "Generating...";
+    button.disabled = true;
+    button.textContent = "Generating...";
 
     placeholder.style.display = "none";
     loading.style.display = "block";
@@ -659,7 +562,8 @@ async function generatePenaltyQrPayment() {
             {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
                 },
                 body: JSON.stringify({
                     pet_pound_id: petPoundId
@@ -667,9 +571,23 @@ async function generatePenaltyQrPayment() {
             }
         );
 
-        const data = await response.json();
+        const rawResponse = await response.text();
 
-        if (!data.success) {
+        let data;
+
+        try {
+            data = JSON.parse(rawResponse);
+        } catch (error) {
+            console.error("Invalid server response:", rawResponse);
+
+            throw new Error(
+                "The server returned an invalid response. Check the PHP error logs."
+            );
+        }
+
+        if (!response.ok || !data.success) {
+            console.error("Payment creation error:", data);
+
             throw new Error(
                 data.message ||
                 "Unable to generate the QR Ph payment."
@@ -681,33 +599,48 @@ async function generatePenaltyQrPayment() {
             !data.qr_image_url
         ) {
             throw new Error(
-                "The payment server did not return complete QR details."
+                "PayMongo did not return complete QR Ph information."
             );
         }
 
         activePenaltyPaymentIntentId =
             data.payment_intent_id;
 
-        document.getElementById("penaltyQrImage").src =
-            data.qr_image_url;
+        const qrImage =
+            document.getElementById("penaltyQrImage");
 
-        loading.style.display = "none";
-        result.style.display = "block";
+        qrImage.onload = function () {
+            loading.style.display = "none";
+            result.style.display = "block";
+        };
 
-        generateButton.style.display = "none";
+        qrImage.onerror = function () {
+            loading.style.display = "none";
+            placeholder.style.display = "block";
+
+            button.disabled = false;
+            button.textContent =
+                "Generate QR Ph Payment";
+
+            alert("The generated QR image could not be displayed.");
+        };
+
+        qrImage.src = data.qr_image_url;
+
+        button.style.display = "none";
 
         startPenaltyPaymentPolling(
             activePenaltyPaymentIntentId
         );
 
     } catch (error) {
-        console.error(error);
+        console.error("QR Ph generation failed:", error);
 
         loading.style.display = "none";
         placeholder.style.display = "block";
 
-        generateButton.disabled = false;
-        generateButton.textContent =
+        button.disabled = false;
+        button.textContent =
             "Generate QR Ph Payment";
 
         alert(
@@ -723,7 +656,7 @@ function startPenaltyPaymentPolling(paymentIntentId) {
     checkPenaltyPaymentStatus(paymentIntentId);
 
     penaltyPaymentPollTimer = setInterval(
-        () => {
+        function () {
             checkPenaltyPaymentStatus(paymentIntentId);
         },
         3000
@@ -731,22 +664,25 @@ function startPenaltyPaymentPolling(paymentIntentId) {
 }
 
 function stopPenaltyPaymentPolling() {
-    if (penaltyPaymentPollTimer) {
+    if (penaltyPaymentPollTimer !== null) {
         clearInterval(penaltyPaymentPollTimer);
         penaltyPaymentPollTimer = null;
     }
 }
 
-async function checkPenaltyPaymentStatus(
-    paymentIntentId
-) {
+async function checkPenaltyPaymentStatus(paymentIntentId) {
+    if (!paymentIntentId) {
+        return;
+    }
+
     try {
         const response = await fetch(
             "check_penalty_qrph_payment.php",
             {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
                 },
                 body: JSON.stringify({
                     payment_intent_id: paymentIntentId
@@ -754,29 +690,45 @@ async function checkPenaltyPaymentStatus(
             }
         );
 
-        const data = await response.json();
+        const rawResponse = await response.text();
 
-        if (!data.success) {
+        let data;
+
+        try {
+            data = JSON.parse(rawResponse);
+        } catch (error) {
             console.error(
-                data.message ||
-                "Unable to check payment status."
+                "Invalid payment-status response:",
+                rawResponse
             );
-
             return;
         }
 
-        const pollingText =
+        if (!response.ok || !data.success) {
+            console.error(
+                "Payment status error:",
+                data.message || data
+            );
+            return;
+        }
+
+        const pollingStatus =
             document.getElementById(
                 "penaltyPollingStatus"
             );
 
+        if (!pollingStatus) {
+            stopPenaltyPaymentPolling();
+            return;
+        }
+
         if (data.paid === true) {
             stopPenaltyPaymentPolling();
 
-            pollingText.textContent =
+            pollingStatus.textContent =
                 "Payment completed successfully.";
 
-            pollingText.style.color =
+            pollingStatus.style.color =
                 "var(--success)";
 
             const statusBadge =
@@ -790,9 +742,14 @@ async function checkPenaltyPaymentStatus(
                     "badge badge-approved";
             }
 
-            document.getElementById(
-                "penaltyPaymentReferenceBox"
-            ).style.display = "block";
+            const referenceBox =
+                document.getElementById(
+                    "penaltyPaymentReferenceBox"
+                );
+
+            if (referenceBox) {
+                referenceBox.style.display = "block";
+            }
 
             document.getElementById(
                 "penaltyPaidReference"
@@ -806,32 +763,22 @@ async function checkPenaltyPaymentStatus(
                     data.payment_date
                 );
 
-            const generateButton =
-                document.getElementById(
-                    "generatePenaltyQrButton"
-                );
-
-            if (generateButton) {
-                generateButton.style.display =
-                    "none";
-            }
-
-            setTimeout(() => {
+            setTimeout(function () {
                 closeModal("paymentModal");
-                location.reload();
-            }, 2500);
+                window.location.reload();
+            }, 3000);
 
             return;
         }
 
-        pollingText.textContent =
+        pollingStatus.textContent =
             getPenaltyPaymentStatusText(
                 data.status
             );
 
     } catch (error) {
         console.error(
-            "Penalty payment status check failed:",
+            "Penalty status polling failed:",
             error
         );
     }
@@ -851,7 +798,10 @@ function getPenaltyPaymentStatusText(status) {
             return "Payment completed successfully.";
 
         case "failed":
-            return "Payment failed. Please generate a new QR.";
+            return "Payment failed.";
+
+        case "cancelled":
+            return "Payment was cancelled.";
 
         default:
             return "Checking payment status...";
@@ -863,269 +813,13 @@ function formatPenaltyPaymentDate(value) {
         return "—";
     }
 
-    const safeValue =
-        value.replace(" ", "T");
+    const parsedDate =
+        new Date(value.replace(" ", "T"));
 
-    const date = new Date(safeValue);
-
-    if (Number.isNaN(date.getTime())) {
+    if (Number.isNaN(parsedDate.getTime())) {
         return value;
     }
 
-    return date.toLocaleString();
+    return parsedDate.toLocaleString();
 }
-}
-
-/*=========================
-FREE STATUS CHANGE
-=========================*/
-
-function updatePetStatus(){
-
-    let status=document.getElementById("statusSelect").value;
-
-    fetch("admin_pages/update_pet_status.php",{
-
-        method:"POST",
-
-        headers:{
-            "Content-Type":"application/x-www-form-urlencoded"
-        },
-
-        body:"id="+currentPetId+
-        "&status="+encodeURIComponent(status)
-
-    })
-    .then(r=>r.json())
-    .then(data=>{
-
-        if(data.success){
-
-            alert("Status updated to "+data.new_status+".");
-
-            closeModal("petModal");
-
-            location.reload();
-
-        }else{
-
-            alert(data.message);
-
-        }
-
-    });
-
-}
-
-/*=========================
-CLAIM PET
-=========================*/
-
-function claimPet(){
-
-    if(!confirm("Return this pet to the owner?")) return;
-
-    fetch("admin_pages/claim_pet.php",{
-
-        method:"POST",
-
-        headers:{
-            "Content-Type":"application/x-www-form-urlencoded"
-        },
-
-        body:"id="+currentPetId
-
-    })
-
-    .then(r=>r.json())
-
-    .then(data=>{
-
-        if(data.success){
-
-            alert("Pet successfully claimed.");
-
-            closeModal("petModal");
-
-            location.reload();
-
-        }else{
-
-            alert(data.message);
-
-        }
-
-    });
-
-}
-
-/*=========================
-POST FOR ADOPTION
-=========================*/
-
-function openAdoptionPostModal(button){
-
-    const modal=document.getElementById("adoptionPostModal");
-
-    document.getElementById("adoptionPoundId").value=currentPetId;
-    document.getElementById("adoptionName").value=button.dataset.name||"";
-    document.getElementById("adoptionSpecies").value=button.dataset.species||"";
-    document.getElementById("adoptionBreed").value=button.dataset.breed||"";
-    document.getElementById("adoptionAge").value=button.dataset.age||"";
-    document.getElementById("adoptionGender").value=button.dataset.gender||"";
-    document.getElementById("adoptionHealthStatus").value=button.dataset.health||"";
-    document.getElementById("adoptionDescription").value=button.dataset.description||"";
-
-    modal.style.display="block";
-
-}
-
-function closeAdoptionPostModal(){
-
-    document.getElementById("adoptionPostModal").style.display="none";
-
-}
-
-const adoptionPostForm=document.getElementById("adoptionPostForm");
-
-if(adoptionPostForm){
-
-    adoptionPostForm.addEventListener("submit",function(event){
-
-        event.preventDefault();
-
-        const publishButton=document.getElementById("publishAdoptionButton");
-
-        if(!confirm("Finish and publish this pet for adoption?")){
-            return;
-        }
-
-        publishButton.disabled=true;
-        publishButton.innerHTML="Publishing...";
-
-        const formData=new URLSearchParams(
-            new FormData(this)
-        );
-
-        fetch("admin_pages/post_pet_for_adoption.php",{
-
-            method:"POST",
-
-            headers:{
-                "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"
-            },
-
-            body:formData.toString()
-
-        })
-
-        .then(response=>{
-
-            if(!response.ok){
-                throw new Error("HTTP "+response.status);
-            }
-
-            return response.json();
-
-        })
-
-        .then(data=>{
-
-            if(data.success){
-
-                alert(data.message);
-
-                closeAdoptionPostModal();
-
-                closeModal("petModal");
-
-                location.reload();
-
-            }else{
-
-                alert(data.message);
-
-            }
-
-        })
-
-        .catch(error=>{
-
-            console.error(error);
-
-            alert("Posting failed.");
-
-        })
-
-        .finally(()=>{
-
-            publishButton.disabled=false;
-
-            publishButton.innerHTML="Finish and Publish";
-
-        });
-
-    });
-
-}
-
-/*=========================
-MARK DECEASED
-=========================*/
-
-function openDeceasedModal(){
-
-    document.getElementById("recordType").value="Illness";
-
-    document.getElementById("recordRemarks").value="";
-
-    openModal("deceasedModal");
-
-}
-
-function confirmDeceased(){
-
-    let type=document.getElementById("recordType").value;
-
-    let remarks=document.getElementById("recordRemarks").value;
-
-    fetch("admin_pages/mark_pet_deceased.php",{
-
-        method:"POST",
-
-        headers:{
-            "Content-Type":"application/x-www-form-urlencoded"
-        },
-
-        body:
-            "id="+currentPetId+
-            "&record_type="+encodeURIComponent(type)+
-            "&remarks="+encodeURIComponent(remarks)
-
-    })
-
-    .then(r=>r.json())
-
-    .then(data=>{
-
-        if(data.success){
-
-            alert("Pet marked as deceased.");
-
-            closeModal("deceasedModal");
-
-            closeModal("petModal");
-
-            location.reload();
-
-        }else{
-
-            alert(data.message);
-
-        }
-
-    });
-
-}
-
 </script>
