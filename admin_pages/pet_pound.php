@@ -531,8 +531,13 @@ function openModal(id){
     document.getElementById(id).style.display = "flex";
 }
 
-function closeModal(id){
+function closeModal(id) {
     document.getElementById(id).style.display = "none";
+
+    if (id === "paymentModal") {
+        stopPenaltyPaymentPolling();
+        activePenaltyPaymentIntentId = "";
+    }
 }
 
 window.onclick = function(e){
@@ -614,39 +619,261 @@ function viewPaymentHistory(){
 
 function savePayment(){
 
-    let form=document.getElementById("paymentForm");
+    let penaltyPaymentPollTimer = null;
+let activePenaltyPaymentIntentId = "";
 
-    if(!form){
-        alert("Payment form not found.");
+async function generatePenaltyQrPayment() {
+    const petPoundId =
+        parseInt(
+            document.getElementById("penaltyPetPoundId")?.value || "0",
+            10
+        );
+
+    if (!petPoundId) {
+        alert("Invalid impoundment ID.");
         return;
     }
 
-    let data=new FormData(form);
-    data.append("save","1");
+    const generateButton =
+        document.getElementById("generatePenaltyQrButton");
 
-    fetch("admin_pages/payment_pet.php?id="+currentPetId,{
-        method:"POST",
-        body:data
-    })
-    .then(res=>res.text())
-    .then(result=>{
+    const placeholder =
+        document.getElementById("penaltyQrPlaceholder");
 
-        result=result.trim();
+    const loading =
+        document.getElementById("penaltyQrLoading");
 
-        if(result==="success"){
-            alert("Payment recorded successfully.");
-            closeModal("paymentModal");
-            location.reload();
-        }else{
-            alert(result);
+    const result =
+        document.getElementById("penaltyQrResult");
+
+    generateButton.disabled = true;
+    generateButton.textContent = "Generating...";
+
+    placeholder.style.display = "none";
+    loading.style.display = "block";
+    result.style.display = "none";
+
+    try {
+        const response = await fetch(
+            "create_penalty_qrph_payment.php",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    pet_pound_id: petPoundId
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(
+                data.message ||
+                "Unable to generate the QR Ph payment."
+            );
         }
 
-    })
-    .catch(err=>{
-        console.log(err);
-        alert("Error saving payment.");
-    });
+        if (
+            !data.payment_intent_id ||
+            !data.qr_image_url
+        ) {
+            throw new Error(
+                "The payment server did not return complete QR details."
+            );
+        }
 
+        activePenaltyPaymentIntentId =
+            data.payment_intent_id;
+
+        document.getElementById("penaltyQrImage").src =
+            data.qr_image_url;
+
+        loading.style.display = "none";
+        result.style.display = "block";
+
+        generateButton.style.display = "none";
+
+        startPenaltyPaymentPolling(
+            activePenaltyPaymentIntentId
+        );
+
+    } catch (error) {
+        console.error(error);
+
+        loading.style.display = "none";
+        placeholder.style.display = "block";
+
+        generateButton.disabled = false;
+        generateButton.textContent =
+            "Generate QR Ph Payment";
+
+        alert(
+            error.message ||
+            "Unable to generate the QR Ph payment."
+        );
+    }
+}
+
+function startPenaltyPaymentPolling(paymentIntentId) {
+    stopPenaltyPaymentPolling();
+
+    checkPenaltyPaymentStatus(paymentIntentId);
+
+    penaltyPaymentPollTimer = setInterval(
+        () => {
+            checkPenaltyPaymentStatus(paymentIntentId);
+        },
+        3000
+    );
+}
+
+function stopPenaltyPaymentPolling() {
+    if (penaltyPaymentPollTimer) {
+        clearInterval(penaltyPaymentPollTimer);
+        penaltyPaymentPollTimer = null;
+    }
+}
+
+async function checkPenaltyPaymentStatus(
+    paymentIntentId
+) {
+    try {
+        const response = await fetch(
+            "check_penalty_qrph_payment.php",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    payment_intent_id: paymentIntentId
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!data.success) {
+            console.error(
+                data.message ||
+                "Unable to check payment status."
+            );
+
+            return;
+        }
+
+        const pollingText =
+            document.getElementById(
+                "penaltyPollingStatus"
+            );
+
+        if (data.paid === true) {
+            stopPenaltyPaymentPolling();
+
+            pollingText.textContent =
+                "Payment completed successfully.";
+
+            pollingText.style.color =
+                "var(--success)";
+
+            const statusBadge =
+                document.getElementById(
+                    "penaltyPaymentStatusText"
+                );
+
+            if (statusBadge) {
+                statusBadge.textContent = "Paid";
+                statusBadge.className =
+                    "badge badge-approved";
+            }
+
+            document.getElementById(
+                "penaltyPaymentReferenceBox"
+            ).style.display = "block";
+
+            document.getElementById(
+                "penaltyPaidReference"
+            ).textContent =
+                data.reference_number || "—";
+
+            document.getElementById(
+                "penaltyPaidDate"
+            ).textContent =
+                formatPenaltyPaymentDate(
+                    data.payment_date
+                );
+
+            const generateButton =
+                document.getElementById(
+                    "generatePenaltyQrButton"
+                );
+
+            if (generateButton) {
+                generateButton.style.display =
+                    "none";
+            }
+
+            setTimeout(() => {
+                closeModal("paymentModal");
+                location.reload();
+            }, 2500);
+
+            return;
+        }
+
+        pollingText.textContent =
+            getPenaltyPaymentStatusText(
+                data.status
+            );
+
+    } catch (error) {
+        console.error(
+            "Penalty payment status check failed:",
+            error
+        );
+    }
+}
+
+function getPenaltyPaymentStatusText(status) {
+    switch (
+        String(status || "").toLowerCase()
+    ) {
+        case "awaiting_next_action":
+            return "Waiting for the customer to scan and pay...";
+
+        case "processing":
+            return "Payment is being processed...";
+
+        case "succeeded":
+            return "Payment completed successfully.";
+
+        case "failed":
+            return "Payment failed. Please generate a new QR.";
+
+        default:
+            return "Checking payment status...";
+    }
+}
+
+function formatPenaltyPaymentDate(value) {
+    if (!value) {
+        return "—";
+    }
+
+    const safeValue =
+        value.replace(" ", "T");
+
+    const date = new Date(safeValue);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return date.toLocaleString();
+}
 }
 
 /*=========================

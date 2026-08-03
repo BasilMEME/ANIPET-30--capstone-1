@@ -40,6 +40,8 @@ if ($user_id <= 0 || $donor_name === "" || $amount < 1) {
 $amountInCentavos = (int) round($amount * 100);
 
 if ($amountInCentavos < 100) {
+    http_response_code(400);
+
     echo json_encode([
         "success" => false,
         "message" => "Minimum donation amount is ₱1.00."
@@ -236,4 +238,6 @@ echo json_encode([
     "pet_name" => $pet_name
 ]);
 
-$conn->close();
+if (isset($conn) && $conn instanceof mysqli) {
+    $conn->close();
+}
