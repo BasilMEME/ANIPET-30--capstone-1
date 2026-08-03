@@ -38,10 +38,10 @@ if ($file['error'] !== UPLOAD_ERR_OK) {
     exit;
 }
 
-$maxFileSize = 5 * 1024 * 1024;
+$maxFileSize = 15 * 1024 * 1024;
 
 if ($file['size'] > $maxFileSize) {
-    $response['message'] = 'Photo must not exceed 5 MB.';
+    $response['message'] = 'Photo must not exceed 15 MB.';
     echo json_encode($response);
     exit;
 }
