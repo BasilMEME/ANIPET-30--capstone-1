@@ -223,13 +223,4 @@ FREE STATUS CHANGE
     </button>
 <?php endif; ?>
 
-</div>
-<?php if (!$isPosted): ?>
-    <button class="btn btn-danger" onclick="openDeceasedModal()">
-        ☠ Mark as Deceased
-    </button>
-<?php endif; ?>
-
-</div>
-
 <?php endif; ?>
