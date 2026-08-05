@@ -4,7 +4,9 @@ header('Access-Control-Allow-Origin: *');
 
 require_once __DIR__ . "/db_connect.php";
 
-$base_url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']) . '/images/';
+$base_url = 'https://' . $_SERVER['HTTP_HOST']
+    . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\')
+    . '/images/';
 
 $sql = "SELECT * FROM pets WHERE status = 'available' ORDER BY created_at DESC";
 $result = $conn->query($sql);

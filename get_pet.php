@@ -4,7 +4,9 @@ header('Access-Control-Allow-Origin: *');
 
 require_once __DIR__ . "/db_connect.php";
 
-$base_url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']) . '/images/';
+$base_url = 'https://' . $_SERVER['HTTP_HOST']
+    . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\')
+    . '/images/';
 $pet_id = $_GET["pet_id"] ?? "";
 
 if (empty($pet_id)) {
