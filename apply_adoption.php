@@ -12,10 +12,16 @@ header("Content-Type: application/json");
 header('Access-Control-Allow-Origin: *');
 require_once __DIR__ . "/db_connect.php";
 
-// Ensure uploads directory exists
-$upload_dir = __DIR__ . '/uploads/';
+// Store adoption documents inside the persistent Railway volume.
+// Railway volume is mounted at /app/images.
+$upload_dir = __DIR__ . '/images/application_uploads/';
+
 if (!is_dir($upload_dir)) {
-    mkdir($upload_dir, 0755, true);
+    if (!mkdir($upload_dir, 0755, true) && !is_dir($upload_dir)) {
+        throw new RuntimeException(
+            'Unable to create application upload directory.'
+        );
+    }
 }
 
 // TEMP DEBUG — remove after diagnosing the "pet no longer available" reports.
@@ -190,13 +196,26 @@ if (!in_array($mime, array_merge($allowed_image_types, ['application/pdf']))) {
     echo json_encode(["status"=>"error","message"=>"ID document must be an image or PDF"]);
     exit;
 }
+
 $tmp = $_FILES['id_document']['tmp_name'];
 $name = basename($_FILES['id_document']['name']);
-$target = 'uploads/' . uniqid('id_', true) . '_' . preg_replace('/[^A-Za-z0-9_.-]/', '_', $name);
-if (move_uploaded_file($tmp, __DIR__ . '/' . $target)) {
-    $id_paths[] = $target;
+
+$fileName =
+    uniqid('id_', true) . '_' .
+    preg_replace('/[^A-Za-z0-9_.-]/', '_', $name);
+
+$targetPath = $upload_dir . $fileName;
+
+// This is the relative path stored in MySQL.
+$databasePath = 'images/application_uploads/' . $fileName;
+
+if (move_uploaded_file($tmp, $targetPath)) {
+    $id_paths[] = $databasePath;
 } else {
-    echo json_encode(["status"=>"error","message"=>"Failed to save ID document"]);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Failed to save ID document"
+    ]);
     exit;
 }
 
@@ -227,11 +246,26 @@ if ($files !== null) {
                 exit;
             }
             $tmp = $files['tmp_name'][$i];
-            $name = basename($files['name'][$i]);
-            $target = 'uploads/' . uniqid('house_', true) . '_' . preg_replace('/[^A-Za-z0-9_.-]/', '_', $name);
-            if (move_uploaded_file($tmp, __DIR__ . '/' . $target)) {
-                $house_paths[] = $target;
-            }
+$name = basename($files['name'][$i]);
+
+$fileName =
+    uniqid('house_', true) . '_' .
+    preg_replace('/[^A-Za-z0-9_.-]/', '_', $name);
+
+$targetPath = $upload_dir . $fileName;
+
+$databasePath =
+    'images/application_uploads/' . $fileName;
+
+if (move_uploaded_file($tmp, $targetPath)) {
+    $house_paths[] = $databasePath;
+} else {
+    echo json_encode([
+        "status" => "error",
+        "message" => "Failed to save one of the house photos"
+    ]);
+    exit;
+}
         }
     } elseif ($files['error'] === UPLOAD_ERR_OK) {
         if ($files['size'] > $MAX_BYTES) {
@@ -246,11 +280,26 @@ if ($files !== null) {
             exit;
         }
         $tmp = $files['tmp_name'];
-        $name = basename($files['name']);
-        $target = 'uploads/' . uniqid('house_', true) . '_' . preg_replace('/[^A-Za-z0-9_.-]/', '_', $name);
-        if (move_uploaded_file($tmp, __DIR__ . '/' . $target)) {
-            $house_paths[] = $target;
-        }
+$name = basename($files['name']);
+
+$fileName =
+    uniqid('house_', true) . '_' .
+    preg_replace('/[^A-Za-z0-9_.-]/', '_', $name);
+
+$targetPath = $upload_dir . $fileName;
+
+$databasePath =
+    'images/application_uploads/' . $fileName;
+
+if (move_uploaded_file($tmp, $targetPath)) {
+    $house_paths[] = $databasePath;
+} else {
+    echo json_encode([
+        "status" => "error",
+        "message" => "Failed to save house photo"
+    ]);
+    exit;
+}
     }
 }
 if (empty($house_paths)) {
