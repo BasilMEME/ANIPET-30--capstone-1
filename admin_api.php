@@ -228,22 +228,92 @@ try {
             break;
 
         case 'update_application_status':
-            require_permission($conn, 'manage_applications');
-            require_once __DIR__ . '/application_status_helper.php';
-            $id           = intval($_POST['id']               ?? 0);
-            $status       = trim($_POST['status']             ?? '');
-            $admin_notes  = trim($_POST['admin_notes']        ?? '');
-            $interview_dt = trim($_POST['interview_datetime'] ?? '') ?: null;
+    require_permission($conn, 'manage_applications');
+    require_once __DIR__ . '/application_status_helper.php';
 
-            if (!$id || !$status) respondJSON(false, 'Missing ID or status');
+    $id           = intval($_POST['id'] ?? 0);
+    $status       = trim($_POST['status'] ?? '');
+    $admin_notes  = trim($_POST['admin_notes'] ?? '');
+    $interview_dt = trim($_POST['interview_datetime'] ?? '') ?: null;
 
-            // Shared with update_application_status.php / approve_application.php so QR
-            // generation, approval emails, and pet-status sync stay in one place and in
-            // sync with the pending -> screening -> approved -> for_releasing -> ready_pickup -> completed pipeline.
-            $base_url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']) . '/';
-            $result = applyApplicationStatusChange($conn, $id, $status, current_user_id(), $admin_notes, $interview_dt, $base_url);
-            respondJSON($result['success'], $result['message'], ['qr_code' => $result['qr_code'] ?? null]);
-            break;
+    if (!$id || !$status) {
+        respondJSON(false, 'Missing ID or status');
+    }
+
+    // Allowed statuses that can be selected by admin.
+    $allowedStatuses = [
+        'pending',
+        'screening',
+        'approved',
+        'for_releasing',
+        'ready_pickup',
+        'completed',
+        'rejected'
+    ];
+
+    if (!in_array($status, $allowedStatuses, true)) {
+        respondJSON(false, 'Invalid application status');
+    }
+
+    // Get the application's current status.
+    $currentStmt = $conn->prepare("
+        SELECT status
+        FROM adoption_applications
+        WHERE id = ?
+        LIMIT 1
+    ");
+
+    $currentStmt->bind_param('i', $id);
+    $currentStmt->execute();
+
+    $currentApplication =
+        $currentStmt->get_result()->fetch_assoc();
+
+    $currentStmt->close();
+
+    if (!$currentApplication) {
+        respondJSON(false, 'Application not found');
+    }
+
+    $currentStatus = $currentApplication['status'];
+
+    // Completed applications are final.
+    // They can no longer be rejected.
+    if (
+        $currentStatus === 'completed' &&
+        $status === 'rejected'
+    ) {
+        respondJSON(
+            false,
+            'Completed applications can no longer be rejected.'
+        );
+    }
+
+    $base_url =
+        'http://' .
+        $_SERVER['HTTP_HOST'] .
+        dirname($_SERVER['SCRIPT_NAME']) .
+        '/';
+
+    $result = applyApplicationStatusChange(
+        $conn,
+        $id,
+        $status,
+        current_user_id(),
+        $admin_notes,
+        $interview_dt,
+        $base_url
+    );
+
+    respondJSON(
+        $result['success'],
+        $result['message'],
+        [
+            'qr_code' => $result['qr_code'] ?? null
+        ]
+    );
+
+    break;
 
         // ================================================================
         // APPOINTMENTS

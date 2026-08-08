@@ -174,13 +174,14 @@ $pillLabels = [
         <div class="form-group">
     <label class="form-label">New Status *</label>
     <select id="newStatus" class="form-control">
-        <option value="pending">Pending</option>
-        <option value="screening">Screening</option>
-        <option value="approved">Approved</option>
-        <option value="for_releasing">For Release</option>
-        <option value="ready_pickup">Ready for Pick-up</option>
-        <option value="completed">Completed</option>
-    </select>
+    <option value="pending">Pending</option>
+    <option value="screening">Screening</option>
+    <option value="approved">Approved</option>
+    <option value="for_releasing">For Release</option>
+    <option value="ready_pickup">Ready for Pick-up</option>
+    <option value="completed">Completed</option>
+    <option value="rejected">Rejected</option>
+</select>
 </div>
 
 <div id="completedPhotoGroup" class="form-group" style="display:none;">
@@ -345,12 +346,25 @@ function fmtDate(s) {
 
 function changeStatusModal(id, currentStatus) {
     document.getElementById('statusAppId').value = id;
+
+    const statusSelect = document.getElementById('newStatus');
+    const rejectedOption = statusSelect.querySelector(
+        'option[value="rejected"]'
+    );
+
+    // Completed applications can no longer be rejected.
+    if (rejectedOption) {
+        rejectedOption.disabled = currentStatus === 'completed';
+        rejectedOption.hidden = currentStatus === 'completed';
+    }
+
     setSelectVal('newStatus', currentStatus || 'pending');
 
     document.getElementById('adminNotes').value = '';
     document.getElementById('interviewDate').value = '';
 
-    const completedPhoto = document.getElementById('completedPhoto');
+    const completedPhoto =
+        document.getElementById('completedPhoto');
 
     if (completedPhoto) {
         completedPhoto.value = '';

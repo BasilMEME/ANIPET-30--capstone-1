@@ -532,6 +532,13 @@ if (!columnExists($conn, 'adoption_applications', 'qr_data')) {
 
         $appData = $appResult->fetch_assoc();
         $previousStatus = $appData['current_status'] ?? '';
+        // Completed adoption is final.
+// It cannot be rejected or moved back to another application status.
+if ($previousStatus === 'completed' && $status !== 'completed') {
+    throw new Exception(
+        'This application has already been completed and its status can no longer be changed.'
+    );
+}
 $isNewApproval = (
     $status === 'approved'
     && $previousStatus !== 'approved'
@@ -563,32 +570,7 @@ if (
     $pickupDeadline = $deadlineDate->format('Y-m-d H:i:s');
 }
 
-if (
-    $status === 'rejected' &&
-    $previousStatus === 'ready_pickup'
-) {
-    $savedDeadline = $appData['pickup_deadline'] ?? null;
 
-    if (empty($savedDeadline)) {
-        throw new Exception(
-            'This application does not have a pickup deadline.'
-        );
-    }
-
-    $now = new DateTime();
-    $deadline = new DateTime($savedDeadline);
-
-    if ($now <= $deadline) {
-        throw new Exception(
-            'This application cannot be rejected yet. The pickup deadline has not passed.'
-        );
-    }
-
-    if (trim($admin_notes) === '') {
-        $admin_notes =
-            'Application rejected because the pet was not picked up within the required 3 business days.';
-    }
-}
 
 if (
     in_array(
