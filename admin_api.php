@@ -1,7 +1,10 @@
 <?php
 header('Content-Type: application/json');
 require_once __DIR__ . '/auth_helper.php';
-require_once __DIR__ . '/return_policy_helper.php';
+$returnPolicyHelper = __DIR__ . '/return_policy_helper.php';
+if (is_file($returnPolicyHelper)) {
+    require_once $returnPolicyHelper;
+}
 
 $action = $_REQUEST['action'] ?? '';
 if (empty($action)) {
