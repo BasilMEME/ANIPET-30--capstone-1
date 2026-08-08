@@ -46,8 +46,12 @@ if (!empty($_FILES['pet_photo']['name'])) {
         exit;
     }
 
-    $pet_photo = uniqid('pet_', true) . '.' . $ext;
-    $destination = $uploadDir . $pet_photo;
+    $fileName = uniqid('pet_', true) . '.' . $ext;
+
+$destination = $uploadDir . $fileName;
+
+// Save the relative path in MySQL
+$pet_photo = 'pet_pound/' . $fileName;
 
     if (!move_uploaded_file($_FILES['pet_photo']['tmp_name'], $destination)) {
         echo "Failed to upload photo.";
