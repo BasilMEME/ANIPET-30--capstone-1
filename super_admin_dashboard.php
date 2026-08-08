@@ -46,35 +46,6 @@ if ($statusResult) {
     }
 }
 
-$recentApps = [];
-$recentAppResult = $conn->query(
-    "SELECT aa.id, aa.status, aa.created_at, p.name AS pet_name, u.full_name AS applicant
-     FROM adoption_applications aa
-     JOIN pets p ON aa.pet_id = p.id
-     JOIN users u ON aa.user_id = u.id
-     ORDER BY aa.created_at DESC
-     LIMIT 6"
-);
-if ($recentAppResult) {
-    while ($row = $recentAppResult->fetch_assoc()) {
-        $recentApps[] = $row;
-    }
-}
-
-$auditLogs = [];
-$auditResult = $conn->query(
-    "SELECT al.action_type, al.target_type, al.created_at, u.full_name AS actor_name
-     FROM audit_logs al
-     LEFT JOIN users u ON al.user_id = u.id
-     ORDER BY al.created_at DESC
-     LIMIT 8"
-);
-if ($auditResult) {
-    while ($row = $auditResult->fetch_assoc()) {
-        $auditLogs[] = $row;
-    }
-}
-
 $conn->close();
 ?>
 <!DOCTYPE html>
@@ -207,10 +178,6 @@ $conn->close();
         .status { display: inline-flex; padding: 6px 9px; border-radius: 999px; background: var(--surface-soft); border: 1px solid var(--border); font-weight: 700; font-size: .75rem; }
         details.card summary { cursor: pointer; font-weight: 800; }
         details.card > p { color: var(--muted); line-height: 1.55; }
-        .tool-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-        .btn { border: 0; border-radius: 12px; padding: 10px 13px; font-weight: 800; cursor: pointer; }
-        .btn-primary { background: var(--accent); color: #291512; }
-        .btn-secondary { background: var(--surface-soft); color: var(--text); border: 1px solid var(--border); }
         @media (max-width: 1100px) {
             .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -243,17 +210,7 @@ $conn->close();
         <a class="nav-link" href="admin_workspace.php?page=appointments">Appointments</a>
         <a class="nav-link" href="admin_workspace.php?page=users">Users</a>
         <a class="nav-link" href="admin_workspace.php?page=pet_pound">Pet Pound</a>
-        <a class="nav-link" href="admin_workspace.php?page=returns">Returns & Penalties</a>
         <a class="nav-link" href="admin_workspace.php?page=notifications">Notifications</a>
-
-        <div class="nav-title">Owner Tools</div>
-        <a class="nav-link" href="super_admin_actions.php">Staff Management</a>
-        <a class="nav-link" href="super_admin_donations.php">Donations</a>
-        <a class="nav-link" href="admin_workspace.php?page=reports">Reports</a>
-        <a class="nav-link" href="super_admin_activity.php">Activity History</a>
-        <a class="nav-link" href="super_admin_settings.php">System Settings</a>
-        <a class="nav-link" href="super_admin_security.php">Account Safety</a>
-        <a class="nav-link" href="super_admin_database.php">Backup & Recovery</a>
 
         <div class="sidebar-footer">
             <button class="small-btn" id="themeToggle" type="button">Dark Mode</button>
@@ -291,9 +248,7 @@ $conn->close();
                 <div class="card quick-card"><h3>Manage Pets</h3><p>Add new pets, edit details, update availability, and manage pet records.</p><a href="admin_workspace.php?page=pets">Open Pet Management →</a></div>
                 <div class="card quick-card"><h3>Review Applications</h3><p>Check applications, update their progress, and assist with adoption processing.</p><a href="admin_workspace.php?page=applications">Open Applications →</a></div>
                 <div class="card quick-card"><h3>Appointments</h3><p>View and manage scheduled visits and adoption appointments.</p><a href="admin_workspace.php?page=appointments">Open Appointments →</a></div>
-                <div class="card quick-card"><h3>Pet Pound</h3><p>View impounded pets, claims, returns, penalties, and related records.</p><a href="admin_workspace.php?page=pet_pound">Open Pet Pound →</a></div>
-                <div class="card quick-card"><h3>Manage Staff</h3><p>Create accounts, update permissions, reset passwords, and suspend staff accounts.</p><a href="super_admin_actions.php">Open Staff Management →</a></div>
-                <div class="card quick-card"><h3>Donations</h3><p>Review donation records, verify submissions, and monitor incoming support.</p><a href="super_admin_donations.php">Open Donation Management →</a></div>
+                <div class="card quick-card"><h3>Pet Pound</h3><p>View impounded pets, claims, penalties, and related records.</p><a href="admin_workspace.php?page=pet_pound">Open Pet Pound →</a></div>
             </div>
         </section>
 
@@ -313,75 +268,6 @@ $conn->close();
             </div>
         </section>
 
-        <section class="section">
-            <div class="grid two-col">
-                <div class="card">
-                    <div class="section-head"><div><h2>Recent Applications</h2><p>Latest adoption requests received by the pound.</p></div></div>
-                    <div class="table-wrap">
-                        <table>
-                            <thead><tr><th>ID</th><th>Applicant</th><th>Pet</th><th>Status</th><th>Date</th></tr></thead>
-                            <tbody>
-                            <?php if ($recentApps): ?>
-                                <?php foreach ($recentApps as $app): ?>
-                                    <tr>
-                                        <td><?= (int)$app['id'] ?></td>
-                                        <td><?= htmlspecialchars($app['applicant']) ?></td>
-                                        <td><?= htmlspecialchars($app['pet_name']) ?></td>
-                                        <td><span class="status"><?= htmlspecialchars(ucwords(str_replace('_', ' ', $app['status']))) ?></span></td>
-                                        <td><?= date('M d, Y', strtotime($app['created_at'])) ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr><td colspan="5">No recent applications found.</td></tr>
-                            <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="section-head"><div><h2>Recent Staff Activity</h2><p>Important actions recorded in the system.</p></div></div>
-                    <div class="list">
-                        <?php if ($auditLogs): ?>
-                            <?php foreach ($auditLogs as $event): ?>
-                                <div class="list-item">
-                                    <span><?= htmlspecialchars($event['actor_name'] ?: 'System') ?></span>
-                                    <strong><?= htmlspecialchars(ucwords(str_replace('_', ' ', $event['action_type']))) ?><br><small><?= date('M d, g:i A', strtotime($event['created_at'])) ?></small></strong>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <div class="list-item"><span>No recent activity found.</span></div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="section">
-            <div class="section-head"><div><h2>Owner Tools</h2><p>Owner-only controls for staff, reports, security, and system maintenance.</p></div></div>
-            <div class="grid quick-grid">
-                <div class="card quick-card"><h3>Staff Management</h3><p>Create staff accounts, update permissions, reset passwords, and suspend access.</p><a href="super_admin_actions.php">Open Staff Management →</a></div>
-                <div class="card quick-card"><h3>Donations</h3><p>Review donation records, verify submissions, and monitor incoming support.</p><a href="super_admin_donations.php">Open Donations →</a></div>
-                <div class="card quick-card"><h3>Reports</h3><p>Review adoption, pet, user, appointment, return, and donation information.</p><a href="admin_workspace.php?page=reports">Open Reports →</a></div>
-                <div class="card quick-card"><h3>Activity History</h3><p>See who logged in and what important changes were made in the system.</p><a href="super_admin_activity.php">View Activity History →</a></div>
-                <div class="card quick-card"><h3>System Settings</h3><p>Manage pound information, email, notifications, and other system options.</p><a href="super_admin_settings.php">Open System Settings →</a></div>
-                <div class="card quick-card"><h3>Account Safety</h3><p>Review staff permissions, password rules, and account protection options.</p><a href="super_admin_security.php">Open Account Safety →</a></div>
-                <div class="card quick-card"><h3>Backup & Recovery</h3><p>Create or restore a system backup when maintenance is required.</p><a href="super_admin_database.php">Open Backup & Recovery →</a></div>
-            </div>
-        </section>
-
-        <section class="section">
-            <details class="card">
-                <summary>Reports and system alerts</summary>
-                <p>This keeps the existing alert and scheduled-report tools available without placing technical controls on the main dashboard.</p>
-                <div id="alertSummary" class="list"><div class="list-item"><span>Loading current alerts...</span></div></div>
-                <div class="tool-actions">
-                    <button class="btn btn-primary" id="refreshAlertsBtn" type="button">Refresh Alerts</button>
-                    <button class="btn btn-secondary" id="sendAlertNotificationBtn" type="button">Send Alert Notification</button>
-                    <button class="btn btn-secondary" id="runDueReportsBtn" type="button">Run Due Reports</button>
-                </div>
-            </details>
-        </section>
     </main>
 </div>
 
@@ -409,46 +295,6 @@ $conn->close();
         themeToggle.textContent = document.body.classList.contains('dark-mode') ? 'Light Mode' : 'Dark Mode';
     });
 
-    const apiEndpoint = 'super_admin_api.php';
-    const alertSummary = document.getElementById('alertSummary');
-
-    async function loadAlertItems() {
-        try {
-            const response = await fetch(apiEndpoint + '?action=get_alert_items');
-            const data = await response.json();
-            if (!data.success || !Array.isArray(data.alerts) || !data.alerts.length) {
-                alertSummary.innerHTML = '<div class="list-item"><span>No active alerts.</span></div>';
-                return;
-            }
-            alertSummary.innerHTML = data.alerts.map(item => `
-                <div class="list-item">
-                    <span>${item.label}</span>
-                    <strong>${item.value}${item.active ? ' — Needs attention' : ''}</strong>
-                </div>
-            `).join('');
-        } catch (error) {
-            alertSummary.innerHTML = '<div class="list-item"><span>Unable to load alerts.</span></div>';
-        }
-    }
-
-    async function postAction(action) {
-        try {
-            const response = await fetch(apiEndpoint, { method: 'POST', body: new URLSearchParams({ action }) });
-            const data = await response.json();
-            alert(data.message || 'Action completed.');
-            loadAlertItems();
-        } catch (error) {
-            alert('The action could not be completed.');
-        }
-    }
-
-    document.getElementById('refreshAlertsBtn').addEventListener('click', loadAlertItems);
-    document.getElementById('sendAlertNotificationBtn').addEventListener('click', () => postAction('send_alert_notification'));
-    document.getElementById('runDueReportsBtn').addEventListener('click', () => {
-        if (confirm('Run all reports that are currently due?')) postAction('run_due_reports');
-    });
-
-    loadAlertItems();
 </script>
 </body>
 </html>
