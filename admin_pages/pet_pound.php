@@ -521,6 +521,145 @@ MARK AS DECEASED MODAL
 
 </div>
 
+<!-- ===========================
+POST PET FOR ADOPTION MODAL
+=========================== -->
+
+<div id="adoptionPostModal" class="modal-backdrop">
+
+    <div class="modal modal-lg">
+
+        <div class="modal-header">
+
+            <div class="modal-title">
+                Post Pet for Adoption
+            </div>
+
+            <button
+                type="button"
+                class="modal-close"
+                onclick="closeAdoptionPostModal()">
+                &times;
+            </button>
+
+        </div>
+
+        <form id="adoptionPostForm">
+
+            <div class="modal-body">
+
+                <input
+                    type="hidden"
+                    id="adoptionPoundId"
+                    name="pet_pound_id">
+
+                <div class="form-group">
+                    <label class="form-label">Pet Name</label>
+                    <input
+                        type="text"
+                        id="adoptionName"
+                        name="name"
+                        class="form-control"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Species</label>
+                    <input
+                        type="text"
+                        id="adoptionSpecies"
+                        name="species"
+                        class="form-control"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Breed</label>
+                    <input
+                        type="text"
+                        id="adoptionBreed"
+                        name="breed"
+                        class="form-control"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Age</label>
+                    <input
+                        type="text"
+                        id="adoptionAge"
+                        name="age"
+                        class="form-control"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Gender</label>
+
+                    <select
+                        id="adoptionGender"
+                        name="gender"
+                        class="form-control"
+                        required>
+
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Health Status</label>
+
+                    <input
+                        type="text"
+                        id="adoptionHealthStatus"
+                        name="health_status"
+                        class="form-control"
+                        required>
+                </div>
+
+                <div class="form-group">
+
+                    <label class="form-label">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="adoptionDescription"
+                        name="description"
+                        class="form-control"
+                        rows="4"></textarea>
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-ghost"
+                    onclick="closeAdoptionPostModal()">
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    id="publishAdoptionButton"
+                    class="btn btn-info">
+                    Finish and Publish
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
 <script>
 /* =========================================================
    SHARED MODAL HELPERS
@@ -1094,13 +1233,84 @@ async function claimPet() {
    POST PET FOR ADOPTION
    ========================================================= */
 
-function openAdoptionPostModal(button) {
-    const modal = document.getElementById("adoptionPostModal");
+function ensureAdoptionPostModal() {
+    let modal = document.getElementById("adoptionPostModal");
 
-    if (!modal) {
-        alert("Adoption posting form was not found.");
-        return;
+    if (modal) {
+        return modal;
     }
+
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = `
+        <div id="adoptionPostModal" class="modal-backdrop">
+            <div class="modal modal-lg">
+                <div class="modal-header">
+                    <div class="modal-title">Post Pet for Adoption</div>
+                    <button type="button" class="modal-close" onclick="closeAdoptionPostModal()">&times;</button>
+                </div>
+
+                <form id="adoptionPostForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="adoptionPoundId" name="pet_pound_id">
+
+                        <div class="form-group">
+                            <label class="form-label">Pet Name</label>
+                            <input type="text" id="adoptionName" name="name" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Species</label>
+                            <input type="text" id="adoptionSpecies" name="species" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Breed</label>
+                            <input type="text" id="adoptionBreed" name="breed" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Age</label>
+                            <input type="text" id="adoptionAge" name="age" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Gender</label>
+                            <select id="adoptionGender" name="gender" class="form-control" required>
+                                <option value="">Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Health Status</label>
+                            <input type="text" id="adoptionHealthStatus" name="health_status" class="form-control" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <textarea id="adoptionDescription" name="description" class="form-control" rows="4"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-ghost" onclick="closeAdoptionPostModal()">Cancel</button>
+                        <button type="submit" id="publishAdoptionButton" class="btn btn-info">Finish and Publish</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+
+    modal = wrapper.firstElementChild;
+    document.body.appendChild(modal);
+    bindAdoptionPostForm();
+
+    return modal;
+}
+
+function openAdoptionPostModal(button) {
+    const modal = ensureAdoptionPostModal();
 
     const setValue = function (id, value) {
         const field = document.getElementById(id);
@@ -1119,7 +1329,7 @@ function openAdoptionPostModal(button) {
     setValue("adoptionHealthStatus", button?.dataset?.health);
     setValue("adoptionDescription", button?.dataset?.description);
 
-    modal.style.display = "block";
+    modal.style.display = "flex";
 }
 
 function closeAdoptionPostModal() {
@@ -1130,75 +1340,74 @@ function closeAdoptionPostModal() {
     }
 }
 
-const adoptionPostForm = document.getElementById(
-    "adoptionPostForm"
-);
+function bindAdoptionPostForm() {
+    const adoptionPostForm = document.getElementById("adoptionPostForm");
 
-if (adoptionPostForm) {
-    adoptionPostForm.addEventListener(
-        "submit",
-        async function (event) {
-            event.preventDefault();
+    if (!adoptionPostForm || adoptionPostForm.dataset.bound === "1") {
+        return;
+    }
 
-            const publishButton = document.getElementById(
-                "publishAdoptionButton"
+    adoptionPostForm.dataset.bound = "1";
+
+    adoptionPostForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const publishButton = document.getElementById("publishAdoptionButton");
+
+        if (!window.confirm("Finish and publish this pet for adoption?")) {
+            return;
+        }
+
+        if (publishButton) {
+            publishButton.disabled = true;
+            publishButton.textContent = "Publishing...";
+        }
+
+        try {
+            const response = await fetch(
+                "admin_pages/post_pet_for_adoption.php",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                        "Accept": "application/json"
+                    },
+                    body: new URLSearchParams(new FormData(this)).toString()
+                }
             );
 
-            if (
-                !window.confirm(
-                    "Finish and publish this pet for adoption?"
-                )
-            ) {
-                return;
-            }
-
-            if (publishButton) {
-                publishButton.disabled = true;
-                publishButton.textContent = "Publishing...";
-            }
+            const rawResponse = await response.text();
+            let data;
 
             try {
-                const response = await fetch(
-                    "admin_pages/post_pet_for_adoption.php",
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type":
-                                "application/x-www-form-urlencoded;charset=UTF-8",
-                            "Accept": "application/json"
-                        },
-                        body: new URLSearchParams(
-                            new FormData(this)
-                        ).toString()
-                    }
-                );
+                data = JSON.parse(rawResponse);
+            } catch (_) {
+                console.error("Invalid adoption posting response:", rawResponse);
+                throw new Error("The server returned an invalid adoption response.");
+            }
 
-                const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || "Posting failed.");
+            }
 
-                if (!response.ok || !data.success) {
-                    throw new Error(
-                        data.message || "Posting failed."
-                    );
-                }
-
-                alert(data.message);
-                closeAdoptionPostModal();
-                closeModal("petModal");
-                window.location.reload();
-            } catch (error) {
-                console.error("Posting failed:", error);
-                alert(error.message || "Posting failed.");
-            } finally {
-                if (publishButton) {
-                    publishButton.disabled = false;
-                    publishButton.textContent =
-                        "Finish and Publish";
-                }
+            alert(data.message || "Pet posted for adoption successfully.");
+            closeAdoptionPostModal();
+            closeModal("petModal");
+            window.location.reload();
+        } catch (error) {
+            console.error("Posting failed:", error);
+            alert(error.message || "Posting failed.");
+        } finally {
+            if (publishButton) {
+                publishButton.disabled = false;
+                publishButton.textContent = "Finish and Publish";
             }
         }
-    );
+    });
 }
 
+// Bind immediately when the modal already exists in the page.
+bindAdoptionPostForm();
 
 /* =========================================================
    MARK PET AS DECEASED
@@ -1264,7 +1473,6 @@ async function confirmDeceased() {
         );
     }
 }
-
 
 /* =========================================================
    SAFE TEXT FOR ERROR OUTPUT
