@@ -521,6 +521,48 @@ MARK AS DECEASED MODAL
 
 </div>
 
+<style>
+/* Keep the Post Pet for Adoption footer visible on smaller screens */
+#adoptionPostModal {
+    padding: 24px 12px;
+    box-sizing: border-box;
+}
+
+#adoptionPostModal > .modal {
+    max-height: calc(100vh - 48px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#adoptionPostModal #adoptionPostForm {
+    min-height: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#adoptionPostModal .modal-body {
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+#adoptionPostModal .modal-footer {
+    flex-shrink: 0;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    padding: 16px 28px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    position: relative;
+    z-index: 2;
+}
+</style>
+
 <!-- ===========================
 POST PET FOR ADOPTION MODAL
 =========================== -->
