@@ -132,10 +132,13 @@ $graceExpired = (
 <?php else: ?>
 
 <?php if (!empty($row['pet_photo'])): ?>
+
     <div class="divider"></div>
+
     <div style="display:flex;justify-content:center;">
         <img
-            src="images/pet_pound/<?= htmlspecialchars($row['pet_photo']) ?>"
+            src="images/<?= htmlspecialchars($row['pet_photo']) ?>"
+            alt="<?= htmlspecialchars($row['pet_name']) ?>"
             style="
                 width:240px;
                 height:150px;
@@ -146,7 +149,10 @@ $graceExpired = (
                 display:block;
             ">
     </div>
+
 <?php endif; ?>
+
+<div class="divider"></div>
 
 <div class="divider"></div>
 
