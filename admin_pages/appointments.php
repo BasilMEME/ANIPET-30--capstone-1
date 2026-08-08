@@ -129,6 +129,7 @@ if ($r2) while ($row = $r2->fetch_assoc()) {
             <button class="btn btn-danger btn-sm"  onclick="updateAptStatus(<?php echo $apt['id']; ?>,'rejected')">Reject</button>
             <?php endif; ?>
             <button class="btn btn-warning btn-sm" onclick="rescheduleModal(<?php echo $apt['id']; ?>, '<?php echo $apt['scheduled_at']?str_replace(' ','T',substr($apt['scheduled_at'],0,16)):''; ?>')">Reschedule</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteAppointment(<?php echo $apt['id']; ?>)">Delete</button>
         </td>
     </tr>
     <?php endforeach; ?>
@@ -204,6 +205,7 @@ for ($day=1; $day<=$calDays; $day++):
         <button class="btn btn-ghost" onclick="closeModal('viewAptModal')">Close</button>
         <button class="btn btn-success" id="aptApproveBtn">Approve</button>
         <button class="btn btn-danger"  id="aptRejectBtn">Reject</button>
+        <button class="btn btn-danger" id="aptDeleteBtn">Delete Appointment</button>
     </div>
 </div>
 </div>
@@ -237,8 +239,11 @@ async function viewAppointment(id) {
 
     const approveBtn = document.getElementById('aptApproveBtn');
     const rejectBtn  = document.getElementById('aptRejectBtn');
+    const deleteBtn  = document.getElementById('aptDeleteBtn');
+
     approveBtn.onclick = ()=>{ updateAptStatus(id,'approved'); closeModal('viewAptModal'); };
     rejectBtn.onclick  = ()=>{ updateAptStatus(id,'rejected'); closeModal('viewAptModal'); };
+    deleteBtn.onclick  = ()=>{ closeModal('viewAptModal'); deleteAppointment(id); };
 
     try {
         const res  = await fetch('admin_api.php?action=get_appointment&id='+id);
@@ -276,6 +281,48 @@ async function updateAptStatus(id, status) {
     const data = await res.json();
     if (data.success) { showToast('Appointment '+status); location.reload(); }
     else showToast(data.message,'error');
+}
+
+
+async function deleteAppointment(id) {
+    const confirmed = confirm(
+        'Delete this appointment permanently?\n\n' +
+        'This will remove it from the appointment list. ' +
+        'The related adoption application will NOT be deleted.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+        const res = await fetch('admin_api.php', {
+            method: 'POST',
+            body: new URLSearchParams({
+                action: 'delete_appointment',
+                id: String(id)
+            })
+        });
+
+        const text = await res.text();
+        let data;
+
+        try {
+            data = JSON.parse(text);
+        } catch (error) {
+            console.error('Delete appointment response:', text);
+            showToast('The server returned an invalid response.', 'error');
+            return;
+        }
+
+        if (data.success) {
+            showToast('Appointment deleted.');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showToast(data.message || 'Unable to delete appointment.', 'error');
+        }
+    } catch (error) {
+        console.error(error);
+        showToast('Unable to connect to the server.', 'error');
+    }
 }
 
 function rescheduleModal(id, currentDt) {
