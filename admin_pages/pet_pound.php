@@ -593,7 +593,7 @@ POST PET FOR ADOPTION MODAL
                 <input
                     type="hidden"
                     id="adoptionPoundId"
-                    name="pet_pound_id">
+                    name="id">
 
                 <div class="form-group">
                     <label class="form-label">Pet Name</label>
