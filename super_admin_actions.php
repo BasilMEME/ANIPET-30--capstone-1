@@ -42,11 +42,11 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
         }
         * { box-sizing: border-box; }
         body { margin:0; font-family:'Inter',sans-serif; color:var(--text); min-height:100vh; background: radial-gradient(circle at top left, rgba(242,134,126,.14), transparent 25%), radial-gradient(circle at bottom right, rgba(246,201,160,.12), transparent 24%), linear-gradient(135deg, #020617 0%, #07111f 100%); }
-        .container{max-width:1440px;margin:0 auto;padding:24px 24px 40px;}
-        .header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px;padding:18px 20px;background:rgba(15,23,42,.72);border:1px solid var(--border);border-radius:24px;box-shadow:var(--shadow);backdrop-filter:blur(14px);}
+        .container{max-width:1180px;margin:0 auto;padding:18px 18px 28px;}
+        .header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;padding:14px 16px;background:rgba(15,23,42,.72);border:1px solid var(--border);border-radius:24px;box-shadow:var(--shadow);backdrop-filter:blur(14px);}
         .header h1{margin:0;font-size:clamp(1.4rem,2vw,2rem);}
-        .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
-        .card{background:var(--panel);border:1px solid var(--border);border-radius:24px;padding:22px;box-shadow:var(--shadow);backdrop-filter:blur(12px);transition:transform .18s ease,border-color .18s ease;}
+        .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start;}
+        .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:18px;box-shadow:var(--shadow);backdrop-filter:blur(12px);transition:transform .18s ease,border-color .18s ease;}
         .card:hover{transform:translateY(-1px);border-color:rgba(242,134,126,.24);}
         .card h2{margin:0 0 12px;font-size:1.08rem;color:#cbd5e1;}
         .table-wrap{overflow-x:auto;border:1px solid rgba(148,163,184,.12);border-radius:18px;background:rgba(255,255,255,.025);}
@@ -65,12 +65,17 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
         }
         .input-group select option{color:#020617;background:#f8fafc;padding:8px;}
         .input-group select:focus, .input-group input:focus, .input-group textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(242,134,126,.18);}
-        .section{margin-top:28px;}
-        .section h2{margin-bottom:18px;font-size:1.12rem;}
+        .section{margin-top:18px;}
+        .section h2{margin-bottom:12px;font-size:1.05rem;}
         .note{color:var(--muted);font-size:.94rem;line-height:1.6;}
-        .action-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;}
+        .action-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
         .inline-actions{display:flex;flex-wrap:wrap;gap:8px;}
-        @media (max-width: 1000px){ .grid{grid-template-columns:1fr;} }
+
+        .compact-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+        .full-span{grid-column:1 / -1;}
+        #petFormSection{display:block;}
+        #petFormSection .card{max-width:760px;}
+        @media (max-width: 1000px){ .grid,.compact-grid{grid-template-columns:1fr;} .full-span{grid-column:auto;} }
         @media (max-width: 760px){ .container{padding:16px 14px 28px;} .header{padding:16px;} .card{padding:18px;} }
     </style>
 </head>
@@ -116,7 +121,8 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
         </div>
     </section>
 
-    <section class="section grid">
+    <section class="section">
+        <div class="grid compact-grid">
         <div class="card">
             <h2>Update Admin Account</h2>
             <form id="adminUpdateForm">
@@ -138,7 +144,8 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
                 <div class="action-row"><button class="btn btn-primary" type="submit">Create Admin</button></div>
             </form>
         </div>
-        <div class="card">
+        </div>
+        <div class="card full-span">
             <h2>User Accounts</h2>
             <div class="table-wrap">
                 <table>
@@ -225,7 +232,7 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
         </div>
     </section>
 
-    <section class="section grid">
+    <section class="section">
         <div class="card">
             <h2>Pet Actions</h2>
             <form id="petActionForm">
@@ -237,23 +244,6 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
                     <?php endforeach; ?>
                 </select></div>
                 <div class="action-row"><button class="btn btn-primary" type="button" onclick="transferPet()">Transfer Pet</button><button class="btn btn-secondary" type="button" onclick="archivePet()">Archive Pet</button><button class="btn btn-secondary" type="button" onclick="unarchivePet()">Unarchive Pet</button></div>
-            </form>
-        </div>
-        <div class="card">
-            <h2>Application Override</h2>
-            <form id="appActionForm">
-                <div class="input-group"><label>Application ID</label><input type="number" name="id" required></div>
-                <div class="input-group"><label>New Status</label><select name="status" required>
-                    <option value="pending">Pending</option>
-                    <option value="screening">Screening</option>
-                    <option value="approved">Approved</option>
-                    <option value="for_releasing">For Releasing</option>
-                    <option value="ready_pickup">Ready Pickup</option>
-                    <option value="completed">Completed</option>
-                    <option value="rejected">Rejected</option>
-                </select></div>
-                <div class="input-group"><label>Admin Notes</label><input type="text" name="admin_notes" placeholder="Reason for override"></div>
-                <div class="action-row"><button class="btn btn-primary" type="button" onclick="overrideApplication()">Override</button><button class="btn btn-secondary" type="button" onclick="reopenApplication()">Reopen</button></div>
             </form>
         </div>
     </section>
@@ -806,59 +796,6 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
             });
     }
 
-    function overrideApplication() {
-        const form =
-            document.getElementById('appActionForm');
-
-        const formData = new FormData(form);
-        formData.append(
-            'action',
-            'override_application'
-        );
-
-        apiRequest(formData)
-            .then(data => {
-                alert(data.message || (
-                    data.success
-                        ? 'Application overridden.'
-                        : 'Application override failed.'
-                ));
-
-                if (data.success) {
-                    window.location.reload();
-                }
-            })
-            .catch(error => {
-                handleApiError(error, 'Override failed.');
-            });
-    }
-
-    function reopenApplication() {
-        const form =
-            document.getElementById('appActionForm');
-
-        const formData = new FormData(form);
-        formData.append(
-            'action',
-            'reopen_application'
-        );
-
-        apiRequest(formData)
-            .then(data => {
-                alert(data.message || (
-                    data.success
-                        ? 'Application reopened.'
-                        : 'Failed to reopen application.'
-                ));
-
-                if (data.success) {
-                    window.location.reload();
-                }
-            })
-            .catch(error => {
-                handleApiError(error, 'Reopen failed.');
-            });
-    }
 </script>
 </body>
 </html>

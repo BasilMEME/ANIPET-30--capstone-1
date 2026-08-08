@@ -19,17 +19,6 @@ foreach ($settings as $setting) {
     $settingsByKey[$setting['setting_key']] = $setting['setting_value'];
 }
 $shelters = fetchRows($conn, "SELECT id, name, address, phone, email, status, created_at FROM shelters ORDER BY created_at DESC");
-$backups = [];
-$backupDir = __DIR__ . '/backups';
-if (is_dir($backupDir)) {
-    $files = array_values(array_filter(scandir($backupDir), function ($file) use ($backupDir) {
-        return is_file($backupDir . '/' . $file) && preg_match('/\.sql$/i', $file);
-    }));
-    rsort($files);
-    foreach ($files as $file) {
-        $backups[] = ['file' => $file, 'path' => 'php-backend/backups/' . $file];
-    }
-}
 $conn->close();
 ?>
 <!DOCTYPE html>
@@ -74,6 +63,8 @@ $conn->close();
         .input-group label{font-size:.95rem;color:var(--muted);}
         .input-group input, .input-group select, .input-group textarea{width:100%;padding:12px 14px;border-radius:14px;border:1px solid rgba(148,163,184,.24);background:rgba(255,255,255,.06);color:var(--text);font-size:0.95rem;min-height:46px;}
         .input-group input:focus, .input-group select:focus, .input-group textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(242,134,126,.18);}
+        .input-group select option{background:#f8fafc;color:#0f172a;}
+        .input-group select option:disabled{color:#64748b;}
         .section{margin-top:28px;}
         .section h2{margin-bottom:18px;font-size:1.12rem;}
         .note{color:var(--muted);font-size:.94rem;line-height:1.6;}
@@ -413,56 +404,44 @@ $conn->close();
     </form>
 </div>
         <div class="card">
-            <h2>Database Backup / Export</h2>
-            <p class="note">Use these actions to create a backup or export of the current database state.</p>
-            <div class="action-row">
-                <button class="btn btn-primary" id="backupBtn">Backup Database</button>
-                <button class="btn btn-secondary" id="exportBtn">Export Database</button>
-            </div>
-            <div class="note" style="margin-top:16px;">Available backup files are listed below.</div>
-            <div class="table-wrap" style="margin-top:12px;">
+            <h2>Shelter Management</h2>
+            <p class="note">View the shelters currently registered in AniPet.</p>
+
+            <div class="table-wrap" style="margin-top:14px;">
                 <table>
-                    <thead><tr><th>File</th><th>Download</th></tr></thead>
-                    <tbody id="backupList">
-                    <?php if (!empty($backups)): ?>
-                        <?php foreach ($backups as $backup): ?>
-                            <tr><td><?php echo htmlspecialchars($backup['file']); ?></td><td><a href="backups/<?php echo htmlspecialchars($backup['file']); ?>" class="btn btn-secondary" target="_blank">Download</a></td></tr>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (!empty($shelters)): ?>
+                        <?php foreach ($shelters as $shelter): ?>
+                            <tr>
+                                <td><?php echo (int)$shelter['id']; ?></td>
+                                <td><?php echo htmlspecialchars($shelter['name']); ?></td>
+                                <td><?php echo htmlspecialchars($shelter['phone'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($shelter['email'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($shelter['status'] ?? ''); ?></td>
+                                <td>
+                                    <?php
+                                        echo !empty($shelter['created_at'])
+                                            ? date('M d, Y', strtotime($shelter['created_at']))
+                                            : '—';
+                                    ?>
+                                </td>
+                            </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <tr><td colspan="2">No backup files found.</td></tr>
-                    <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-            <div class="input-group" style="margin-top:18px;"><label>Restore Backup</label>
-                <select id="restoreFile" class="input-group" style="width:100%;padding:12px 14px;border-radius:14px;border:1px solid rgba(148,163,184,.14);background:rgba(255,255,255,.04);color:#e2e8f0;">
-                    <option value="">Select backup file to restore</option>
-                    <?php foreach ($backups as $backup): ?>
-                        <option value="<?php echo htmlspecialchars($backup['file']); ?>"><?php echo htmlspecialchars($backup['file']); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="action-row"><button class="btn btn-primary" id="restoreBtn">Restore Selected Backup</button></div>
-        </div>
-    </section>
-
-    <section class="section">
-        <div class="card">
-            <h2>Shelter Management</h2>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Email</th><th>Status</th><th>Created</th></tr></thead>
-                    <tbody>
-                    <?php foreach ($shelters as $shelter): ?>
                         <tr>
-                            <td><?php echo $shelter['id']; ?></td>
-                            <td><?php echo htmlspecialchars($shelter['name']); ?></td>
-                            <td><?php echo htmlspecialchars($shelter['phone']); ?></td>
-                            <td><?php echo htmlspecialchars($shelter['email']); ?></td>
-                            <td><?php echo htmlspecialchars($shelter['status']); ?></td>
-                            <td><?php echo date('M d, Y', strtotime($shelter['created_at'])); ?></td>
+                            <td colspan="6">No shelters found.</td>
                         </tr>
-                    <?php endforeach; ?>
+                    <?php endif; ?>
                     </tbody>
                 </table>
             </div>
