@@ -210,7 +210,7 @@ $conn->close();
         <a class="nav-link" href="admin_workspace.php?page=appointments">Appointments</a>
         <a class="nav-link" href="admin_workspace.php?page=users">Users</a>
         <a class="nav-link" href="admin_workspace.php?page=pet_pound">Pet Pound</a>
-        <a class="nav-link" href="admin_workspace.php?page=returns">Penalties</a>
+        <a class="nav-link" href="admin_workspace.php?page=pet_pound">Penalties</a>
         <a class="nav-link" href="admin_workspace.php?page=notifications">Notifications</a>
 
         <div class="nav-title">Owner Tools</div>
