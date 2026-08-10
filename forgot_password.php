@@ -29,7 +29,7 @@ $email = strtolower(
 
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     respond([
-        "status" => "error",
+        "success" => false,
         "message" => "Please enter a valid email address."
     ], 400);
 }
@@ -58,15 +58,10 @@ try {
 
     $userStmt->close();
 
-    /*
-     * Return the same response even when the email is not found.
-     * This prevents outsiders from discovering registered accounts.
-     */
     if (!$user) {
         respond([
-            "status" => "success",
-            "message" =>
-                "If an AniPet account exists for that email, a reset code has been sent."
+            "success" => false,
+            "message" => "This email is not registered in AniPet."
         ]);
     }
 
@@ -202,9 +197,8 @@ try {
     );
 
     respond([
-        "status" => "success",
-        "message" =>
-            "If an AniPet account exists for that email, a reset code has been sent."
+        "success" => true,
+        "message" => "A 6-digit OTP was sent to your email."
     ]);
 
 } catch (Throwable $exception) {
@@ -214,7 +208,7 @@ try {
     );
 
     respond([
-        "status" => "error",
+        "success" => false,
         "message" =>
             "Unable to process the password reset request right now."
     ], 500);
