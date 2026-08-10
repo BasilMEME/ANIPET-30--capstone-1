@@ -6,11 +6,6 @@
  */
 session_start();
 
-$logoFile = __DIR__ . '/anipet_logo.jpg';
-$logoSrc = is_file($logoFile)
-    ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($logoFile))
-    : '';
-
 // If already logged in, redirect to the proper dashboard
 if (isset($_SESSION['user_id'])) {
     $role = $_SESSION['role'] ?? '';
@@ -43,7 +38,14 @@ if (isset($_SESSION['user_id'])) {
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1b2a41 0%, #2a3f5c 100%);
+            background-color: #1b2a41;
+            background-image:
+                linear-gradient(rgba(12, 25, 44, .42), rgba(12, 25, 44, .42)),
+                url('/anipet_admin_wallpaper.png');
+            background-position: center;
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -168,7 +170,7 @@ if (isset($_SESSION['user_id'])) {
 <body>
     <div class="login-container">
         <div class="logo">
-            <img src="<?php echo htmlspecialchars($logoSrc, ENT_QUOTES, 'UTF-8'); ?>" alt="AniPet logo">
+            <img src="/anipet_logo.jpg" alt="AniPet logo">
             <h1>AniPet</h1>
             <p>Adopt a Pet, Gain a Friend.</p>
         </div>

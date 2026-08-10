@@ -99,8 +99,19 @@ $conn->close();
             height: 100vh;
             overflow-y: auto;
             padding: 22px 18px;
-            background: var(--surface);
+            background-color: var(--surface);
+            background-image:
+                linear-gradient(rgba(255, 255, 255, .91), rgba(255, 255, 255, .94)),
+                url('/anipet_admin_wallpaper.png');
+            background-position: left center;
+            background-size: auto 100%;
+            background-repeat: no-repeat;
             border-right: 1px solid var(--border);
+        }
+        body.dark-mode .sidebar {
+            background-image:
+                linear-gradient(rgba(17, 24, 39, .90), rgba(17, 24, 39, .94)),
+                url('/anipet_admin_wallpaper.png');
         }
         .brand { display: flex; align-items: center; gap: 11px; margin-bottom: 8px; }
         .brand img { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; }

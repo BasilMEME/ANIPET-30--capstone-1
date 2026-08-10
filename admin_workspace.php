@@ -73,7 +73,7 @@ $isSuperAdmin = current_user_role() === 'super_admin';
 body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
 
 /* SIDEBAR */
-.sidebar{width:var(--sidebar-w);background:var(--sidebar-bg);color:#fff;position:fixed;inset:0 auto 0 0;display:flex;flex-direction:column;z-index:100;transition:transform .3s ease;overflow-y:auto;}
+.sidebar{width:var(--sidebar-w);background-color:var(--sidebar-bg);background-image:linear-gradient(rgba(27,42,65,.88),rgba(27,42,65,.94)),url('/anipet_admin_wallpaper.png');background-position:left center;background-size:auto 100%;background-repeat:no-repeat;color:#fff;position:fixed;inset:0 auto 0 0;display:flex;flex-direction:column;z-index:100;transition:transform .3s ease;overflow-y:auto;}
 .sidebar-brand{padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:12px;flex-shrink:0;}
 .brand-logo{width:40px;height:40px;background:linear-gradient(135deg,#f2867e,#1b2a41);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;}
 .brand-text h2{font-size:1.05rem;font-weight:700;}
