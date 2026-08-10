@@ -30,6 +30,10 @@ $totalAmount = fetchScalar($conn,
        AND donation_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
        AND donation_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')");
 
+$averageDonation = $totalDonations > 0
+    ? $totalAmount / $totalDonations
+    : 0;
+
 /* ===============================
    Monthly Donations
 ================================ */
@@ -492,6 +496,21 @@ grid-template-columns:1fr;
 
         <div class="metric-label">
             Successful donation amount
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>Average Donation</h2>
+            <span class="period-badge">This month</span>
+        </div>
+
+        <div class="metric">
+            ₱<?php echo number_format($averageDonation, 2); ?>
+        </div>
+
+        <div class="metric-label">
+            Average amount per successful donation
         </div>
     </div>
 
