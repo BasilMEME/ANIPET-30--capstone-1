@@ -14,7 +14,6 @@ COPY . /app
 RUN composer install --no-dev --optimize-autoloader
 
 ENV SERVER_NAME=":8080"
-ENV FRANKENPHP_CONFIG="worker ./login.php"
 ENV CADDY_GLOBAL_OPTIONS="auto_https off"
 
 EXPOSE 8080
