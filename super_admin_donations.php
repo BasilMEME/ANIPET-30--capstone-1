@@ -17,10 +17,18 @@ function fetchScalar(mysqli $conn, string $sql)
 ================================ */
 
 $totalDonations = fetchScalar($conn,
-    "SELECT COUNT(*) FROM donations WHERE payment_status = 'Successful'");
+    "SELECT COUNT(*)
+     FROM donations
+     WHERE payment_status = 'Successful'
+       AND donation_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+       AND donation_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')");
 
 $totalAmount = fetchScalar($conn,
-    "SELECT IFNULL(SUM(amount), 0) FROM donations WHERE payment_status = 'Successful'");
+    "SELECT IFNULL(SUM(amount), 0)
+     FROM donations
+     WHERE payment_status = 'Successful'
+       AND donation_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+       AND donation_date < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')");
 
 /* ===============================
    Monthly Donations
@@ -226,11 +234,47 @@ box-shadow:var(--shadow);
 
 .card h2{
 
-margin:0 0 15px;
+margin:0;
 
 font-size:1rem;
 
 color:#cbd5e1;
+
+}
+
+.card-header{
+
+display:flex;
+
+align-items:center;
+
+justify-content:space-between;
+
+gap:12px;
+
+margin-bottom:15px;
+
+}
+
+.period-badge{
+
+flex-shrink:0;
+
+padding:5px 10px;
+
+border:1px solid rgba(148,163,184,.2);
+
+border-radius:999px;
+
+background:rgba(148,163,184,.08);
+
+color:#94a3b8;
+
+font-size:.72rem;
+
+font-weight:600;
+
+letter-spacing:.02em;
 
 }
 
@@ -422,7 +466,10 @@ grid-template-columns:1fr;
 <div class="grid">
 
     <div class="card">
-        <h2>Successful Donations</h2>
+        <div class="card-header">
+            <h2>Successful Donations</h2>
+            <span class="period-badge">This month</span>
+        </div>
 
         <div class="metric">
             <?php echo number_format($totalDonations); ?>
@@ -434,7 +481,10 @@ grid-template-columns:1fr;
     </div>
 
     <div class="card">
-        <h2>Total Amount Received</h2>
+        <div class="card-header">
+            <h2>Total Amount Received</h2>
+            <span class="period-badge">This month</span>
+        </div>
 
         <div class="metric">
             ₱<?php echo number_format($totalAmount,2); ?>
