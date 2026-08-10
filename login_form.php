@@ -6,6 +6,11 @@
  */
 session_start();
 
+$logoFile = __DIR__ . '/anipet_logo.jpg';
+$logoSrc = is_file($logoFile)
+    ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($logoFile))
+    : '';
+
 // If already logged in, redirect to the proper dashboard
 if (isset($_SESSION['user_id'])) {
     $role = $_SESSION['role'] ?? '';
@@ -163,7 +168,7 @@ if (isset($_SESSION['user_id'])) {
 <body>
     <div class="login-container">
         <div class="logo">
-            <img src="images/anipet_logo.jpg" alt="AniPet">
+            <img src="<?php echo htmlspecialchars($logoSrc, ENT_QUOTES, 'UTF-8'); ?>" alt="AniPet logo">
             <h1>AniPet</h1>
             <p>Adopt a Pet, Gain a Friend.</p>
         </div>
