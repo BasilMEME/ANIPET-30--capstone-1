@@ -71,17 +71,17 @@ body{
     font-weight:700;font-size:.82rem;transition:.18s ease;
 }
 .quick-nav a:hover{background:rgba(242,134,126,.13);color:#ffd1cc}
-.section{margin-top:16px;scroll-margin-top:175px}
-.grid,.compact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.section{margin-top:10px;scroll-margin-top:175px}
+.grid,.compact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
 .card{
     background:rgba(15,27,47,.95);border:1px solid var(--border);border-radius:var(--radius);
-    padding:20px;box-shadow:var(--shadow);
+    padding:16px 18px;box-shadow:var(--shadow);
 }
-.card h2{margin:0 0 14px;font-size:1.05rem;color:#e5edf8}
-.card-sub{margin:-7px 0 15px;color:var(--muted);font-size:.84rem;line-height:1.45}
+.card h2{margin:0 0 10px;font-size:1.02rem;color:#e5edf8}
+.card-sub{margin:-4px 0 10px;color:var(--muted);font-size:.84rem;line-height:1.45}
 .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px;background:#101c30}
 table{width:100%;border-collapse:collapse;color:var(--text);table-layout:auto;min-width:820px}
-th,td{padding:13px 14px;text-align:left;border-bottom:1px solid rgba(148,163,184,.12);vertical-align:middle}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid rgba(148,163,184,.12);vertical-align:middle}
 th{
     color:#9fb0c6;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;
     background:#142137;position:sticky;top:0;z-index:2
@@ -98,11 +98,11 @@ tbody tr:last-child td{border-bottom:0}
 .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#21110f;box-shadow:0 7px 18px rgba(242,134,126,.14)}
 .btn-secondary{background:#24324a;color:#edf3fb;border-color:rgba(148,163,184,.12)}
 .btn-secondary:hover{background:#2d3d59}
-.input-group{display:grid;gap:7px;margin-bottom:13px}
+.input-group{display:grid;gap:5px;margin-bottom:9px}
 .input-group label{font-size:.82rem;color:#aab9cc;font-weight:650}
 .input-group input,.input-group select,.input-group textarea{
-    width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(148,163,184,.22);
-    background:#1b2940;color:var(--text);font-size:.9rem;min-height:44px;outline:none
+    width:100%;padding:9px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.22);
+    background:#1b2940;color:var(--text);font-size:.9rem;min-height:40px;outline:none
 }
 .input-group textarea{resize:vertical}
 .input-group select option{color:#0f172a;background:#f8fafc}
@@ -110,19 +110,22 @@ tbody tr:last-child td{border-bottom:0}
     border-color:var(--accent);box-shadow:0 0 0 3px rgba(242,134,126,.12)
 }
 .note{color:var(--muted);font-size:.88rem;line-height:1.55}
-.action-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.action-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .inline-actions{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
 .inline-actions .btn{min-height:34px;padding:7px 10px;font-size:.76rem}
 .full-span{grid-column:1/-1}
-#admin-management .card{height:100%}
-#admin-management form{display:flex;flex-direction:column}
-#admin-management .action-row{margin-top:auto;padding-top:4px}
-.search-row{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+#admin-management .action-row{margin-top:8px}
+.search-row{display:flex;gap:10px;align-items:center;margin-bottom:8px}
 .search-row input{
     width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
     background:#16243a;color:var(--text);outline:none
 }
 .search-row input:focus{border-color:var(--accent)}
+
+#admin-management .compact-grid{align-items:start}
+#admin-management .card{height:auto;min-height:0}
+#user-accounts{margin-top:12px}
+
 #petFormSection{display:block}
 #petFormSection .card{max-width:900px;margin:0 auto}
 @media(max-width:1000px){
