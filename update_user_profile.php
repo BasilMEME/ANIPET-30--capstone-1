@@ -14,6 +14,7 @@ try {
     $phone = trim($_POST['phone'] ?? '');
     $address = trim($_POST['address'] ?? '');
     $contact_preference = trim($_POST['contact_preference'] ?? '');
+    $birth_date = trim($_POST['birth_date'] ?? '');
 
     if ($full_name === '') {
         echo json_encode(["status" => "error", "message" => "Full name is required"]);
@@ -25,24 +26,41 @@ try {
         exit;
     }
 
-    $stmt = $conn->prepare("UPDATE users SET full_name = ?, phone = ?, address = ?, contact_preference = ? WHERE id = ?");
+    $existing = $conn->prepare("SELECT birth_date FROM users WHERE id = ? LIMIT 1");
+    $existing->bind_param("i", $user_id);
+    $existing->execute();
+    $existing->bind_result($existing_birth_date);
+    if (!$existing->fetch()) {
+        $existing->close();
+        echo json_encode(["status" => "error", "message" => "User not found"]);
+        exit;
+    }
+    $existing->close();
+
+    $birth_date_to_save = $existing_birth_date;
+
+    // Birthday can only be set once. Existing users with no birthday may add it once.
+    if (empty($existing_birth_date) && $birth_date !== '') {
+        $birthDateObject = DateTime::createFromFormat('Y-m-d', $birth_date);
+        if (!$birthDateObject || $birthDateObject->format('Y-m-d') !== $birth_date || $birthDateObject > new DateTime('today')) {
+            echo json_encode(["status" => "error", "message" => "Invalid birthday"]);
+            exit;
+        }
+        $birth_date_to_save = $birth_date;
+    }
+
+    $stmt = $conn->prepare("UPDATE users SET full_name = ?, phone = ?, address = ?, contact_preference = ?, birth_date = ? WHERE id = ?");
     if ($stmt === false) {
         throw new Exception('Prepare failed: ' . $conn->error);
     }
-    $stmt->bind_param("ssssi", $full_name, $phone, $address, $contact_preference, $user_id);
+    $stmt->bind_param("sssssi", $full_name, $phone, $address, $contact_preference, $birth_date_to_save, $user_id);
     $stmt->execute();
-
-    if ($stmt->affected_rows === 0 && $conn->error) {
-        throw new Exception($conn->error);
-    }
     $stmt->close();
 
-    // Return the freshly saved row so the app can update its local display
-    // without a second round trip.
-    $stmt2 = $conn->prepare("SELECT id, username, full_name, email, role, is_verified, address, phone, contact_preference, profile_picture FROM users WHERE id = ? LIMIT 1");
+    $stmt2 = $conn->prepare("SELECT id, username, full_name, email, role, is_verified, address, phone, contact_preference, birth_date, profile_picture FROM users WHERE id = ? LIMIT 1");
     $stmt2->bind_param("i", $user_id);
     $stmt2->execute();
-    $stmt2->bind_result($id2, $username2, $full_name2, $email2, $role2, $is_verified2, $address2, $phone2, $contact_preference2, $profile_picture2);
+    $stmt2->bind_result($id2, $username2, $full_name2, $email2, $role2, $is_verified2, $address2, $phone2, $contact_preference2, $birth_date2, $profile_picture2);
     $stmt2->fetch();
     $stmt2->close();
 
@@ -62,6 +80,7 @@ try {
             "address" => $address2,
             "phone" => $phone2,
             "contact_preference" => $contact_preference2,
+            "birth_date" => $birth_date2,
             "profile_picture" => $profile_picture2,
             "profile_picture_url" => $profile_picture_url2
         ]

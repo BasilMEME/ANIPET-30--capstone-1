@@ -10,7 +10,7 @@ try {
         exit;
     }
 
-    $stmt = $conn->prepare("SELECT id, username, full_name, email, role, is_verified, address, phone, contact_preference, profile_picture FROM users WHERE id = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT id, username, full_name, email, role, is_verified, address, phone, contact_preference, birth_date, profile_picture FROM users WHERE id = ? LIMIT 1");
     if ($stmt === false) {
         throw new Exception('Prepare failed: ' . $conn->error);
     }
@@ -21,8 +21,7 @@ try {
         throw new Exception('Execute failed: ' . $stmt->error);
     }
 
-    // Use bind_result + fetch to avoid relying on mysqli_stmt_get_result availability
-    $stmt->bind_result($id, $username, $full_name, $email, $role, $is_verified, $address, $phone, $contact_preference, $profile_picture);
+    $stmt->bind_result($id, $username, $full_name, $email, $role, $is_verified, $address, $phone, $contact_preference, $birth_date, $profile_picture);
     if ($stmt->fetch()) {
         $base_url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']) . '/';
         $profile_picture_url = $profile_picture ? $base_url . $profile_picture : null;
@@ -39,6 +38,7 @@ try {
                 "address" => $address,
                 "phone" => $phone,
                 "contact_preference" => $contact_preference,
+                "birth_date" => $birth_date,
                 "profile_picture" => $profile_picture,
                 "profile_picture_url" => $profile_picture_url
             ]
