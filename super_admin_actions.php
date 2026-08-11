@@ -28,68 +28,136 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            color-scheme: dark;
-            --bg: #020617;
-            --panel: rgba(15, 23, 42, 0.92);
-            --panel-soft: rgba(15, 23, 42, 0.78);
-            --text: #f8fafc;
-            --muted: #94a3b8;
-            --accent: #F2867E;
-            --accent-2: #F6C9A0;
-            --border: rgba(148, 163, 184, 0.16);
-            --shadow: 0 18px 45px rgba(2, 8, 23, 0.35);
-        }
-        * { box-sizing: border-box; }
-        body { margin:0; font-family:'Inter',sans-serif; color:var(--text); min-height:100vh; background: radial-gradient(circle at top left, rgba(242,134,126,.14), transparent 25%), radial-gradient(circle at bottom right, rgba(246,201,160,.12), transparent 24%), linear-gradient(135deg, #020617 0%, #07111f 100%); }
-        .container{max-width:1180px;margin:0 auto;padding:18px 18px 28px;}
-        .header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;padding:14px 16px;background:rgba(15,23,42,.72);border:1px solid var(--border);border-radius:24px;box-shadow:var(--shadow);backdrop-filter:blur(14px);}
-        .header h1{margin:0;font-size:clamp(1.4rem,2vw,2rem);}
-        .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start;}
-        .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:18px;box-shadow:var(--shadow);backdrop-filter:blur(12px);transition:transform .18s ease,border-color .18s ease;}
-        .card:hover{transform:translateY(-1px);border-color:rgba(242,134,126,.24);}
-        .card h2{margin:0 0 12px;font-size:1.08rem;color:#cbd5e1;}
-        .table-wrap{overflow-x:auto;border:1px solid rgba(148,163,184,.12);border-radius:18px;background:rgba(255,255,255,.025);}
-        table{width:100%;border-collapse:collapse;color:var(--text);table-layout:fixed;min-width:720px;}
-        th,td{padding:14px 12px;text-align:left;border-bottom:1px solid rgba(148,163,184,.12);overflow-wrap:anywhere;word-break:break-word;}
-        th{color:var(--muted);font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;}
-        tr:hover{background:rgba(242,134,126,.08);}
-        .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;border-radius:14px;border:none;cursor:pointer;font-weight:700;transition:transform .18s ease,background .18s ease,box-shadow .18s ease;}
-        .btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(2,8,23,.22);}
-        .btn-primary{background:linear-gradient(135deg,var(--accent),#D9695F);color:#241209;}
-        .btn-secondary{background:rgba(255,255,255,.08);color:var(--text);}
-        .input-group{display:grid;gap:10px;margin-bottom:16px;}
-        .input-group label{font-size:.95rem;color:var(--muted);}
-        .input-group input, .input-group select, .input-group textarea{
-            width:100%;padding:12px 14px;border-radius:14px;border:1px solid rgba(148,163,184,.24);background:rgba(255,255,255,.06);color:var(--text);font-size:0.95rem;min-height:46px;appearance:auto;-webkit-appearance:menulist;-moz-appearance:menulist;
-        }
-        .input-group select option{color:#020617;background:#f8fafc;padding:8px;}
-        .input-group select:focus, .input-group input:focus, .input-group textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(242,134,126,.18);}
-        .section{margin-top:18px;}
-        .section h2{margin-bottom:12px;font-size:1.05rem;}
-        .note{color:var(--muted);font-size:.94rem;line-height:1.6;}
-        .action-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
-        .inline-actions{display:flex;flex-wrap:wrap;gap:8px;}
-
-        .compact-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
-        .full-span{grid-column:1 / -1;}
-        #petFormSection{display:block;}
-        #petFormSection .card{max-width:760px;}
-        @media (max-width: 1000px){ .grid,.compact-grid{grid-template-columns:1fr;} .full-span{grid-column:auto;} }
-        @media (max-width: 760px){ .container{padding:16px 14px 28px;} .header{padding:16px;} .card{padding:18px;} }
-    </style>
+:root{
+    color-scheme:dark;
+    --bg:#07111f;
+    --panel:#0f1b2f;
+    --panel-soft:#152238;
+    --surface:#1b2940;
+    --surface-2:#22314a;
+    --text:#f8fafc;
+    --muted:#9fb0c6;
+    --accent:#f2867e;
+    --accent-dark:#d9695f;
+    --border:rgba(148,163,184,.18);
+    --shadow:0 12px 32px rgba(2,8,23,.28);
+    --radius:16px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    color:var(--text);
+    min-height:100vh;
+    background:radial-gradient(circle at top left,rgba(242,134,126,.10),transparent 24%),linear-gradient(135deg,#050d18 0%,#081421 45%,#0a1625 100%);
+}
+.container{max-width:1380px;margin:0 auto;padding:22px 24px 40px}
+.header{
+    display:flex;align-items:center;justify-content:space-between;gap:18px;
+    margin-bottom:14px;padding:18px 20px;background:rgba(15,27,47,.94);
+    border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);
+    position:sticky;top:12px;z-index:30;backdrop-filter:blur(14px);
+}
+.header h1{margin:0 0 5px;font-size:clamp(1.35rem,2vw,1.9rem)}
+.header .note{margin:0}
+.quick-nav{
+    display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px;padding:10px;
+    border:1px solid var(--border);background:rgba(15,27,47,.78);border-radius:15px;
+    position:sticky;top:104px;z-index:25;backdrop-filter:blur(12px);
+}
+.quick-nav a{
+    text-decoration:none;color:var(--muted);padding:9px 12px;border-radius:10px;
+    font-weight:700;font-size:.82rem;transition:.18s ease;
+}
+.quick-nav a:hover{background:rgba(242,134,126,.13);color:#ffd1cc}
+.section{margin-top:16px;scroll-margin-top:175px}
+.grid,.compact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.card{
+    background:rgba(15,27,47,.95);border:1px solid var(--border);border-radius:var(--radius);
+    padding:20px;box-shadow:var(--shadow);
+}
+.card h2{margin:0 0 14px;font-size:1.05rem;color:#e5edf8}
+.card-sub{margin:-7px 0 15px;color:var(--muted);font-size:.84rem;line-height:1.45}
+.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px;background:#101c30}
+table{width:100%;border-collapse:collapse;color:var(--text);table-layout:auto;min-width:820px}
+th,td{padding:13px 14px;text-align:left;border-bottom:1px solid rgba(148,163,184,.12);vertical-align:middle}
+th{
+    color:#9fb0c6;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;
+    background:#142137;position:sticky;top:0;z-index:2
+}
+td{font-size:.88rem;color:#e8eef7}
+tbody tr:hover{background:rgba(242,134,126,.055)}
+tbody tr:last-child td{border-bottom:0}
+.btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;
+    padding:9px 14px;border-radius:10px;border:1px solid transparent;cursor:pointer;
+    font-weight:750;font-size:.82rem;transition:all .18s ease;text-decoration:none;white-space:nowrap
+}
+.btn:hover{transform:translateY(-1px)}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#21110f;box-shadow:0 7px 18px rgba(242,134,126,.14)}
+.btn-secondary{background:#24324a;color:#edf3fb;border-color:rgba(148,163,184,.12)}
+.btn-secondary:hover{background:#2d3d59}
+.input-group{display:grid;gap:7px;margin-bottom:13px}
+.input-group label{font-size:.82rem;color:#aab9cc;font-weight:650}
+.input-group input,.input-group select,.input-group textarea{
+    width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(148,163,184,.22);
+    background:#1b2940;color:var(--text);font-size:.9rem;min-height:44px;outline:none
+}
+.input-group textarea{resize:vertical}
+.input-group select option{color:#0f172a;background:#f8fafc}
+.input-group input:focus,.input-group select:focus,.input-group textarea:focus{
+    border-color:var(--accent);box-shadow:0 0 0 3px rgba(242,134,126,.12)
+}
+.note{color:var(--muted);font-size:.88rem;line-height:1.55}
+.action-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.inline-actions{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.inline-actions .btn{min-height:34px;padding:7px 10px;font-size:.76rem}
+.full-span{grid-column:1/-1}
+#admin-management .card{height:100%}
+#admin-management form{display:flex;flex-direction:column}
+#admin-management .action-row{margin-top:auto;padding-top:4px}
+.search-row{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.search-row input{
+    width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
+    background:#16243a;color:var(--text);outline:none
+}
+.search-row input:focus{border-color:var(--accent)}
+#petFormSection{display:block}
+#petFormSection .card{max-width:900px;margin:0 auto}
+@media(max-width:1000px){
+    .grid,.compact-grid{grid-template-columns:1fr}
+    .full-span{grid-column:auto}
+    .quick-nav{top:100px}
+}
+@media(max-width:760px){
+    .container{padding:14px}
+    .header{position:relative;top:0;align-items:flex-start;flex-direction:column;padding:16px}
+    .quick-nav{position:relative;top:0;overflow-x:auto;flex-wrap:nowrap}
+    .card{padding:16px}
+    .section{scroll-margin-top:20px}
+}
+</style>
 </head>
 <body>
 <div class="container">
     <div class="header">
         <div>
             <h1>Super Admin Operations</h1>
-            <p class="note">Execute admin, user, pet, and application actions directly from one panel.</p>
+            <p class="note">Manage staff accounts, users, and pet records from one organized workspace.</p>
         </div>
-        <a class="btn btn-secondary" href="super_admin_dashboard.php">Return to Dashboard</a>
+        <a class="btn btn-secondary" href="super_admin_dashboard.php">← Dashboard</a>
     </div>
+    <nav class="quick-nav" aria-label="Page sections">
+        <a href="#admin-accounts">Admin Accounts</a>
+        <a href="#admin-management">Create / Update Admin</a>
+        <a href="#user-accounts">User Accounts</a>
+        <a href="#pet-records">Pet Records</a>
+        <a href="#petFormSection">Pet Editor</a>
+        <a href="#pet-actions">Pet Actions</a>
+    </nav>
 
-    <section class="section">
+    <section class="section" id="admin-accounts">
         <div class="card">
             <h2>Admin Accounts</h2>
             <div class="table-wrap">
@@ -121,10 +189,11 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
         </div>
     </section>
 
-    <section class="section">
+    <section class="section" id="admin-management">
         <div class="grid compact-grid">
         <div class="card">
             <h2>Update Admin Account</h2>
+            <p class="card-sub">Select an administrator, then edit their profile, role, or account state.</p>
             <form id="adminUpdateForm">
                 <div class="input-group"><label>Select Admin</label><select id="updateAdminSelect" name="id" required><option value="">Choose admin</option><?php foreach ($admins as $admin): ?><option value="<?php echo $admin['id']; ?>"><?php echo htmlspecialchars($admin['username']); ?></option><?php endforeach; ?></select></div>
                 <div class="input-group"><label>Full Name</label><input type="text" name="full_name" id="updateFullName" required></div>
@@ -136,6 +205,7 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
         </div>
         <div class="card">
             <h2>Create Admin Account</h2>
+            <p class="card-sub">Create a new staff or owner account with the correct role.</p>
             <form id="adminCreateForm">
                 <div class="input-group"><label>Full Name</label><input type="text" name="full_name" required></div>
                 <div class="input-group"><label>Email</label><input type="email" name="email" required></div>
@@ -145,10 +215,11 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
             </form>
         </div>
         </div>
-        <div class="card full-span">
+        <div class="card full-span" id="user-accounts">
             <h2>User Accounts</h2>
+            <div class="search-row"><input id="userSearch" type="search" placeholder="Search users by name, username, email, role, or state..." oninput="filterRows(\'userSearch\', \'userAccountsTable\')"></div>
             <div class="table-wrap">
-                <table>
+                <table id="userAccountsTable">
                     <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>State</th><th>Actions</th></tr></thead>
                     <tbody>
                     <?php foreach ($users as $user): ?>
@@ -175,11 +246,12 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
         </div>
     </section>
 
-    <section class="section">
+    <section class="section" id="pet-records">
         <div class="card">
             <h2>Pet Records</h2>
+            <div class="search-row"><input id="petSearch" type="search" placeholder="Search pets by name, breed, status, gender, or shelter..." oninput="filterRows(\'petSearch\', \'petRecordsTable\')"></div>
             <div class="table-wrap">
-                <table>
+                <table id="petRecordsTable">
                     <thead><tr><th>ID</th><th>Name</th><th>Breed</th><th>Age</th><th>Gender</th><th>Status</th><th>Shelter</th><th>Actions</th></tr></thead>
                     <tbody>
                     <?php foreach ($pets as $pet): ?>
@@ -232,9 +304,10 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
         </div>
     </section>
 
-    <section class="section">
+    <section class="section" id="pet-actions">
         <div class="card">
             <h2>Pet Actions</h2>
+            <p class="card-sub">Use these controls to transfer a pet or change its archive state.</p>
             <form id="petActionForm">
                 <div class="input-group"><label>Pet ID</label><input type="number" name="id" required></div>
                 <div class="input-group"><label>Transfer to Shelter</label><select name="shelter_id" required>
@@ -794,6 +867,18 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
             .catch(error => {
                 handleApiError(error, 'Unarchive failed.');
             });
+    }
+
+    function filterRows(inputId, tableId) {
+        const input = document.getElementById(inputId);
+        const table = document.getElementById(tableId);
+        if (!input || !table) return;
+
+        const query = input.value.trim().toLowerCase();
+
+        table.querySelectorAll('tbody tr').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+        });
     }
 
 </script>
