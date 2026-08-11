@@ -104,294 +104,253 @@ $conn->close();
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-
 :root{
-
-color-scheme:dark;
-
---bg:#020617;
---panel:rgba(15,23,42,.92);
---text:#f8fafc;
---muted:#94a3b8;
---accent:#F2867E;
---border:rgba(148,163,184,.16);
---shadow:0 18px 45px rgba(2,8,23,.35);
-
+    --bg:#f4ead9;
+    --panel:rgba(255,250,241,.94);
+    --panel-soft:#f5e7d4;
+    --surface:rgba(255,252,246,.96);
+    --text:#3b2417;
+    --muted:#916b50;
+    --accent:#986038;
+    --accent-dark:#754325;
+    --border:#d9b996;
+    --shadow:0 10px 28px rgba(82,48,27,.10);
+    --success:#2f855a;
 }
 
 *{
-box-sizing:border-box;
+    box-sizing:border-box;
+}
+
+html{
+    scroll-behavior:smooth;
 }
 
 body{
-
-margin:0;
-font-family:'Inter',sans-serif;
-background:
-radial-gradient(circle at top left,rgba(242,134,126,.15),transparent 25%),
-radial-gradient(circle at bottom right,rgba(246,201,160,.12),transparent 22%),
-linear-gradient(135deg,#020617 0%,#07111f 100%);
-
-color:var(--text);
-min-height:100vh;
-
+    margin:0;
+    font-family:'Inter',sans-serif;
+    color:var(--text);
+    min-height:100vh;
+    background:
+        linear-gradient(rgba(244,234,217,.90),rgba(244,234,217,.90)),
+        url('/anipet_admin_wallpaper.png') center/cover fixed no-repeat;
 }
 
 .wrapper{
-
-max-width:1450px;
-margin:auto;
-padding:24px;
-
+    max-width:1480px;
+    margin:0 auto;
+    padding:24px 26px 44px;
 }
 
+/* HEADER */
 .header{
-
-display:flex;
-justify-content:space-between;
-align-items:center;
-flex-wrap:wrap;
-
-gap:15px;
-
-background:rgba(15,23,42,.75);
-
-padding:20px;
-
-border-radius:24px;
-
-border:1px solid var(--border);
-
-box-shadow:var(--shadow);
-
-margin-bottom:25px;
-
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:18px;
+    background:var(--panel);
+    padding:22px 24px;
+    border-radius:22px;
+    border:1px solid var(--border);
+    box-shadow:var(--shadow);
+    margin-bottom:22px;
 }
 
 .header h1{
-
-margin:0;
-font-size:2rem;
-
+    margin:0;
+    font-size:clamp(1.6rem,2.4vw,2.25rem);
+    color:var(--text);
 }
 
 .header p{
-
-margin-top:8px;
-color:var(--muted);
-
+    margin:7px 0 0;
+    color:var(--muted);
+    line-height:1.5;
 }
 
 .actions{
-
-display:flex;
-gap:12px;
-flex-wrap:wrap;
-
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
 }
 
 .button{
-
-padding:12px 20px;
-
-background:rgba(255,255,255,.08);
-
-border:1px solid rgba(148,163,184,.16);
-
-border-radius:14px;
-
-text-decoration:none;
-
-color:white;
-
-transition:.2s;
-
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:42px;
+    padding:10px 16px;
+    background:#fffaf3;
+    border:1px solid var(--border);
+    border-radius:12px;
+    text-decoration:none;
+    color:var(--text);
+    font-weight:750;
+    transition:.18s ease;
 }
 
 .button:hover{
-
-background:rgba(255,255,255,.14);
-
+    background:#efddc5;
+    transform:translateY(-1px);
 }
 
+/* METRICS */
 .grid{
     display:grid;
-    grid-template-columns:repeat(3, minmax(240px, 320px));
-    justify-content:center;
+    grid-template-columns:repeat(3,minmax(240px,1fr));
     gap:18px;
-    margin-bottom:25px;
+    margin-bottom:22px;
 }
 
 .card{
-
-background:var(--panel);
-
-padding:22px;
-
-border-radius:22px;
-
-border:1px solid var(--border);
-
-box-shadow:var(--shadow);
-
-}
-
-.card h2{
-
-margin:0;
-
-font-size:1rem;
-
-color:#cbd5e1;
-
+    background:var(--panel);
+    padding:20px 22px;
+    border-radius:18px;
+    border:1px solid var(--border);
+    box-shadow:var(--shadow);
 }
 
 .card-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:14px;
+}
 
-display:flex;
-
-align-items:center;
-
-justify-content:space-between;
-
-gap:12px;
-
-margin-bottom:15px;
-
+.card h2{
+    margin:0;
+    font-size:1rem;
+    color:var(--text);
 }
 
 .period-badge{
-
-flex-shrink:0;
-
-padding:5px 10px;
-
-border:1px solid rgba(148,163,184,.2);
-
-border-radius:999px;
-
-background:rgba(148,163,184,.08);
-
-color:#94a3b8;
-
-font-size:.72rem;
-
-font-weight:600;
-
-letter-spacing:.02em;
-
+    flex-shrink:0;
+    padding:6px 10px;
+    border:1px solid var(--border);
+    border-radius:999px;
+    background:#f0dfca;
+    color:#754325;
+    font-size:.72rem;
+    font-weight:750;
 }
 
 .metric{
-
-font-size:2.3rem;
-
-font-weight:bold;
-
-margin-bottom:8px;
-
+    font-size:2.2rem;
+    font-weight:800;
+    color:var(--text);
+    margin-bottom:7px;
 }
 
 .metric-label{
-
-color:var(--muted);
-
+    color:var(--muted);
+    font-size:.88rem;
+    line-height:1.45;
 }
 
+/* CHART */
 .chart-card{
-
-background:var(--panel);
-
-padding:22px;
-
-border-radius:22px;
-
-border:1px solid var(--border);
-
-box-shadow:var(--shadow);
-
-margin-bottom:25px;
-
+    background:var(--panel);
+    padding:22px;
+    border-radius:18px;
+    border:1px solid var(--border);
+    box-shadow:var(--shadow);
+    margin-bottom:22px;
 }
 
+.chart-card h2{
+    color:var(--text);
+}
+
+/* TABLE */
 .table-card{
+    background:var(--panel);
+    padding:22px;
+    border-radius:18px;
+    border:1px solid var(--border);
+    box-shadow:var(--shadow);
+}
 
-background:var(--panel);
-
-padding:22px;
-
-border-radius:22px;
-
-border:1px solid var(--border);
-
-box-shadow:var(--shadow);
-
+.table-card h2{
+    color:var(--text);
 }
 
 .table-wrap{
-
-overflow:auto;
-
+    overflow:auto;
+    border:1px solid var(--border);
+    border-radius:15px;
+    background:var(--surface);
 }
 
 table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:960px;
+}
 
-width:100%;
-
-border-collapse:collapse;
-
-min-width:900px;
-
+th,
+td{
+    padding:12px 14px;
+    text-align:left;
+    border-bottom:1px solid rgba(139,91,54,.16);
+    vertical-align:middle;
 }
 
 th{
-
-padding:14px;
-
-text-align:left;
-
-color:#94a3b8;
-
-border-bottom:1px solid rgba(148,163,184,.15);
-
+    color:#6f472c;
+    font-size:.74rem;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    background:#efddc5;
+    position:sticky;
+    top:0;
+    z-index:2;
 }
 
 td{
-
-padding:14px;
-
-border-bottom:1px solid rgba(148,163,184,.12);
-
+    color:var(--text);
+    font-size:.88rem;
+    background:rgba(255,252,246,.76);
 }
 
-tr:hover{
+tbody tr:hover td{
+    background:#fbefdf;
+}
 
-background:rgba(242,134,126,.08);
-
+tbody tr:last-child td{
+    border-bottom:0;
 }
 
 .details{
-
-background:#F2867E;
-
-padding:8px 14px;
-
-border-radius:10px;
-
-text-decoration:none;
-
-color:white;
-
-font-size:.85rem;
-
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:36px;
+    padding:8px 13px;
+    border-radius:10px;
+    text-decoration:none;
+    background:var(--accent);
+    border:1px solid var(--accent);
+    color:#fffaf3;
+    font-size:.82rem;
+    font-weight:750;
+    transition:.18s ease;
 }
 
 .details:hover{
-
-background:#d76f68;
-
+    background:var(--accent-dark);
 }
 
+.receipt-link{
+    color:var(--accent-dark);
+    font-weight:750;
+    text-decoration:none;
+}
+
+.receipt-link:hover{
+    text-decoration:underline;
+}
 
 .payment-status{
     display:inline-flex;
@@ -399,15 +358,15 @@ background:#d76f68;
     gap:7px;
     padding:7px 11px;
     border-radius:999px;
-    font-size:.82rem;
-    font-weight:600;
+    font-size:.8rem;
+    font-weight:700;
     white-space:nowrap;
 }
 
 .payment-status.successful{
-    color:#86efac;
-    background:rgba(34,197,94,.14);
-    border:1px solid rgba(34,197,94,.28);
+    color:#17623d;
+    background:#dff3e8;
+    border:1px solid #a9d9bd;
 }
 
 .payment-status.successful::before{
@@ -415,30 +374,48 @@ background:#d76f68;
     width:7px;
     height:7px;
     border-radius:50%;
-    background:#22c55e;
-    box-shadow:0 0 0 3px rgba(34,197,94,.12);
+    background:#2f855a;
+    box-shadow:0 0 0 3px rgba(47,133,90,.10);
 }
 
+/* RECEIPT MODAL */
+#receiptModal{
+    backdrop-filter:blur(4px);
+}
+
+#receiptModal img{
+    border:8px solid rgba(255,250,241,.94);
+    box-shadow:0 18px 60px rgba(31,18,10,.30);
+}
+
+/* RESPONSIVE */
 @media(max-width:1100px){
-
-.grid{
-
-grid-template-columns:repeat(2,1fr);
-
-}
-
+    .grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
 }
 
 @media(max-width:700px){
+    .wrapper{
+        padding:14px;
+    }
 
-.grid{
+    .header{
+        align-items:flex-start;
+        flex-direction:column;
+        padding:18px;
+    }
 
-grid-template-columns:1fr;
+    .grid{
+        grid-template-columns:1fr;
+    }
 
+    .card,
+    .chart-card,
+    .table-card{
+        padding:16px;
+    }
 }
-
-}
-
 </style>
 
 </head>
@@ -611,7 +588,7 @@ grid-template-columns:1fr;
 
 <?php else: ?>
 
-<span style="color:#94a3b8;">No Receipt</span>
+<span style="color:#916b50;">No Receipt</span>
 
 <?php endif; ?>
 
@@ -653,7 +630,7 @@ grid-template-columns:1fr;
     </div>
 
 </div>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 
 <script>
 
@@ -675,7 +652,7 @@ new Chart(document.getElementById("donationChart"),{
 
             data:values,
 
-            backgroundColor:'#F2867E',
+            backgroundColor:'#986038',
 
             borderRadius:8
 
@@ -726,7 +703,7 @@ z-index:9999;">
             position:absolute;
             right:-10px;
             top:-10px;
-            background:#F2867E;
+            background:#986038;
             border:none;
             color:white;
             width:35px;

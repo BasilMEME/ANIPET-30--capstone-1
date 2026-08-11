@@ -31,47 +31,273 @@ $conn->close();
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            color-scheme: dark;
-            --bg: #020617;
-            --panel: rgba(15, 23, 42, 0.92);
-            --text: #f8fafc;
-            --muted: #94a3b8;
-            --accent: #F2867E;
-            --border: rgba(148, 163, 184, 0.16);
-            --shadow: 0 18px 45px rgba(2, 8, 23, 0.35);
-        }
-        * { box-sizing: border-box; }
-        body { margin:0; font-family:'Inter',sans-serif; color:var(--text); min-height:100vh; background: radial-gradient(circle at top left, rgba(242,134,126,.14), transparent 25%), radial-gradient(circle at bottom right, rgba(246,201,160,.12), transparent 24%), linear-gradient(135deg, #020617 0%, #07111f 100%); }
-        .container{max-width:1440px;margin:0 auto;padding:24px 24px 40px;}
-        .header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px;padding:18px 20px;background:rgba(15,23,42,.72);border:1px solid var(--border);border-radius:24px;box-shadow:var(--shadow);backdrop-filter:blur(14px);}
-        .header h1{margin:0;font-size:clamp(1.4rem,2vw,2rem);}
-        .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
-        .card{background:var(--panel);border:1px solid var(--border);border-radius:24px;padding:22px;box-shadow:var(--shadow);backdrop-filter:blur(12px);transition:transform .18s ease,border-color .18s ease;}
-        .card:hover{transform:translateY(-1px);border-color:rgba(242,134,126,.24);}
-        .card h2{margin:0 0 12px;font-size:1.08rem;color:#cbd5e1;}
-        .table-wrap{overflow-x:auto;border:1px solid rgba(148,163,184,.12);border-radius:18px;background:rgba(255,255,255,.025);}
-        table{width:100%;border-collapse:collapse;color:var(--text);table-layout:fixed;min-width:720px;}
-        th,td{padding:14px 12px;text-align:left;border-bottom:1px solid rgba(148,163,184,.12);overflow-wrap:anywhere;word-break:break-word;}
-        th{color:var(--muted);font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;}
-        tr:hover{background:rgba(242,134,126,.08);}
-        .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;border-radius:14px;border:none;cursor:pointer;font-weight:700;transition:transform .18s ease,background .18s ease,box-shadow .18s ease;}
-        .btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(2,8,23,.22);}
-        .btn-primary{background:linear-gradient(135deg,var(--accent),#D9695F);color:#241209;}
-        .btn-secondary{background:rgba(255,255,255,.08);color:var(--text);}
-        .input-group{display:grid;gap:10px;margin-bottom:16px;}
-        .input-group label{font-size:.95rem;color:var(--muted);}
-        .input-group input, .input-group select, .input-group textarea{width:100%;padding:12px 14px;border-radius:14px;border:1px solid rgba(148,163,184,.24);background:rgba(255,255,255,.06);color:var(--text);font-size:0.95rem;min-height:46px;}
-        .input-group input:focus, .input-group select:focus, .input-group textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(242,134,126,.18);}
-        .input-group select option{background:#f8fafc;color:#0f172a;}
-        .input-group select option:disabled{color:#64748b;}
-        .section{margin-top:28px;}
-        .section h2{margin-bottom:18px;font-size:1.12rem;}
-        .note{color:var(--muted);font-size:.94rem;line-height:1.6;}
-        .action-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;}
-        @media (max-width: 1000px){ .grid{grid-template-columns:1fr;} }
-        @media (max-width: 760px){ .container{padding:16px 14px 28px;} .header{padding:16px;} .card{padding:18px;} }
-    </style>
+:root{
+    --bg:#f4ead9;
+    --panel:rgba(255,250,241,.94);
+    --panel-soft:#f5e7d4;
+    --surface:rgba(255,252,246,.96);
+    --text:#3b2417;
+    --muted:#916b50;
+    --accent:#986038;
+    --accent-dark:#754325;
+    --border:#d9b996;
+    --shadow:0 10px 28px rgba(82,48,27,.10);
+    --radius:18px;
+}
+
+*{
+    box-sizing:border-box;
+}
+
+html{
+    scroll-behavior:smooth;
+}
+
+body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    color:var(--text);
+    min-height:100vh;
+    background:
+        linear-gradient(rgba(244,234,217,.90),rgba(244,234,217,.90)),
+        url('/anipet_admin_wallpaper.png') center/cover fixed no-repeat;
+}
+
+.container{
+    max-width:1480px;
+    margin:0 auto;
+    padding:24px 26px 44px;
+}
+
+/* HEADER */
+.header{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    margin-bottom:22px;
+    padding:22px 24px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:22px;
+    box-shadow:var(--shadow);
+}
+
+.header h1{
+    margin:0;
+    font-size:clamp(1.6rem,2.4vw,2.25rem);
+    color:var(--text);
+}
+
+.header .note{
+    margin:7px 0 0;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px;
+    align-items:start;
+}
+
+.card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:22px;
+    box-shadow:var(--shadow);
+    transition:transform .18s ease,border-color .18s ease;
+}
+
+.card:hover{
+    transform:translateY(-1px);
+    border-color:#c99d73;
+}
+
+.card h2{
+    margin:0 0 12px;
+    font-size:1.08rem;
+    color:var(--text);
+}
+
+/* TABLE */
+.table-wrap{
+    overflow-x:auto;
+    border:1px solid var(--border);
+    border-radius:15px;
+    background:var(--surface);
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    color:var(--text);
+    table-layout:fixed;
+    min-width:720px;
+}
+
+th,
+td{
+    padding:12px 13px;
+    text-align:left;
+    border-bottom:1px solid rgba(139,91,54,.16);
+    overflow-wrap:anywhere;
+    word-break:break-word;
+}
+
+th{
+    color:#6f472c;
+    font-size:.78rem;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    background:#efddc5;
+}
+
+td{
+    color:var(--text);
+    background:rgba(255,252,246,.74);
+}
+
+tbody tr:hover td{
+    background:#fbefdf;
+}
+
+/* BUTTONS */
+.btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:42px;
+    padding:10px 16px;
+    border-radius:12px;
+    border:1px solid transparent;
+    cursor:pointer;
+    font-weight:750;
+    text-decoration:none;
+    transition:transform .18s ease,background .18s ease,box-shadow .18s ease;
+}
+
+.btn:hover{
+    transform:translateY(-1px);
+}
+
+.btn-primary{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#fffaf3;
+    box-shadow:0 6px 14px rgba(117,67,37,.14);
+}
+
+.btn-primary:hover{
+    background:var(--accent-dark);
+}
+
+.btn-secondary{
+    background:#fffaf3;
+    border-color:var(--border);
+    color:var(--text);
+}
+
+.btn-secondary:hover{
+    background:#efddc5;
+}
+
+/* FORMS */
+.input-group{
+    display:grid;
+    gap:7px;
+    margin-bottom:14px;
+}
+
+.input-group label{
+    font-size:.88rem;
+    color:#7d583e;
+    font-weight:700;
+}
+
+.input-group input,
+.input-group select,
+.input-group textarea{
+    width:100%;
+    padding:11px 13px;
+    border-radius:12px;
+    border:1.5px solid var(--border);
+    background:rgba(255,252,246,.96);
+    color:var(--text);
+    font-size:.94rem;
+    min-height:45px;
+    outline:none;
+}
+
+.input-group textarea{
+    resize:vertical;
+}
+
+.input-group input:focus,
+.input-group select:focus,
+.input-group textarea:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(152,96,56,.12);
+}
+
+.input-group select option{
+    background:#fffaf3;
+    color:var(--text);
+}
+
+.input-group select option:disabled{
+    color:#9a7a62;
+}
+
+.section{
+    margin-top:20px;
+}
+
+.section h2{
+    margin-bottom:14px;
+}
+
+.note{
+    color:var(--muted);
+    font-size:.9rem;
+    line-height:1.55;
+}
+
+.action-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:14px;
+}
+
+/* Make the shelter list use full width inside its grid cell cleanly. */
+.table-wrap table{
+    min-width:700px;
+}
+
+@media(max-width:1000px){
+    .grid{
+        grid-template-columns:1fr;
+    }
+}
+
+@media(max-width:760px){
+    .container{
+        padding:14px;
+    }
+
+    .header{
+        align-items:flex-start;
+        flex-direction:column;
+        padding:18px;
+    }
+
+    .card{
+        padding:17px;
+    }
+}
+</style>
 </head>
 <body>
 <div class="container">
@@ -432,7 +658,7 @@ $conn->close();
                                     <?php
                                         echo !empty($shelter['created_at'])
                                             ? date('M d, Y', strtotime($shelter['created_at']))
-                                            : '—';
+                                            : '-';
                                     ?>
                                 </td>
                             </tr>
