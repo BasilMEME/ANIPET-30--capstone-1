@@ -1,217 +1,339 @@
 <?php
 /**
- * Browser Login Form
- * Works on desktop and mobile
- * Submits to login.php API endpoint
+ * AniPet Admin / Super Admin Login
+ * IMPORTANT: this file must be saved as UTF-8 WITHOUT BOM.
  */
-session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
 
-// If already logged in, redirect to the proper dashboard
 if (isset($_SESSION['user_id'])) {
     $role = $_SESSION['role'] ?? '';
+
     if ($role === 'admin') {
         header('Location: admin_workspace.php');
         exit;
     }
-    if ($role === 'super_admin') {
+
+    if (in_array($role, ['super_admin', 'super'], true)) {
         header('Location: super_admin_dashboard.php');
         exit;
     }
-    // Regular users or unknown roles: destroy session and show login
+
     session_unset();
     session_destroy();
-    session_start();
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="stylesheet" href="/anipet_reference_theme.css?v=20260811">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anipet - Login</title>
+    <title>AniPet - Staff Login</title>
+    <link rel="icon" type="image/jpeg" href="/anipet_logo.jpg">
+
     <style>
+        :root {
+            --cream: #f3e7d3;
+            --cream-card: rgba(255, 250, 239, .88);
+            --cream-field: rgba(255, 252, 245, .82);
+            --brown: #3d2415;
+            --brown-soft: #8a5a34;
+            --brown-hover: #704524;
+            --tan: #cfa57c;
+            --border: rgba(138, 90, 52, .42);
+            --coral: #ef8178;
+            --danger-bg: rgba(166, 62, 53, .11);
+            --danger: #8f2f28;
+        }
+
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
         }
-        
+
+        html, body {
+            min-height: 100%;
+            margin: 0;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #1b2a41;
-            background-image:
-                linear-gradient(rgba(12, 25, 44, .42), rgba(12, 25, 44, .42)),
-                url('/anipet_admin_wallpaper.png');
-            background-position: center;
-            background-size: cover;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
+            font-family: "Segoe UI", Arial, sans-serif;
+            color: var(--brown);
+            background:
+                linear-gradient(
+                    rgba(243, 231, 211, .48),
+                    rgba(243, 231, 211, .48)
+                ),
+                url("/anipet_admin_wallpaper.png") center / cover fixed no-repeat;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+        }
+
+        .page-shell {
+            width: min(1080px, 100%);
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr);
+            gap: 46px;
             align-items: center;
-            padding: 20px;
         }
 
-        .login-container {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-            width: 100%;
-            max-width: 400px;
-            padding: 40px;
+        .welcome-panel {
+            padding: 46px;
+            border: 1px solid rgba(138, 90, 52, .18);
+            border-radius: 30px;
+            background: rgba(255, 250, 239, .38);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 20px 60px rgba(71, 44, 24, .10);
         }
 
-        .logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .logo img {
-            width: 96px;
-            height: 96px;
+        .welcome-panel img {
+            width: 105px;
+            height: 105px;
             object-fit: contain;
-            margin-bottom: 8px;
+            border-radius: 24px;
+            background: rgba(255,255,255,.64);
+            padding: 8px;
         }
 
-        .logo h1 {
-            color: #f2867e;
-            font-size: 28px;
-            margin-bottom: 5px;
+        .welcome-panel h1 {
+            margin: 22px 0 10px;
+            font-size: clamp(2.3rem, 5vw, 4.4rem);
+            line-height: .96;
+            color: var(--brown);
         }
 
-        .logo p {
-            color: #999;
-            font-size: 14px;
+        .welcome-panel h1 span {
+            color: var(--coral);
         }
-        
+
+        .welcome-panel p {
+            max-width: 540px;
+            margin: 0;
+            font-size: 1.08rem;
+            line-height: 1.7;
+            color: rgba(61, 36, 21, .75);
+        }
+
+        .login-card {
+            width: 100%;
+            padding: 34px;
+            border-radius: 26px;
+            border: 1px solid rgba(138, 90, 52, .24);
+            background: var(--cream-card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 24px 65px rgba(61, 36, 21, .18);
+        }
+
+        .mobile-logo {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .mobile-logo img {
+            width: 86px;
+            height: 86px;
+            object-fit: contain;
+        }
+
+        .mobile-logo h2 {
+            margin: 8px 0 3px;
+            font-size: 1.8rem;
+            color: var(--brown);
+        }
+
+        .mobile-logo h2 span {
+            color: var(--coral);
+        }
+
+        .mobile-logo p {
+            margin: 0;
+            color: rgba(61, 36, 21, .62);
+        }
+
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
-        
+
         label {
             display: block;
             margin-bottom: 8px;
-            color: #333;
-            font-weight: 500;
+            font-weight: 700;
+            color: var(--brown);
         }
-        
+
         input[type="text"],
-        input[type="email"],
         input[type="password"] {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 5px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-        
-        input[type="text"]:focus,
-        input[type="email"]:focus,
-        input[type="password"]:focus {
+            height: 52px;
+            padding: 0 15px;
+            border-radius: 14px;
+            border: 1.5px solid var(--border);
+            background: var(--cream-field);
+            color: var(--brown);
+            font: inherit;
             outline: none;
-            border-color: #f2867e;
+            transition: .18s ease;
+        }
+
+        input::placeholder {
+            color: rgba(61, 36, 21, .48);
+        }
+
+        input:focus {
+            border-color: var(--brown-soft);
+            box-shadow: 0 0 0 4px rgba(138, 90, 52, .10);
+            background: rgba(255, 252, 245, .96);
         }
 
         .btn-login {
             width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #f2867e 0%, #e56f66 100%);
-            color: #1b2a41;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            font-weight: 600;
+            min-height: 52px;
+            border: 0;
+            border-radius: 14px;
+            background: var(--brown-soft);
+            color: #fffaf1;
+            font-size: 1rem;
+            font-weight: 800;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: .18s ease;
         }
-        
+
         .btn-login:hover {
-            transform: translateY(-2px);
+            background: var(--brown-hover);
+            transform: translateY(-1px);
         }
-        
-        .btn-login:active {
-            transform: translateY(0);
+
+        .staff-note {
+            margin: 18px 0 0;
+            text-align: center;
+            font-size: .82rem;
+            color: rgba(61, 36, 21, .58);
         }
-        
+
         .error-message {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 12px;
-            border-radius: 5px;
-            margin-bottom: 20px;
             display: none;
+            margin-bottom: 18px;
+            padding: 12px 14px;
+            border: 1px solid rgba(143, 47, 40, .22);
+            border-radius: 13px;
+            background: var(--danger-bg);
+            color: var(--danger);
+            font-weight: 650;
+            line-height: 1.45;
         }
-        
+
         .loading {
             display: none;
             text-align: center;
-            color: #f2867e;
-            font-size: 14px;
+            margin-top: 16px;
+            color: var(--brown-soft);
+            font-weight: 650;
         }
 
         .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #f2867e;
-            border-radius: 50%;
             width: 30px;
             height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+            margin: 0 auto 8px;
+            border-radius: 50%;
+            border: 3px solid rgba(138, 90, 52, .18);
+            border-top-color: var(--brown-soft);
+            animation: spin .8s linear infinite;
         }
-        
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 820px) {
+            body {
+                padding: 18px;
+            }
+
+            .page-shell {
+                grid-template-columns: 1fr;
+                max-width: 480px;
+            }
+
+            .welcome-panel {
+                display: none;
+            }
+
+            .login-card {
+                padding: 28px 22px;
+                background: rgba(255, 250, 239, .82);
+            }
         }
     </style>
 </head>
+
 <body>
-    <div class="login-container">
-        <div class="logo">
+    <main class="page-shell">
+        <section class="welcome-panel">
             <img src="/anipet_logo.jpg" alt="AniPet logo">
-            <h1>AniPet</h1>
-            <p>Adopt a Pet, Gain a Friend.</p>
-        </div>
-        
-        <div class="error-message" id="errorMessage"></div>
-        
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="email">Email or Username</label>
-                <input 
-                    type="text" 
-                    id="email" 
-                    name="email" 
-                    placeholder="Enter your email or username" 
-                    required
-                    autocomplete="off"
-                >
+            <h1>Ani<span>Pet</span></h1>
+            <p>
+                Animal Adoption and Pet Pound Management System.
+                Sign in to manage pets, adoption applications,
+                appointments, users, reports, and other pound operations.
+            </p>
+        </section>
+
+        <section class="login-card">
+            <div class="mobile-logo">
+                <img src="/anipet_logo.jpg" alt="AniPet logo">
+                <h2>Ani<span>Pet</span></h2>
+                <p>Adopt a Pet, Gain a Friend.</p>
             </div>
-            
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input 
-                    type="password" 
-                    id="password" 
-                    name="password" 
-                    placeholder="Enter your password" 
-                    required
-                    autocomplete="off"
-                >
-            </div>
-            
-            <button type="submit" class="btn-login" id="loginBtn">Login</button>
-            <input type="hidden" name="admin_login" value="1">
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p>Logging in...</p>
-            </div>
-        </form>
-    </div>
-    
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email or Username</label>
+                    <input
+                        type="text"
+                        id="email"
+                        name="email"
+                        placeholder="Enter your email or username"
+                        required
+                        autocomplete="username"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Enter your password"
+                        required
+                        autocomplete="current-password"
+                    >
+                </div>
+
+                <input type="hidden" name="admin_login" value="1">
+
+                <button type="submit" class="btn-login" id="loginBtn">
+                    Login
+                </button>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <div>Logging in...</div>
+                </div>
+            </form>
+
+            <p class="staff-note">
+                Authorized AniPet staff accounts only.
+            </p>
+        </section>
+    </main>
+
     <script>
         const form = document.getElementById('loginForm');
         const emailInput = document.getElementById('email');
@@ -219,22 +341,22 @@ if (isset($_SESSION['user_id'])) {
         const loginBtn = document.getElementById('loginBtn');
         const errorMsg = document.getElementById('errorMessage');
         const loading = document.getElementById('loading');
-        
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
             const email = emailInput.value.trim();
             const password = passwordInput.value;
-            
+
             if (!email || !password) {
-                showError('Email/Username and password are required');
+                showError('Email/Username and password are required.');
                 return;
             }
-            
+
             loginBtn.style.display = 'none';
             loading.style.display = 'block';
             errorMsg.style.display = 'none';
-            
+
             try {
                 const response = await fetch('login.php', {
                     method: 'POST',
@@ -243,21 +365,27 @@ if (isset($_SESSION['user_id'])) {
                     },
                     body: new URLSearchParams(new FormData(form)).toString()
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.status === 'success') {
-                    if (data.user && data.user.role === 'admin') {
+                    const role = data.user?.role;
+
+                    if (role === 'admin') {
                         window.location.href = 'admin_workspace.php';
-                    } else if (data.user && data.user.role === 'super_admin') {
-                        window.location.href = 'super_admin_dashboard.php';
-                    } else {
-                        showError('Admin access is required.');
+                        return;
                     }
+
+                    if (role === 'super_admin' || role === 'super') {
+                        window.location.href = 'super_admin_dashboard.php';
+                        return;
+                    }
+
+                    showError('Admin access is required.');
                 } else if (data.status === 'unverified') {
                     showError('Account not verified. Check your email.');
                 } else {
-                    showError(data.message || 'Login failed');
+                    showError(data.message || 'Login failed.');
                 }
             } catch (error) {
                 showError('Network error: ' + error.message);
@@ -266,7 +394,7 @@ if (isset($_SESSION['user_id'])) {
                 loading.style.display = 'none';
             }
         });
-        
+
         function showError(message) {
             errorMsg.textContent = message;
             errorMsg.style.display = 'block';
@@ -274,4 +402,3 @@ if (isset($_SESSION['user_id'])) {
     </script>
 </body>
 </html>
-
