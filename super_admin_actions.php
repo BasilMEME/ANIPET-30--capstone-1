@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/auth_helper.php';
 require_super_or_permission('manage_admins');
 
@@ -30,116 +30,381 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
 :root{
-    color-scheme:dark;
-    --bg:#07111f;
-    --panel:#0f1b2f;
-    --panel-soft:#152238;
-    --surface:#1b2940;
-    --surface-2:#22314a;
-    --text:#f8fafc;
-    --muted:#9fb0c6;
-    --accent:#f2867e;
-    --accent-dark:#d9695f;
-    --border:rgba(148,163,184,.18);
-    --shadow:0 12px 32px rgba(2,8,23,.28);
-    --radius:16px;
+    --bg:#f4ead9;
+    --panel:rgba(255,250,241,.94);
+    --panel-soft:rgba(251,242,228,.92);
+    --surface:rgba(255,252,246,.96);
+    --surface-2:#f0dfca;
+    --text:#3b2417;
+    --muted:#916b50;
+    --accent:#986038;
+    --accent-dark:#754325;
+    --border:#d9b996;
+    --shadow:0 10px 28px rgba(82,48,27,.10);
+    --radius:18px;
 }
+
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
+
 body{
     margin:0;
     font-family:'Inter',sans-serif;
     color:var(--text);
     min-height:100vh;
-    background:radial-gradient(circle at top left,rgba(242,134,126,.10),transparent 24%),linear-gradient(135deg,#050d18 0%,#081421 45%,#0a1625 100%);
+    background:
+        linear-gradient(rgba(244,234,217,.90),rgba(244,234,217,.90)),
+        url('/anipet_admin_wallpaper.png') center/cover fixed no-repeat;
 }
-.container{max-width:1380px;margin:0 auto;padding:22px 24px 40px}
+
+.container{
+    max-width:1480px;
+    margin:0 auto;
+    padding:24px 26px 44px;
+}
+
+/* HEADER */
 .header{
-    display:flex;align-items:center;justify-content:space-between;gap:18px;
-    margin-bottom:14px;padding:18px 20px;background:rgba(15,27,47,.94);
-    border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);
-    position:sticky;top:12px;z-index:30;backdrop-filter:blur(14px);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+    margin-bottom:14px;
+    padding:22px 24px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:22px;
+    box-shadow:var(--shadow);
 }
-.header h1{margin:0 0 5px;font-size:clamp(1.35rem,2vw,1.9rem)}
-.header .note{margin:0}
+
+.header h1{
+    margin:0 0 6px;
+    font-size:clamp(1.6rem,2.4vw,2.25rem);
+    color:var(--text);
+}
+
+.header .note{
+    margin:0;
+    color:var(--muted);
+}
+
+/* NAV - deliberately NOT sticky so it never covers the table */
 .quick-nav{
-    display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px;padding:10px;
-    border:1px solid var(--border);background:rgba(15,27,47,.78);border-radius:15px;
-    position:sticky;top:104px;z-index:25;backdrop-filter:blur(12px);
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin:0 0 20px;
+    padding:12px;
+    border:1px solid var(--border);
+    background:rgba(255,250,241,.90);
+    border-radius:16px;
+    box-shadow:0 5px 18px rgba(82,48,27,.06);
 }
+
 .quick-nav a{
-    text-decoration:none;color:var(--muted);padding:9px 12px;border-radius:10px;
-    font-weight:700;font-size:.82rem;transition:.18s ease;
+    text-decoration:none;
+    color:var(--text);
+    padding:10px 14px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background:#f7ead9;
+    font-weight:750;
+    font-size:.84rem;
+    transition:.18s ease;
 }
-.quick-nav a:hover{background:rgba(242,134,126,.13);color:#ffd1cc}
-.section{margin-top:10px;scroll-margin-top:175px}
-.grid,.compact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+
+.quick-nav a:hover{
+    background:var(--accent);
+    color:#fffaf3;
+    border-color:var(--accent);
+}
+
+/* SECTIONS */
+.section{
+    margin-top:16px;
+    scroll-margin-top:24px;
+}
+
+.grid,.compact-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:16px;
+    align-items:start;
+}
+
 .card{
-    background:rgba(15,27,47,.95);border:1px solid var(--border);border-radius:var(--radius);
-    padding:16px 18px;box-shadow:var(--shadow);
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:20px 22px;
+    box-shadow:var(--shadow);
 }
-.card h2{margin:0 0 10px;font-size:1.02rem;color:#e5edf8}
-.card-sub{margin:-4px 0 10px;color:var(--muted);font-size:.84rem;line-height:1.45}
-.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px;background:#101c30}
-table{width:100%;border-collapse:collapse;color:var(--text);table-layout:auto;min-width:820px}
-th,td{padding:10px 12px;text-align:left;border-bottom:1px solid rgba(148,163,184,.12);vertical-align:middle}
+
+.card h2{
+    margin:0 0 10px;
+    font-size:1.08rem;
+    color:var(--text);
+}
+
+.card-sub{
+    margin:-3px 0 14px;
+    color:var(--muted);
+    font-size:.88rem;
+    line-height:1.5;
+}
+
+/* TABLES */
+.table-wrap{
+    overflow:auto;
+    border:1px solid var(--border);
+    border-radius:15px;
+    background:rgba(255,252,246,.92);
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    color:var(--text);
+    table-layout:auto;
+    min-width:820px;
+}
+
+th,td{
+    padding:12px 14px;
+    text-align:left;
+    border-bottom:1px solid rgba(139,91,54,.16);
+    vertical-align:middle;
+}
+
 th{
-    color:#9fb0c6;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;
-    background:#142137;position:sticky;top:0;z-index:2
+    color:#6f472c;
+    font-size:.74rem;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    background:#efddc5;
+    position:sticky;
+    top:0;
+    z-index:2;
 }
-td{font-size:.88rem;color:#e8eef7}
-tbody tr:hover{background:rgba(242,134,126,.055)}
-tbody tr:last-child td{border-bottom:0}
+
+td{
+    font-size:.89rem;
+    color:var(--text);
+    background:rgba(255,252,246,.72);
+}
+
+tbody tr:hover td{
+    background:#fbefdf;
+}
+
+tbody tr:last-child td{
+    border-bottom:0;
+}
+
+/* BUTTONS */
 .btn{
-    display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;
-    padding:9px 14px;border-radius:10px;border:1px solid transparent;cursor:pointer;
-    font-weight:750;font-size:.82rem;transition:all .18s ease;text-decoration:none;white-space:nowrap
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    min-height:40px;
+    padding:9px 15px;
+    border-radius:11px;
+    border:1px solid transparent;
+    cursor:pointer;
+    font-weight:750;
+    font-size:.83rem;
+    transition:all .18s ease;
+    text-decoration:none;
+    white-space:nowrap;
 }
+
 .btn:hover{transform:translateY(-1px)}
-.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#21110f;box-shadow:0 7px 18px rgba(242,134,126,.14)}
-.btn-secondary{background:#24324a;color:#edf3fb;border-color:rgba(148,163,184,.12)}
-.btn-secondary:hover{background:#2d3d59}
-.input-group{display:grid;gap:5px;margin-bottom:9px}
-.input-group label{font-size:.82rem;color:#aab9cc;font-weight:650}
-.input-group input,.input-group select,.input-group textarea{
-    width:100%;padding:9px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.22);
-    background:#1b2940;color:var(--text);font-size:.9rem;min-height:40px;outline:none
+
+.btn-primary{
+    background:var(--accent);
+    color:#fffaf3;
+    border-color:var(--accent);
+    box-shadow:0 6px 14px rgba(117,67,37,.14);
 }
-.input-group textarea{resize:vertical}
-.input-group select option{color:#0f172a;background:#f8fafc}
-.input-group input:focus,.input-group select:focus,.input-group textarea:focus{
-    border-color:var(--accent);box-shadow:0 0 0 3px rgba(242,134,126,.12)
+
+.btn-primary:hover{
+    background:var(--accent-dark);
 }
-.note{color:var(--muted);font-size:.88rem;line-height:1.55}
-.action-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-.inline-actions{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
-.inline-actions .btn{min-height:34px;padding:7px 10px;font-size:.76rem}
-.full-span{grid-column:1/-1}
-#admin-management .action-row{margin-top:8px}
-.search-row{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+
+.btn-secondary{
+    background:#fffaf3;
+    color:var(--text);
+    border-color:var(--border);
+}
+
+.btn-secondary:hover{
+    background:#f1dfca;
+    border-color:#c99d73;
+}
+
+/* FORM */
+.input-group{
+    display:grid;
+    gap:6px;
+    margin-bottom:12px;
+}
+
+.input-group label{
+    font-size:.83rem;
+    color:#7d583e;
+    font-weight:700;
+}
+
+.input-group input,
+.input-group select,
+.input-group textarea{
+    width:100%;
+    padding:10px 13px;
+    border-radius:12px;
+    border:1.5px solid var(--border);
+    background:rgba(255,252,246,.96);
+    color:var(--text);
+    font-size:.9rem;
+    min-height:44px;
+    outline:none;
+}
+
+.input-group textarea{
+    resize:vertical;
+}
+
+.input-group select option{
+    color:var(--text);
+    background:#fffaf3;
+}
+
+.input-group input:focus,
+.input-group select:focus,
+.input-group textarea:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(152,96,56,.12);
+}
+
+.note{
+    color:var(--muted);
+    font-size:.9rem;
+    line-height:1.55;
+}
+
+.action-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:8px;
+}
+
+.inline-actions{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:7px;
+}
+
+.inline-actions .btn{
+    min-height:36px;
+    padding:7px 11px;
+    font-size:.77rem;
+}
+
+.full-span{
+    grid-column:1/-1;
+}
+
+#admin-management .action-row{
+    margin-top:10px;
+}
+
+.search-row{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    margin-bottom:10px;
+}
+
 .search-row input{
-    width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
-    background:#16243a;color:var(--text);outline:none
+    width:100%;
+    padding:11px 13px;
+    border:1.5px solid var(--border);
+    border-radius:12px;
+    background:rgba(255,252,246,.96);
+    color:var(--text);
+    outline:none;
 }
-.search-row input:focus{border-color:var(--accent)}
 
-#admin-management .compact-grid{align-items:start}
-#admin-management .card{height:auto;min-height:0}
-#user-accounts{margin-top:12px}
+.search-row input::placeholder{
+    color:#a17c60;
+}
 
-#petFormSection{display:block}
-#petFormSection .card{max-width:900px;margin:0 auto}
+.search-row input:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(152,96,56,.10);
+}
+
+#admin-management .compact-grid{
+    align-items:start;
+}
+
+#admin-management .card{
+    height:auto;
+    min-height:0;
+}
+
+#user-accounts{
+    margin-top:16px;
+}
+
+#petFormSection{
+    display:block;
+}
+
+#petFormSection .card{
+    max-width:940px;
+    margin:0 auto;
+}
+
 @media(max-width:1000px){
-    .grid,.compact-grid{grid-template-columns:1fr}
-    .full-span{grid-column:auto}
-    .quick-nav{top:100px}
+    .grid,.compact-grid{
+        grid-template-columns:1fr;
+    }
+
+    .full-span{
+        grid-column:auto;
+    }
 }
+
 @media(max-width:760px){
-    .container{padding:14px}
-    .header{position:relative;top:0;align-items:flex-start;flex-direction:column;padding:16px}
-    .quick-nav{position:relative;top:0;overflow-x:auto;flex-wrap:nowrap}
-    .card{padding:16px}
-    .section{scroll-margin-top:20px}
+    .container{
+        padding:14px;
+    }
+
+    .header{
+        align-items:flex-start;
+        flex-direction:column;
+        padding:18px;
+    }
+
+    .quick-nav{
+        overflow-x:auto;
+        flex-wrap:nowrap;
+    }
+
+    .quick-nav a{
+        flex:0 0 auto;
+    }
+
+    .card{
+        padding:16px;
+    }
+
+    .section{
+        scroll-margin-top:20px;
+    }
 }
 </style>
 </head>
@@ -150,7 +415,7 @@ tbody tr:last-child td{border-bottom:0}
             <h1>Super Admin Operations</h1>
             <p class="note">Manage staff accounts, users, and pet records from one organized workspace.</p>
         </div>
-        <a class="btn btn-secondary" href="super_admin_dashboard.php">â† Dashboard</a>
+        <a class="btn btn-secondary" href="super_admin_dashboard.php">Back to Dashboard</a>
     </div>
     <nav class="quick-nav" aria-label="Page sections">
         <a href="#admin-accounts">Admin Accounts</a>
@@ -695,7 +960,7 @@ tbody tr:last-child td{border-bottom:0}
 
         document.getElementById(
             'petFormTitle'
-        ).textContent = 'Edit Pet â€” ' + (pet.name || '');
+        ).textContent = 'Edit Pet - ' + (pet.name || '');
 
         document
             .getElementById('petFormSection')
