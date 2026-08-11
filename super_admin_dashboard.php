@@ -243,7 +243,6 @@ $conn->close();
                     <h1>Pet Pound Overview</h1>
                     <p>See what is happening in AniPet and open any staff operation when you need to assist.</p>
                 </div>
-                <span class="role-badge">Pound Owner</span>
             </div>
 
             <div class="grid stats-grid">
