@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/auth_helper.php';
 require_admin_or_super();
 
@@ -36,16 +36,16 @@ $pendingApts    = (int)($conn->query("SELECT COUNT(*) FROM appointments WHERE st
 $notifBadge     = $pendingApps + $pendingApts;
 
 $pageInfo = [
-    'dashboard'         => ['title' => 'Dashboard',              'icon' => '📊', 'sub' => 'Overview & statistics'],
-    'pets'              => ['title' => 'Pet Management',         'icon' => '🐾', 'sub' => 'Manage shelter pets'],
-    'applications'      => ['title' => 'Adoption Applications',  'icon' => '📋', 'sub' => 'Review & process applications'],
-    'appointments'      => ['title' => 'Appointments',           'icon' => '📅', 'sub' => 'Schedule & manage appointments'],
-    'users'             => ['title' => 'User Management',        'icon' => '👥', 'sub' => 'Manage adopter accounts'],
-    'notifications'     => ['title' => 'Notifications',          'icon' => '🔔', 'sub' => 'Send announcements & reminders'],
-    'reports'           => ['title' => 'Reports',                'icon' => '📈', 'sub' => 'Generate & export reports'],
-    'pet_pound'         => ['title' => 'Pet Pound',              'icon' => '🏠', 'sub' => 'Manage impounded pets'],
-    'penalty_payments'  => ['title' => 'Penalty Payments',       'icon' => '💳', 'sub' => 'View penalty payment history'],
-    'settings'          => ['title' => 'Settings',               'icon' => '⚙️', 'sub' => 'Penalty, beneficiary & donation settings'],
+    'dashboard'         => ['title' => 'Dashboard',              'icon' => 'ðŸ“Š', 'sub' => 'Overview & statistics'],
+    'pets'              => ['title' => 'Pet Management',         'icon' => 'ðŸ¾', 'sub' => 'Manage shelter pets'],
+    'applications'      => ['title' => 'Adoption Applications',  'icon' => 'ðŸ“‹', 'sub' => 'Review & process applications'],
+    'appointments'      => ['title' => 'Appointments',           'icon' => 'ðŸ“…', 'sub' => 'Schedule & manage appointments'],
+    'users'             => ['title' => 'User Management',        'icon' => 'ðŸ‘¥', 'sub' => 'Manage adopter accounts'],
+    'notifications'     => ['title' => 'Notifications',          'icon' => 'ðŸ””', 'sub' => 'Send announcements & reminders'],
+    'reports'           => ['title' => 'Reports',                'icon' => 'ðŸ“ˆ', 'sub' => 'Generate & export reports'],
+    'pet_pound'         => ['title' => 'Pet Pound',              'icon' => 'ðŸ ', 'sub' => 'Manage impounded pets'],
+    'penalty_payments'  => ['title' => 'Penalty Payments',       'icon' => 'ðŸ’³', 'sub' => 'View penalty payment history'],
+    'settings'          => ['title' => 'Settings',               'icon' => 'âš™ï¸', 'sub' => 'Penalty, beneficiary & donation settings'],
 ];
 $pi = $pageInfo[$page];
 $isSuperAdmin = current_user_role() === 'super_admin';
@@ -53,9 +53,10 @@ $isSuperAdmin = current_user_role() === 'super_admin';
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="/anipet_reference_theme.css?v=20260811">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AniPet Admin — <?php echo htmlspecialchars($pi['title']); ?></title>
+<title>AniPet Admin â€” <?php echo htmlspecialchars($pi['title']); ?></title>
 <style>
 :root{
     --bg:#fdf3ef;--surface:#fff;--surface-alt:#faf3f0;
@@ -252,7 +253,7 @@ select.form-control{cursor:pointer;}
 
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-        <div class="brand-logo">🐾</div>
+        <div class="brand-logo">ðŸ¾</div>
         <div class="brand-text">
             <h2>AniPet</h2>
             <p>Admin Portal</p>
@@ -264,13 +265,13 @@ select.form-control{cursor:pointer;}
     <div class="nav-label">Overview</div>
 
     <a href="?page=dashboard" class="nav-link <?php echo $page==='dashboard'?'active':''; ?>">
-        <span class="nav-icon">📊</span>
+        <span class="nav-icon">ðŸ“Š</span>
         Dashboard
     </a>
 
     <?php if ($isSuperAdmin): ?>
 <a href="super_admin_dashboard.php" class="nav-link">
-    <span class="nav-icon">👑</span>
+    <span class="nav-icon">ðŸ‘‘</span>
     Owner Panel
 </a>
 <?php endif; ?>
@@ -278,12 +279,12 @@ select.form-control{cursor:pointer;}
     <div class="nav-label" style="margin-top:8px;">Operations</div>
 
     <a href="?page=pets" class="nav-link <?php echo $page==='pets'?'active':''; ?>">
-        <span class="nav-icon">🐾</span>
+        <span class="nav-icon">ðŸ¾</span>
         Pet Management
     </a>
 
     <a href="?page=applications" class="nav-link <?php echo $page==='applications'?'active':''; ?>">
-        <span class="nav-icon">📋</span>
+        <span class="nav-icon">ðŸ“‹</span>
         Applications
         <?php if ($pendingApps > 0): ?>
             <span class="nav-badge"><?php echo $pendingApps; ?></span>
@@ -291,7 +292,7 @@ select.form-control{cursor:pointer;}
     </a>
 
     <a href="?page=appointments" class="nav-link <?php echo $page==='appointments'?'active':''; ?>">
-        <span class="nav-icon">📅</span>
+        <span class="nav-icon">ðŸ“…</span>
         Appointments
         <?php if ($pendingApts > 0): ?>
             <span class="nav-badge"><?php echo $pendingApts; ?></span>
@@ -299,39 +300,39 @@ select.form-control{cursor:pointer;}
     </a>
 
     <a href="?page=pet_pound" class="nav-link <?php echo $page==='pet_pound'?'active':''; ?>">
-        <span class="nav-icon">🏠</span>
+        <span class="nav-icon">ðŸ </span>
         Pet Pound
     </a>
 
     <!-- NEW -->
     <a href="?page=penalty_payments" class="nav-link <?php echo $page==='penalty_payments'?'active':''; ?>">
-        <span class="nav-icon">💳</span>
+        <span class="nav-icon">ðŸ’³</span>
         Penalty Payments
     </a>
 
     <div class="nav-label" style="margin-top:8px;">Management</div>
 
     <a href="?page=users" class="nav-link <?php echo $page==='users'?'active':''; ?>">
-        <span class="nav-icon">👥</span>
+        <span class="nav-icon">ðŸ‘¥</span>
         Users
     </a>
 
     <a href="?page=notifications" class="nav-link <?php echo $page==='notifications'?'active':''; ?>">
-        <span class="nav-icon">🔔</span>
+        <span class="nav-icon">ðŸ””</span>
         Notifications
     </a>
 
     <div class="nav-label" style="margin-top:8px;">Analytics</div>
 
     <a href="?page=reports" class="nav-link <?php echo $page==='reports'?'active':''; ?>">
-        <span class="nav-icon">📈</span>
+        <span class="nav-icon">ðŸ“ˆ</span>
         Reports
     </a>
 
     <div class="nav-label" style="margin-top:8px;">Configuration</div>
 
     <a href="?page=settings" class="nav-link <?php echo $page==='settings'?'active':''; ?>">
-        <span class="nav-icon">⚙️</span>
+        <span class="nav-icon">âš™ï¸</span>
         Settings
     </a>
 
@@ -344,14 +345,14 @@ select.form-control{cursor:pointer;}
                 <div class="admin-name"><?php echo htmlspecialchars($adminName); ?></div>
                 <div class="admin-role">Administrator</div>
             </div>
-            <a href="logout.php" class="logout-link" title="Logout">🚪</a>
+            <a href="logout.php" class="logout-link" title="Logout">ðŸšª</a>
         </div>
     </div>
 </aside>
 
 <div class="main">
     <header class="topbar">
-        <button class="hamburger" onclick="openSidebar()">☰</button>
+        <button class="hamburger" onclick="openSidebar()">â˜°</button>
         <div class="page-breadcrumb">
             <h1><?php echo htmlspecialchars($pi['icon'].' '.$pi['title']); ?></h1>
             <small><?php echo htmlspecialchars($pi['sub']); ?></small>
@@ -360,7 +361,7 @@ select.form-control{cursor:pointer;}
 
     <?php if ($isSuperAdmin): ?>
         <a href="super_admin_dashboard.php" class="btn btn-ghost btn-sm">
-            ← Back to Owner Panel
+            â† Back to Owner Panel
         </a>
     <?php endif; ?>
 
@@ -373,7 +374,7 @@ select.form-control{cursor:pointer;}
         onclick="location.href='?page=applications'"
         title="Pending alerts"
     >
-        🔔
+        ðŸ””
 
         <?php if ($notifBadge > 0): ?>
             <span class="notif-count">
@@ -453,3 +454,4 @@ function filterTable(inputId, tableId){
 </body>
 </html>
 <?php $conn->close(); ?>
+

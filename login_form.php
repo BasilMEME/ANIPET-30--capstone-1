@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Browser Login Form
  * Works on desktop and mobile
@@ -26,6 +26,7 @@ if (isset($_SESSION['user_id'])) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="/anipet_reference_theme.css?v=20260811">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anipet - Login</title>
@@ -273,3 +274,4 @@ if (isset($_SESSION['user_id'])) {
     </script>
 </body>
 </html>
+

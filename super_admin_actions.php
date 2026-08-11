@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/auth_helper.php';
 require_super_or_permission('manage_admins');
 
@@ -21,6 +21,7 @@ $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="/anipet_reference_theme.css?v=20260811">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AniPet Super Admin Actions</title>
@@ -149,7 +150,7 @@ tbody tr:last-child td{border-bottom:0}
             <h1>Super Admin Operations</h1>
             <p class="note">Manage staff accounts, users, and pet records from one organized workspace.</p>
         </div>
-        <a class="btn btn-secondary" href="super_admin_dashboard.php">← Dashboard</a>
+        <a class="btn btn-secondary" href="super_admin_dashboard.php">â† Dashboard</a>
     </div>
     <nav class="quick-nav" aria-label="Page sections">
         <a href="#admin-accounts">Admin Accounts</a>
@@ -694,7 +695,7 @@ tbody tr:last-child td{border-bottom:0}
 
         document.getElementById(
             'petFormTitle'
-        ).textContent = 'Edit Pet — ' + (pet.name || '');
+        ).textContent = 'Edit Pet â€” ' + (pet.name || '');
 
         document
             .getElementById('petFormSection')

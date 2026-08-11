@@ -1,0 +1,81 @@
+:root{
+  --bg:#f5ebdd!important;
+  --surface:#fffaf2!important;
+  --surface-alt:#f3e8d9!important;
+  --surface-soft:#f3e8d9!important;
+  --text:#3b2419!important;
+  --text-light:#7a604d!important;
+  --muted:#9a806b!important;
+  --border:#c9a98e!important;
+  --accent:#8b5a35!important;
+  --accent-hover:#704326!important;
+  --accent-dark:#704326!important;
+  --sidebar-bg:#5b3826!important;
+  --sidebar-hover:#70462e!important;
+  --shadow-sm:0 2px 8px rgba(74,42,30,.08)!important;
+  --shadow:0 8px 22px rgba(74,42,30,.10)!important;
+  --shadow-lg:0 16px 38px rgba(74,42,30,.16)!important;
+  --radius:16px!important;
+  --radius-sm:12px!important;
+}
+html,body{background:#f5ebdd!important;color:#3b2419!important;}
+body::before{
+  content:"";position:fixed;inset:0;z-index:-2;
+  background:url('/anipet_admin_wallpaper.png') center/cover fixed no-repeat;
+  opacity:.20;
+}
+body::after{
+  content:"";position:fixed;inset:0;z-index:-1;
+  background:linear-gradient(rgba(245,235,221,.92),rgba(250,244,233,.94));
+}
+body.dark-mode{
+  --bg:#f5ebdd!important;--surface:#fffaf2!important;--surface-soft:#f3e8d9!important;
+  --text:#3b2419!important;--muted:#8b6b57!important;--border:#c9a98e!important;
+}
+.sidebar{
+  background-color:#5b3826!important;
+  background-image:linear-gradient(rgba(75,43,29,.82),rgba(91,56,38,.90)),url('/anipet_admin_wallpaper.png')!important;
+  color:#fffaf2!important;border-right:1px solid rgba(255,250,242,.16)!important;
+}
+.sidebar .brand-text h2,.sidebar .admin-name,.sidebar .brand strong,.sidebar strong{color:#fffaf2!important;}
+.sidebar .brand-text p,.sidebar .admin-role,.sidebar .nav-label,.sidebar .owner-note,.sidebar .nav-title{color:#e4cdb6!important;}
+.nav-link{color:#f2dfcd!important;border-radius:12px!important;margin:3px 10px!important;border-left:0!important;}
+.nav-link:hover,.nav-link.active{background:#8b5a35!important;color:#fffaf2!important;border-left:0!important;box-shadow:inset 0 0 0 1px rgba(255,250,242,.12)!important;}
+.sidebar-footer,.sidebar-brand{border-color:rgba(255,250,242,.14)!important;}
+.admin-profile{background:rgba(255,250,242,.10)!important;border:1px solid rgba(255,250,242,.12)!important;}
+.brand-logo,.admin-avatar{background:linear-gradient(135deg,#d6a46e,#8b5a35)!important;color:#fffaf2!important;}
+.main,main,.content{background:transparent!important;}
+.topbar,.welcome,.page-header{background:rgba(255,250,242,.96)!important;color:#3b2419!important;border-color:#c9a98e!important;}
+.topbar{box-shadow:0 2px 10px rgba(74,42,30,.08)!important;}
+.card,.stat-card,.quick-card,.list-item,.table-wrap,.modal,details.card,
+.panel,.box,.content-card,.setting-card,.metric-card{
+  background:rgba(255,250,242,.97)!important;
+  color:#3b2419!important;border-color:#d8bca4!important;
+  border-radius:16px!important;box-shadow:0 5px 16px rgba(74,42,30,.08)!important;
+}
+.stat-card:hover,.card:hover{box-shadow:0 9px 22px rgba(74,42,30,.12)!important;}
+.card-sub,.page-breadcrumb small,.stat-label,.quick-card p,.section-head p,.note,.muted,.text-muted{color:#806550!important;}
+.card-title,.card h2,.card h3,.section-head h2,.welcome h1,.page-breadcrumb h1{color:#3b2419!important;}
+table{background:transparent!important;color:#3b2419!important;}
+th{background:#efe0cf!important;color:#684a37!important;border-color:#d8bca4!important;}
+td{background:rgba(255,250,242,.72)!important;border-color:#ead8c6!important;}
+tbody tr:hover td{background:#f7ecdf!important;}
+.btn,.small-btn,button,input[type=submit],input[type=button]{border-radius:12px!important;}
+.btn-primary,.btn-info,.action-btn.primary,.primary-btn{background:#8b5a35!important;color:#fffaf2!important;border-color:#8b5a35!important;}
+.btn-primary:hover,.btn-info:hover,.primary-btn:hover{background:#704326!important;}
+.btn-ghost,.btn-secondary,.small-btn,.secondary-btn{background:#fffaf2!important;color:#4a2a1e!important;border:1px solid #b98e6f!important;}
+.btn-ghost:hover,.btn-secondary:hover,.small-btn:hover{background:#f1dfcc!important;color:#3b2419!important;}
+.form-control,input,select,textarea,.input-group input,.input-group select,.input-group textarea,.search-row input{
+  background:#fffaf2!important;color:#3b2419!important;border-color:#c9a98e!important;border-radius:12px!important;
+}
+.form-control:focus,input:focus,select:focus,textarea:focus,.input-group input:focus,.input-group select:focus,.input-group textarea:focus{
+  border-color:#8b5a35!important;box-shadow:0 0 0 3px rgba(139,90,53,.14)!important;outline:none!important;
+}
+.modal-backdrop{background:rgba(59,36,25,.45)!important;backdrop-filter:blur(3px)!important;}
+.quick-nav a,.role-badge,.status,.badge{border-radius:999px!important;}
+.quick-nav a{background:#f3e8d9!important;color:#5b3826!important;border:1px solid #d8bca4!important;}
+.quick-nav a:hover{background:#e7cfb8!important;color:#3b2419!important;}
+.role-badge{background:#ead3bb!important;color:#704326!important;}
+hr{border-color:#dcc4ad!important;}
+a{accent-color:#8b5a35;}
+@media(max-width:760px){.content,main{padding:16px!important}.card{padding:16px!important}.sidebar{background-size:cover!important;}}
