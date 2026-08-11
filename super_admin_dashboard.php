@@ -263,10 +263,10 @@ $conn->close();
                 <div><h2>Quick Actions</h2><p>The owner can use the same daily functions available to counter staff.</p></div>
             </div>
             <div class="grid quick-grid">
-                <div class="card quick-card"><h3>Manage Pets</h3><p>Add new pets, edit details, update availability, and manage pet records.</p><a href="admin_workspace.php?page=pets">Open Pet Management â†’</a></div>
-                <div class="card quick-card"><h3>Review Applications</h3><p>Check applications, update their progress, and assist with adoption processing.</p><a href="admin_workspace.php?page=applications">Open Applications â†’</a></div>
-                <div class="card quick-card"><h3>Appointments</h3><p>View and manage scheduled visits and adoption appointments.</p><a href="admin_workspace.php?page=appointments">Open Appointments â†’</a></div>
-                <div class="card quick-card"><h3>Pet Pound</h3><p>View impounded pets, claims, penalties, and related records.</p><a href="admin_workspace.php?page=pet_pound">Open Pet Pound â†’</a></div>
+                <div class="card quick-card"><h3>Manage Pets</h3><p>Add new pets, edit details, update availability, and manage pet records.</p><a href="admin_workspace.php?page=pets">Open Pet Management</a></div>
+                <div class="card quick-card"><h3>Review Applications</h3><p>Check applications, update their progress, and assist with adoption processing.</p><a href="admin_workspace.php?page=applications">Open Applications</a></div>
+                <div class="card quick-card"><h3>Appointments</h3><p>View and manage scheduled visits and adoption appointments.</p><a href="admin_workspace.php?page=appointments">Open Appointments</a></div>
+                <div class="card quick-card"><h3>Pet Pound</h3><p>View impounded pets, claims, penalties, and related records.</p><a href="admin_workspace.php?page=pet_pound">Open Pet Pound</a></div>
             </div>
         </section>
 
@@ -291,9 +291,9 @@ $conn->close();
                 <div><h2>Owner Tools</h2><p>Owner-only controls for staff, donations, and system configuration.</p></div>
             </div>
             <div class="grid quick-grid">
-                <div class="card quick-card"><h3>Staff Management</h3><p>Create staff accounts, update permissions, reset passwords, and suspend access.</p><a href="super_admin_actions.php">Open Staff Management â†’</a></div>
-                <div class="card quick-card"><h3>Donations</h3><p>Review donation records, verify submissions, and monitor incoming support.</p><a href="super_admin_donations.php">Open Donations â†’</a></div>
-                <div class="card quick-card"><h3>Current System Settings</h3><p>View and manage the current AniPet system configuration and settings.</p><a href="super_admin_settings.php">Open Current System Settings â†’</a></div>
+                <div class="card quick-card"><h3>Staff Management</h3><p>Create staff accounts, update permissions, reset passwords, and suspend access.</p><a href="super_admin_actions.php">Open Staff Management</a></div>
+                <div class="card quick-card"><h3>Donations</h3><p>Review donation records, verify submissions, and monitor incoming support.</p><a href="super_admin_donations.php">Open Donations</a></div>
+                <div class="card quick-card"><h3>Current System Settings</h3><p>View and manage the current AniPet system configuration and settings.</p><a href="super_admin_settings.php">Open Current System Settings</a></div>
             </div>
         </section>
 
