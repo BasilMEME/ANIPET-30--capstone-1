@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Browser Login Form
  * Works on desktop and mobile
