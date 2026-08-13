@@ -9,6 +9,16 @@ require_api_login();
 
 $action = $_REQUEST['action'] ?? '';
 $actor_id = current_user_id();
+
+// Suspension metadata used by the Android login popup.
+if (function_exists('columnExists')) {
+    if (!columnExists($conn, 'users', 'suspension_reason')) {
+        $conn->query("ALTER TABLE users ADD COLUMN suspension_reason TEXT DEFAULT NULL AFTER is_suspended");
+    }
+    if (!columnExists($conn, 'users', 'suspended_at')) {
+        $conn->query("ALTER TABLE users ADD COLUMN suspended_at DATETIME DEFAULT NULL AFTER suspension_reason");
+    }
+}
 if (empty($actor_id)) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
@@ -1321,15 +1331,33 @@ try {
             }
 
             if ($action === 'suspend_user') {
-                $stmt = $conn->prepare("UPDATE users SET is_suspended = 1 WHERE id = ? AND role NOT IN ('admin', 'super_admin', 'super')");
+                $reason = trim($_POST['reason'] ?? '');
+                if ($reason === '') {
+                    respond(['success' => false, 'message' => 'Please enter a suspension reason.']);
+                }
+
+                $stmt = $conn->prepare("UPDATE users SET is_suspended = 1, suspension_reason = ?, suspended_at = NOW() WHERE id = ? AND role NOT IN ('admin', 'super_admin', 'super')");
+                $stmt->bind_param('si', $reason, $id);
             } else {
-                $stmt = $conn->prepare("UPDATE users SET is_deleted = 0, is_suspended = 0 WHERE id = ? AND role NOT IN ('admin', 'super_admin', 'super')");
+                $stmt = $conn->prepare("UPDATE users SET is_deleted = 0, is_suspended = 0, suspension_reason = NULL, suspended_at = NULL WHERE id = ? AND role NOT IN ('admin', 'super_admin', 'super')");
+                $stmt->bind_param('i', $id);
             }
 
-            $stmt->bind_param('i', $id);
             if ($stmt->execute()) {
-                logAudit($conn, $actor_id, $action, 'user', $id, ucfirst(str_replace('_', ' ', $action)) . ' executed');
-                respond(['success' => true, 'message' => 'User updated successfully']);
+                if ($action === 'suspend_user') {
+                    $sessionStmt = $conn->prepare("UPDATE user_sessions SET is_active = 0 WHERE user_id = ?");
+                    if ($sessionStmt) {
+                        $sessionStmt->bind_param('i', $id);
+                        $sessionStmt->execute();
+                        $sessionStmt->close();
+                    }
+                }
+
+                $auditDetails = $action === 'suspend_user'
+                    ? 'Suspended user. Reason: ' . $reason
+                    : 'Restored user account';
+                logAudit($conn, $actor_id, $action, 'user', $id, $auditDetails);
+                respond(['success' => true, 'message' => $action === 'suspend_user' ? 'User suspended successfully.' : 'User restored successfully.']);
             }
             respond(['success' => false, 'message' => $conn->error]);
             break;

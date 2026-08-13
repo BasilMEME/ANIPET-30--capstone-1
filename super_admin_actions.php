@@ -500,11 +500,14 @@ tbody tr:last-child td{
                             <td><?php echo htmlspecialchars($user['role']); ?></td>
                             <td><?php echo $user['is_deleted'] ? 'Deleted' : ($user['is_suspended'] ? 'Suspended' : 'Active'); ?></td>
                             <td class="inline-actions">
-                                <?php if (!$user['is_deleted']): ?>
-                                    <button class="btn btn-secondary" onclick="suspendUser(<?php echo $user['id']; ?>)">Suspend</button>
+                                <?php if ($user['is_deleted']): ?>
+                                    <button class="btn btn-primary" onclick="restoreUser(<?php echo $user['id']; ?>)">Restore</button>
+                                <?php elseif ($user['is_suspended']): ?>
+                                    <button class="btn btn-primary" onclick="restoreUser(<?php echo $user['id']; ?>)">Restore</button>
                                     <button class="btn btn-secondary" onclick="deleteUser(<?php echo $user['id']; ?>)">Delete</button>
                                 <?php else: ?>
-                                    <button class="btn btn-primary" onclick="restoreUser(<?php echo $user['id']; ?>)">Restore</button>
+                                    <button class="btn btn-secondary" onclick="suspendUser(<?php echo $user['id']; ?>)">Suspend</button>
+                                    <button class="btn btn-secondary" onclick="deleteUser(<?php echo $user['id']; ?>)">Delete</button>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -854,9 +857,17 @@ tbody tr:last-child td{
         });
 
     function suspendUser(id) {
+        const reason = prompt('Enter the reason for suspending this user:');
+        if (reason === null) return;
+        if (!reason.trim()) {
+            alert('A suspension reason is required.');
+            return;
+        }
+
         const formData = new FormData();
         formData.append('action', 'suspend_user');
         formData.append('id', id);
+        formData.append('reason', reason.trim());
 
         apiRequest(formData)
             .then(data => {

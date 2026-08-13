@@ -19,15 +19,7 @@ function createUserSession($conn, $userId)
 
     $stmt = $conn->prepare(
         "INSERT INTO user_sessions
-        (
-            user_id,
-            session_id,
-            ip_address,
-            user_agent,
-            created_at,
-            last_active_at,
-            is_active
-        )
+        (user_id, session_id, ip_address, user_agent, created_at, last_active_at, is_active)
         VALUES (?, ?, ?, ?, NOW(), NOW(), 1)
         ON DUPLICATE KEY UPDATE
             last_active_at = NOW(),
@@ -35,14 +27,7 @@ function createUserSession($conn, $userId)
     );
 
     if ($stmt) {
-        $stmt->bind_param(
-            'isss',
-            $userId,
-            $sessionId,
-            $ip,
-            $userAgent
-        );
-
+        $stmt->bind_param('isss', $userId, $sessionId, $ip, $userAgent);
         $stmt->execute();
         $stmt->close();
     }
@@ -50,6 +35,16 @@ function createUserSession($conn, $userId)
 
 try {
     require_once __DIR__ . '/db_connect.php';
+
+    // Safe auto-migration for existing databases.
+    if (function_exists('columnExists')) {
+        if (!columnExists($conn, 'users', 'suspension_reason')) {
+            $conn->query("ALTER TABLE users ADD COLUMN suspension_reason TEXT DEFAULT NULL AFTER is_suspended");
+        }
+        if (!columnExists($conn, 'users', 'suspended_at')) {
+            $conn->query("ALTER TABLE users ADD COLUMN suspended_at DATETIME DEFAULT NULL AFTER suspension_reason");
+        }
+    }
 
     $method = $_SERVER['REQUEST_METHOD'];
 
@@ -59,28 +54,17 @@ try {
     }
 
     $postData = $_POST;
-
     if ($method !== 'POST') {
         $postData = $_GET + $postData;
     }
 
-    $identifier = urldecode(
-        trim(
-            $postData['email']
-                ?? $postData['username']
-                ?? ''
-        )
-    );
-
-    $password = trim(
-        $postData['password'] ?? ''
-    );
+    $identifier = urldecode(trim($postData['email'] ?? $postData['username'] ?? ''));
+    $password = trim($postData['password'] ?? '');
 
     if ($identifier === '' || $password === '') {
         echo json_encode([
             'status' => 'error',
-            'message' =>
-                'Email or username and password required'
+            'message' => 'Email or username and password required'
         ]);
         exit;
     }
@@ -95,6 +79,8 @@ try {
             is_verified,
             role,
             is_suspended,
+            suspension_reason,
+            suspended_at,
             is_deleted
         FROM users
         WHERE email = ?
@@ -103,79 +89,61 @@ try {
     );
 
     if (!$stmt) {
-        throw new RuntimeException(
-            'Failed to prepare login query: ' .
-            $conn->error
-        );
+        throw new RuntimeException('Failed to prepare login query: ' . $conn->error);
     }
 
-    $stmt->bind_param(
-        'ss',
-        $identifier,
-        $identifier
-    );
-
+    $stmt->bind_param('ss', $identifier, $identifier);
     $stmt->execute();
     $result = $stmt->get_result();
 
     if (!$row = $result->fetch_assoc()) {
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'User not found'
-        ]);
+        echo json_encode(['status' => 'error', 'message' => 'User not found']);
         exit;
     }
 
     $stmt->close();
 
     if (!password_verify($password, $row['password'])) {
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'Invalid password'
-        ]);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid password']);
         exit;
     }
 
     if (!empty($row['is_deleted'])) {
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'This account no longer exists'
-        ]);
+        echo json_encode(['status' => 'error', 'message' => 'This account no longer exists']);
         exit;
     }
 
     if (!empty($row['is_suspended'])) {
+        $reason = trim((string)($row['suspension_reason'] ?? ''));
+        $message = 'This account has been suspended.';
+        if ($reason !== '') {
+            $message .= ' Reason: ' . $reason;
+        }
+
         echo json_encode([
-            'status' => 'error',
-            'message' => 'This account has been suspended'
+            'status' => 'suspended',
+            'message' => $message,
+            'suspension_reason' => $reason
         ]);
         exit;
     }
 
     $adminLoginOnly =
         isset($postData['admin_login']) &&
-        (int) $postData['admin_login'] === 1;
+        (int)$postData['admin_login'] === 1;
 
-    $isAdminRole = in_array(
-        $row['role'],
-        ['admin', 'super_admin'],
-        true
-    );
+    $isAdminRole = in_array($row['role'], ['admin', 'super_admin'], true);
 
     if ($adminLoginOnly && !$isAdminRole) {
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'Admin access is required'
-        ]);
+        echo json_encode(['status' => 'error', 'message' => 'Admin access is required']);
         exit;
     }
 
     $requiresVerification =
         isset($row['is_verified']) &&
-        (int) $row['is_verified'] === 0;
+        (int)$row['is_verified'] === 0;
 
-    $isRegularUser =
-        $row['role'] === 'user';
+    $isRegularUser = $row['role'] === 'user';
 
     if ($isRegularUser && $requiresVerification) {
         echo json_encode([
@@ -198,10 +166,7 @@ try {
     $_SESSION['role'] = $row['role'];
     $_SESSION['logged_in_at'] = date('c');
 
-    createUserSession(
-        $conn,
-        $row['id']
-    );
+    createUserSession($conn, $row['id']);
 
     echo json_encode([
         'status' => 'success',
@@ -214,16 +179,11 @@ try {
             'role' => $row['role']
         ]
     ]);
-
     exit;
+
 } catch (Throwable $t) {
-    error_log(
-        'login.php error: ' .
-        $t->getMessage()
-    );
-
+    error_log('login.php error: ' . $t->getMessage());
     http_response_code(500);
-
     echo json_encode([
         'status' => 'error',
         'message' => 'Internal server error'
