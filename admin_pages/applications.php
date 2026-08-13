@@ -117,10 +117,12 @@ $pillLabels = [
             View
         </button>
 
+        <?php if ($app['status'] !== 'completed'): ?>
         <button class="btn btn-primary btn-sm"
             onclick="changeStatusModal(<?php echo $app['id']; ?>, '<?php echo $app['status']; ?>')">
             Status
         </button>
+        <?php endif; ?>
 
         <?php if (in_array($app['status'], ['pending', 'screening'])): ?>
         <button class="btn btn-warning btn-sm"
@@ -157,7 +159,6 @@ $pillLabels = [
     </div>
     <div class="modal-footer">
         <button class="btn btn-ghost" onclick="closeModal('viewAppModal')">Close</button>
-        <button class="btn btn-primary" id="viewAppStatusBtn" onclick="">Change Status</button>
     </div>
 </div>
 </div>
@@ -244,8 +245,6 @@ $pillLabels = [
 async function viewApplication(id) {
     document.getElementById('viewAppBody').innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Loading…</p></div>';
     openModal('viewAppModal');
-    document.getElementById('viewAppStatusBtn').onclick = () => { closeModal('viewAppModal'); changeStatusModal(id, ''); };
-
     try {
         const res  = await fetch('admin_api.php?action=get_application&id='+id);
         const data = await res.json();
