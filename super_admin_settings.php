@@ -689,13 +689,25 @@ tbody tr:hover td{
     const settings = Array.from(formData.entries());
 
     try {
-        await Promise.all(
+        const results = await Promise.all(
             settings.map(([key, value]) => {
                 return saveSetting(key, value);
             })
         );
 
+        const failed = results.find(result => !result.success);
+
+        if (failed) {
+            throw new Error(
+                failed.message || 'One or more settings could not be saved.'
+            );
+        }
+
         alert(successMessage);
+
+        // Reload so the UI reflects what was actually saved.
+        window.location.reload();
+
     } catch (error) {
         console.error(error);
 
@@ -706,37 +718,19 @@ tbody tr:hover td{
     }
 }
 
-document
-    .getElementById('poundInfoForm')
-    .addEventListener('submit', event => {
-        event.preventDefault();
-
-        saveFormSettings(
-            event.target,
-            'Pet pound information saved successfully.'
-        );
+    document.getElementById('poundInfoForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        saveFormSettings(this, 'Pet pound information saved successfully.');
     });
 
-document
-    .getElementById('openingHoursForm')
-    .addEventListener('submit', event => {
-        event.preventDefault();
-
-        saveFormSettings(
-            event.target,
-            'Opening hours saved successfully.'
-        );
+    document.getElementById('openingHoursForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        saveFormSettings(this, 'Opening hours saved successfully.');
     });
 
-document
-    .getElementById('notificationForm')
-    .addEventListener('submit', event => {
-        event.preventDefault();
-
-        saveFormSettings(
-            event.target,
-            'Notification preferences saved successfully.'
-        );
+    document.getElementById('notificationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        saveFormSettings(this, 'Notification preferences saved successfully.');
     });
 </script>
 </body>
