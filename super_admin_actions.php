@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/auth_helper.php';
 require_super_or_permission('manage_admins');
 
@@ -702,7 +702,7 @@ tbody tr:last-child td{
     }
 
     function deleteAdmin(id) {
-        if (!confirm('Delete this admin account?')) {
+        if (!confirm('Permanently delete this admin account?\n\nThis will remove the account and its related AniPet records. This action cannot be undone.')) {
             return;
         }
 
@@ -714,7 +714,7 @@ tbody tr:last-child td{
             .then(data => {
                 alert(data.message || (
                     data.success
-                        ? 'Admin deleted.'
+                        ? 'Admin permanently deleted.'
                         : 'Admin deletion failed.'
                 ));
 
@@ -876,7 +876,7 @@ tbody tr:last-child td{
     }
 
     function deleteUser(id) {
-        if (!confirm('Delete this user account?')) {
+        if (!confirm('Permanently delete this user account?\n\nThis will remove the account and its related AniPet records. This action cannot be undone.')) {
             return;
         }
 
@@ -888,7 +888,7 @@ tbody tr:last-child td{
             .then(data => {
                 alert(data.message || (
                     data.success
-                        ? 'User deleted.'
+                        ? 'User permanently deleted.'
                         : 'User deletion failed.'
                 ));
 

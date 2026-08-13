@@ -1134,13 +1134,87 @@ try {
         case 'delete_admin':
             $id = intval($_POST['id'] ?? 0);
             if (!$id) { respond(['success' => false, 'message' => 'Missing admin id']); }
-            $stmt = $conn->prepare("UPDATE users SET is_deleted = 1 WHERE id = ? AND role IN ('admin', 'super_admin', 'super')");
-            $stmt->bind_param('i', $id);
-            if ($stmt->execute()) {
-                logAudit($conn, $actor_id, 'delete_admin', 'user', $id, 'Deleted admin account');
-                respond(['success' => true, 'message' => 'Admin deleted successfully']);
+
+            if ($id === intval($actor_id)) {
+                respond(['success' => false, 'message' => 'You cannot permanently delete your own account.']);
             }
-            respond(['success' => false, 'message' => $conn->error]);
+
+            $targetStmt = $conn->prepare("SELECT id, username, full_name, email, role FROM users WHERE id = ? AND role IN ('admin', 'super_admin', 'super') LIMIT 1");
+            $targetStmt->bind_param('i', $id);
+            $targetStmt->execute();
+            $targetAdmin = $targetStmt->get_result()->fetch_assoc();
+            $targetStmt->close();
+
+            if (!$targetAdmin) {
+                respond(['success' => false, 'message' => 'Admin account not found.']);
+            }
+
+            if (in_array($targetAdmin['role'], ['super_admin', 'super'], true)) {
+                $countResult = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role IN ('super_admin', 'super') AND is_deleted = 0");
+                $activeSuperAdmins = intval($countResult->fetch_assoc()['total'] ?? 0);
+                if ($activeSuperAdmins <= 1) {
+                    respond(['success' => false, 'message' => 'The last active Super Admin cannot be deleted.']);
+                }
+            }
+
+            $conn->begin_transaction();
+            try {
+                $relatedTables = [
+                    'user_notifications',
+                    'password_reset_otps',
+                    'sso_tokens',
+                    'user_sessions',
+                    'return_requests',
+                    'appointments',
+                    'adoption_applications',
+                    'adoption_records',
+                    'audit_logs'
+                ];
+
+                foreach ($relatedTables as $table) {
+                    $deleteRelated = $conn->prepare("DELETE FROM `{$table}` WHERE user_id = ?");
+                    if (!$deleteRelated) {
+                        throw new RuntimeException("Unable to prepare cleanup for {$table}: " . $conn->error);
+                    }
+                    $deleteRelated->bind_param('i', $id);
+                    if (!$deleteRelated->execute()) {
+                        throw new RuntimeException("Unable to clean {$table}: " . $deleteRelated->error);
+                    }
+                    $deleteRelated->close();
+                }
+
+                if (!empty($targetAdmin['email'])) {
+                    $otpDelete = $conn->prepare("DELETE FROM otps WHERE email = ?");
+                    if ($otpDelete) {
+                        $otpDelete->bind_param('s', $targetAdmin['email']);
+                        $otpDelete->execute();
+                        $otpDelete->close();
+                    }
+                }
+
+                $deleteUser = $conn->prepare("DELETE FROM users WHERE id = ? AND role IN ('admin', 'super_admin', 'super')");
+                $deleteUser->bind_param('i', $id);
+                if (!$deleteUser->execute() || $deleteUser->affected_rows !== 1) {
+                    throw new RuntimeException('Admin account could not be permanently deleted.');
+                }
+                $deleteUser->close();
+
+                $conn->commit();
+
+                logAudit(
+                    $conn,
+                    $actor_id,
+                    'permanent_delete_admin',
+                    'user',
+                    $id,
+                    'Permanently deleted admin account ID ' . $id
+                );
+
+                respond(['success' => true, 'message' => 'Admin account permanently deleted from AniPet.']);
+            } catch (Throwable $deleteError) {
+                $conn->rollback();
+                respond(['success' => false, 'message' => 'Permanent deletion failed: ' . $deleteError->getMessage()]);
+            }
             break;
 
         case 'restore_admin':
@@ -1160,13 +1234,88 @@ try {
         case 'restore_user':
             $id = intval($_POST['id'] ?? 0);
             if (!$id) { respond(['success' => false, 'message' => 'Missing user id']); }
-            if ($action === 'suspend_user') {
-                $stmt = $conn->prepare("UPDATE users SET is_suspended = 1 WHERE id = ?");
-            } elseif ($action === 'delete_user') {
-                $stmt = $conn->prepare("UPDATE users SET is_deleted = 1 WHERE id = ?");
-            } else {
-                $stmt = $conn->prepare("UPDATE users SET is_deleted = 0, is_suspended = 0 WHERE id = ?");
+
+            if ($action === 'delete_user') {
+                if ($id === intval($actor_id)) {
+                    respond(['success' => false, 'message' => 'You cannot permanently delete your own account.']);
+                }
+
+                $targetStmt = $conn->prepare("SELECT id, username, full_name, email, role FROM users WHERE id = ? AND role NOT IN ('admin', 'super_admin', 'super') LIMIT 1");
+                $targetStmt->bind_param('i', $id);
+                $targetStmt->execute();
+                $targetUser = $targetStmt->get_result()->fetch_assoc();
+                $targetStmt->close();
+
+                if (!$targetUser) {
+                    respond(['success' => false, 'message' => 'User account not found.']);
+                }
+
+                $conn->begin_transaction();
+                try {
+                    $relatedTables = [
+                        'user_notifications',
+                        'password_reset_otps',
+                        'sso_tokens',
+                        'user_sessions',
+                        'return_requests',
+                        'appointments',
+                        'adoption_applications',
+                        'adoption_records',
+                        'audit_logs'
+                    ];
+
+                    foreach ($relatedTables as $table) {
+                        $deleteRelated = $conn->prepare("DELETE FROM `{$table}` WHERE user_id = ?");
+                        if (!$deleteRelated) {
+                            throw new RuntimeException("Unable to prepare cleanup for {$table}: " . $conn->error);
+                        }
+                        $deleteRelated->bind_param('i', $id);
+                        if (!$deleteRelated->execute()) {
+                            throw new RuntimeException("Unable to clean {$table}: " . $deleteRelated->error);
+                        }
+                        $deleteRelated->close();
+                    }
+
+                    if (!empty($targetUser['email'])) {
+                        $otpDelete = $conn->prepare("DELETE FROM otps WHERE email = ?");
+                        if ($otpDelete) {
+                            $otpDelete->bind_param('s', $targetUser['email']);
+                            $otpDelete->execute();
+                            $otpDelete->close();
+                        }
+                    }
+
+                    $deleteUser = $conn->prepare("DELETE FROM users WHERE id = ? AND role NOT IN ('admin', 'super_admin', 'super')");
+                    $deleteUser->bind_param('i', $id);
+                    if (!$deleteUser->execute() || $deleteUser->affected_rows !== 1) {
+                        throw new RuntimeException('User account could not be permanently deleted.');
+                    }
+                    $deleteUser->close();
+
+                    $conn->commit();
+
+                    logAudit(
+                        $conn,
+                        $actor_id,
+                        'permanent_delete_user',
+                        'user',
+                        $id,
+                        'Permanently deleted user account ID ' . $id
+                    );
+
+                    respond(['success' => true, 'message' => 'User account permanently deleted from AniPet.']);
+                } catch (Throwable $deleteError) {
+                    $conn->rollback();
+                    respond(['success' => false, 'message' => 'Permanent deletion failed: ' . $deleteError->getMessage()]);
+                }
             }
+
+            if ($action === 'suspend_user') {
+                $stmt = $conn->prepare("UPDATE users SET is_suspended = 1 WHERE id = ? AND role NOT IN ('admin', 'super_admin', 'super')");
+            } else {
+                $stmt = $conn->prepare("UPDATE users SET is_deleted = 0, is_suspended = 0 WHERE id = ? AND role NOT IN ('admin', 'super_admin', 'super')");
+            }
+
             $stmt->bind_param('i', $id);
             if ($stmt->execute()) {
                 logAudit($conn, $actor_id, $action, 'user', $id, ucfirst(str_replace('_', ' ', $action)) . ' executed');
