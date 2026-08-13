@@ -459,8 +459,13 @@ function runDueReports($conn) {
 }
 
 function sendAlertNotification($conn, $subject, $body) {
-    $enabled = intval(getSystemSetting($conn, 'notification_enabled', 1)) === 1;
-    if (!$enabled) { return [false, 'Notifications disabled']; }
+    $enabled = intval(
+        getSystemSetting($conn, 'email_notifications_enabled', 1)
+    ) === 1;
+
+    if (!$enabled) {
+        return [false, 'Email notifications are disabled'];
+    }
     $recipients = getSystemSetting($conn, 'alert_recipient_emails', '');
     $recipients = array_filter(array_map('trim', explode(',', $recipients)));
     if (empty($recipients)) { return [false, 'No notification recipients configured']; }
@@ -486,8 +491,13 @@ function getAlertNotificationPayload($conn) {
 }
 
 function sendAlertEmailIfNeeded($conn) {
-    $alertEnabled = intval(getSystemSetting($conn, 'notification_enabled', 1)) === 1;
-    if (!$alertEnabled) { return [false, 'Notifications disabled']; }
+    $alertEnabled = intval(
+        getSystemSetting($conn, 'email_notifications_enabled', 1)
+    ) === 1;
+
+    if (!$alertEnabled) {
+        return [false, 'Email notifications are disabled'];
+    }
     $alerts = getAlertItems($conn);
     $active = array_filter($alerts, fn($item) => $item['active']);
     if (empty($active)) { return [false, 'No active alerts to notify']; }

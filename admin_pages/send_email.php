@@ -4,6 +4,32 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../smtp_config.php';
 
+function isEmailNotificationEnabled($conn): bool
+{
+    $stmt = $conn->prepare("
+        SELECT setting_value
+        FROM system_settings
+        WHERE setting_key = 'email_notifications_enabled'
+        LIMIT 1
+    ");
+
+    if (!$stmt) {
+        return true;
+    }
+
+    $stmt->execute();
+    $stmt->bind_result($value);
+
+    if ($stmt->fetch()) {
+        $stmt->close();
+        return (string)$value === '1';
+    }
+
+    $stmt->close();
+
+    return true;
+}
+
 if (!function_exists('gmailRequest')) {
     function gmailRequest(
         string $url,
@@ -149,9 +175,30 @@ if (!function_exists('sendEmail')) {
         string $to,
         string $subject,
         string $message,
-        bool $isHtml = true
+        bool $isHtml = true,
+        bool $forceSend = false
     ): array {
+        global $conn;
+
         try {
+            /*
+             * Respect Super Admin notification settings.
+             *
+             * $forceSend = true can be used later for important
+             * security emails that must still be delivered.
+             */
+            if (
+                !$forceSend &&
+                isset($conn) &&
+                $conn instanceof mysqli &&
+                !isEmailNotificationEnabled($conn)
+            ) {
+                return [
+                    'success' => false,
+                    'message' => 'Email notifications are disabled in Super Admin settings.'
+                ];
+            }
+
             if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
                 throw new RuntimeException(
                     'Invalid recipient email: ' . $to
@@ -230,7 +277,9 @@ if (!function_exists('sendEmail')) {
                 'success' => true,
                 'message' => 'Email sent successfully.'
             ];
+
         } catch (Throwable $exception) {
+
             error_log(
                 'Gmail send error: ' .
                 $exception->getMessage()
