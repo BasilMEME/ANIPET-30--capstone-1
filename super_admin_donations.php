@@ -1,4 +1,7 @@
 <?php
+
+date_default_timezone_set('Asia/Manila');
+
 require_once __DIR__ . '/auth_helper.php';
 require_super_or_permission('manage_donations');
 
@@ -595,7 +598,18 @@ tbody tr:last-child td{
     </td>
 
     <td>
-        <?php echo date("M d, Y h:i A", strtotime($donation['donation_date'])); ?>
+        <?php
+        $utcTime = new DateTime(
+            $donation['donation_date'],
+            new DateTimeZone('UTC')
+        );
+
+        $utcTime->setTimezone(
+            new DateTimeZone('Asia/Manila')
+        );
+
+        echo $utcTime->format('M d, Y h:i A');
+        ?>
     </td>
 
     <td>

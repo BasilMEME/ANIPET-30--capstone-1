@@ -1,4 +1,7 @@
 <?php
+
+date_default_timezone_set('Asia/Manila');
+
 require_once __DIR__ . '/auth_helper.php';
 require_super_or_permission('manage_donations');
 
@@ -419,10 +422,16 @@ body{
                     <span class="label">Donation Date</span>
                     <div class="value">
                         <?php
-                        echo date(
-                            "F d, Y h:i A",
-                            strtotime($donation['donation_date'])
+                        $donationTime = new DateTime(
+                            $donation['donation_date'],
+                            new DateTimeZone('UTC')
                         );
+
+                        $donationTime->setTimezone(
+                            new DateTimeZone('Asia/Manila')
+                        );
+
+                        echo $donationTime->format('F d, Y h:i A');
                         ?>
                     </div>
                 </div>
