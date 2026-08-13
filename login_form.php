@@ -62,10 +62,10 @@ if (isset($_SESSION['user_id'])) {
             color: var(--brown);
             background:
                 linear-gradient(
-                    rgba(243, 231, 211, .48),
-                    rgba(243, 231, 211, .48)
+                    rgba(255, 245, 225, .18),
+                    rgba(255, 245, 225, .18)
                 ),
-                url("/anipet_admin_wallpaper.png") center / cover fixed no-repeat;
+                url("/anipet_app_wallpaper.png") center / cover fixed no-repeat;
             display: grid;
             place-items: center;
             padding: 24px;
@@ -90,12 +90,14 @@ if (isset($_SESSION['user_id'])) {
         }
 
         .welcome-panel img {
-            width: 105px;
-            height: 105px;
-            object-fit: contain;
-            border-radius: 24px;
-            background: rgba(255,255,255,.64);
-            padding: 8px;
+            width: 112px;
+            height: 112px;
+            object-fit: cover;
+            border-radius: 50%;
+            background: #fff;
+            padding: 5px;
+            border: 3px solid rgba(138, 90, 52, .72);
+            box-shadow: 0 8px 22px rgba(61, 36, 21, .16);
         }
 
         .welcome-panel h1 {
@@ -134,9 +136,14 @@ if (isset($_SESSION['user_id'])) {
         }
 
         .mobile-logo img {
-            width: 86px;
-            height: 86px;
-            object-fit: contain;
+            width: 96px;
+            height: 96px;
+            object-fit: cover;
+            border-radius: 50%;
+            background: #fff;
+            padding: 4px;
+            border: 3px solid rgba(138, 90, 52, .72);
+            box-shadow: 0 7px 18px rgba(61, 36, 21, .14);
         }
 
         .mobile-logo h2 {
