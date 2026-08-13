@@ -368,7 +368,7 @@ ADD IMPOUNDED PET MODAL
 
                 <div class="form-group">
                     <p class="note" style="margin:0;color:var(--muted);font-size:.85rem;">
-                        The owner gets a fixed <strong>48-hour grace period</strong> from now to claim this pet before it becomes eligible for adoption posting.
+                        The owner gets a fixed <strong>14-day</strong> grace period from now to claim this pet before it becomes eligible for adoption posting.
                     </p>
                 </div>
 
