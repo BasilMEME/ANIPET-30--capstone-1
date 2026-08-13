@@ -231,7 +231,6 @@ $conn->close();
         <a class="nav-link" href="super_admin_settings.php">Current System Settings</a>
 
         <div class="sidebar-footer">
-            <button class="small-btn" id="themeToggle" type="button">Dark Mode</button>
             <a class="small-btn logout" href="logout.php" onclick="return confirm('Log out of Super Admin?')">Logout</a>
         </div>
     </aside>
