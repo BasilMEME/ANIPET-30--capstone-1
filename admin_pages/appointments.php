@@ -127,8 +127,8 @@ if ($r2) while ($row = $r2->fetch_assoc()) {
             <?php if ($apt['status']==='pending'): ?>
             <button class="btn btn-success btn-sm" onclick="updateAptStatus(<?php echo $apt['id']; ?>,'approved')">Approve</button>
             <button class="btn btn-danger btn-sm"  onclick="updateAptStatus(<?php echo $apt['id']; ?>,'rejected')">Reject</button>
-            <?php endif; ?>
             <button class="btn btn-warning btn-sm" onclick="rescheduleModal(<?php echo $apt['id']; ?>, '<?php echo $apt['scheduled_at']?str_replace(' ','T',substr($apt['scheduled_at'],0,16)):''; ?>')">Reschedule</button>
+            <?php endif; ?>
             <button class="btn btn-danger btn-sm" onclick="deleteAppointment(<?php echo $apt['id']; ?>)">Delete</button>
         </td>
     </tr>
