@@ -46,11 +46,6 @@ $settings = [
         $conn,
         'pet_pound_claim_policy',
         'Impounded pets may be claimed by their owner within 14 days from the date of impoundment. After the claim period expires, the pet may become eligible for adoption subject to the Pet Pound\'s assessment.'
-    ),
-    'pet_pound_public_notice' => get_system_setting(
-        $conn,
-        'pet_pound_public_notice',
-        ''
     )
 ];
 
@@ -190,7 +185,7 @@ $settings = [
             </div>
 
             <div class="card-sub">
-                Set the Pet Pound schedule, claim policy, and public notice
+                Set the Pet Pound schedule and claim policy
             </div>
         </div>
     </div>
@@ -259,19 +254,7 @@ $settings = [
             </div>
         </div>
 
-        <div class="form-group">
-            <label class="form-label">Public Notice</label>
-            <textarea
-                name="pet_pound_public_notice"
-                class="form-control"
-                style="min-height: 100px;"
-                placeholder="e.g. Bring supporting ownership documents when claiming an impounded pet."
-            ><?php echo htmlspecialchars(
-                $settings['pet_pound_public_notice'],
-                ENT_QUOTES,
-                'UTF-8'
-            ); ?></textarea>
-        </div>
+
 
         <div class="action-row" style="margin-top: 6px;">
             <button class="btn btn-primary" type="submit">
