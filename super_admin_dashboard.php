@@ -228,6 +228,7 @@ $conn->close();
         <div class="nav-title">Owner Tools</div>
         <a class="nav-link" href="super_admin_actions.php">Staff Management</a>
         <a class="nav-link" href="super_admin_donations.php">Donations</a>
+        <a class="nav-link" href="super_admin_deleted_records.php">Deleted Records</a>
         <a class="nav-link" href="super_admin_settings.php">Current System Settings</a>
 
         <div class="sidebar-footer">
@@ -286,11 +287,12 @@ $conn->close();
 
         <section class="section" id="owner-tools">
             <div class="section-head">
-                <div><h2>Owner Tools</h2><p>Owner-only controls for staff, donations, and system configuration.</p></div>
+                <div><h2>Owner Tools</h2><p>Owner-only controls for staff, donations, deleted records, and system configuration.</p></div>
             </div>
             <div class="grid quick-grid">
                 <div class="card quick-card"><h3>Staff Management</h3><p>Create staff accounts, update permissions, reset passwords, and suspend access.</p><a href="super_admin_actions.php">Open Staff Management</a></div>
                 <div class="card quick-card"><h3>Donations</h3><p>Review donation records, verify submissions, and monitor incoming support.</p><a href="super_admin_donations.php">Open Donations</a></div>
+                <div class="card quick-card"><h3>Deleted Records</h3><p>Review deleted admins, users, and pet records, then restore them when needed.</p><a href="super_admin_deleted_records.php">Open Deleted Records</a></div>
                 <div class="card quick-card"><h3>Current System Settings</h3><p>View and manage the current AniPet system configuration and settings.</p><a href="super_admin_settings.php">Open Current System Settings</a></div>
             </div>
         </section>
@@ -319,4 +321,3 @@ $conn->close();
 </script>
 </body>
 </html>
-
