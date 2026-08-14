@@ -706,111 +706,11 @@ function require_api_permission($conn, $permissionKey) {
 
 function authorize_action($conn, $action) {
     switch ($action) {
+        // Admin / owner account management
         case 'get_admins':
         case 'create_admin':
         case 'update_admin':
         case 'delete_admin':
-            $id = intval($_POST['id'] ?? 0);
-            if (!$id) { respond(['success' => false, 'message' => 'Missing admin id']); }
-
-            if ($id === intval($actor_id)) {
-                respond(['success' => false, 'message' => 'You cannot delete your own account.']);
-            }
-
-            $targetStmt = $conn->prepare(
-                "SELECT id, username, full_name, email, role
-                 FROM users
-                 WHERE id = ?
-                   AND role IN ('admin', 'super_admin', 'super')
-                   AND is_deleted = 0
-                 LIMIT 1"
-            );
-            $targetStmt->bind_param('i', $id);
-            $targetStmt->execute();
-            $targetAdmin = $targetStmt->get_result()->fetch_assoc();
-            $targetStmt->close();
-
-            if (!$targetAdmin) {
-                respond(['success' => false, 'message' => 'Admin account not found or already deleted.']);
-            }
-
-            if (in_array($targetAdmin['role'], ['super_admin', 'super'], true)) {
-                $countResult = $conn->query(
-                    "SELECT COUNT(*) AS total
-                     FROM users
-                     WHERE role IN ('super_admin', 'super')
-                       AND is_deleted = 0"
-                );
-                $activeSuperAdmins = intval(
-                    $countResult->fetch_assoc()['total'] ?? 0
-                );
-
-                if ($activeSuperAdmins <= 1) {
-                    respond([
-                        'success' => false,
-                        'message' => 'The last active Super Admin cannot be deleted.'
-                    ]);
-                }
-            }
-
-            $stmt = $conn->prepare(
-                "UPDATE users
-                 SET is_deleted = 1,
-                     is_suspended = 0,
-                     deleted_at = NOW(),
-                     deleted_by = ?
-                 WHERE id = ?
-                   AND role IN ('admin', 'super_admin', 'super')
-                   AND is_deleted = 0"
-            );
-            $stmt->bind_param('ii', $actor_id, $id);
-
-            if ($stmt->execute() && $stmt->affected_rows === 1) {
-                $stmt->close();
-
-                // Immediately invalidate active sessions without destroying related records.
-                $sessionStmt = $conn->prepare(
-                    "UPDATE user_sessions SET is_active = 0 WHERE user_id = ?"
-                );
-                if ($sessionStmt) {
-                    $sessionStmt->bind_param('i', $id);
-                    $sessionStmt->execute();
-                    $sessionStmt->close();
-                }
-
-                $tokenStmt = $conn->prepare(
-                    "DELETE FROM sso_tokens WHERE user_id = ?"
-                );
-                if ($tokenStmt) {
-                    $tokenStmt->bind_param('i', $id);
-                    $tokenStmt->execute();
-                    $tokenStmt->close();
-                }
-
-                logAudit(
-                    $conn,
-                    $actor_id,
-                    'soft_delete_admin',
-                    'user',
-                    $id,
-                    'Moved admin account to Deleted Records'
-                );
-
-                respond([
-                    'success' => true,
-                    'message' => 'Admin moved to Deleted Records.'
-                ]);
-            }
-
-            $message = $stmt ? $stmt->error : $conn->error;
-            if ($stmt) { $stmt->close(); }
-
-            respond([
-                'success' => false,
-                'message' => $message ?: 'Admin could not be deleted.'
-            ]);
-            break;
-
         case 'restore_admin':
         case 'reset_admin_password':
         case 'get_role_permissions':
@@ -818,161 +718,39 @@ function authorize_action($conn, $action) {
             require_api_permission($conn, 'manage_admins');
             break;
 
+        // User account management
         case 'get_users':
         case 'suspend_user':
         case 'delete_user':
         case 'restore_user':
-            $id = intval($_POST['id'] ?? 0);
-            if (!$id) { respond(['success' => false, 'message' => 'Missing user id']); }
-
-            if ($action === 'delete_user') {
-                if ($id === intval($actor_id)) {
-                    respond(['success' => false, 'message' => 'You cannot delete your own account.']);
-                }
-
-                $stmt = $conn->prepare(
-                    "UPDATE users
-                     SET is_deleted = 1,
-                         is_suspended = 0,
-                         deleted_at = NOW(),
-                         deleted_by = ?
-                     WHERE id = ?
-                       AND role NOT IN ('admin', 'super_admin', 'super')
-                       AND is_deleted = 0"
-                );
-                $stmt->bind_param('ii', $actor_id, $id);
-
-                if ($stmt->execute() && $stmt->affected_rows === 1) {
-                    $stmt->close();
-
-                    $sessionStmt = $conn->prepare(
-                        "UPDATE user_sessions SET is_active = 0 WHERE user_id = ?"
-                    );
-                    if ($sessionStmt) {
-                        $sessionStmt->bind_param('i', $id);
-                        $sessionStmt->execute();
-                        $sessionStmt->close();
-                    }
-
-                    $tokenStmt = $conn->prepare(
-                        "DELETE FROM sso_tokens WHERE user_id = ?"
-                    );
-                    if ($tokenStmt) {
-                        $tokenStmt->bind_param('i', $id);
-                        $tokenStmt->execute();
-                        $tokenStmt->close();
-                    }
-
-                    logAudit(
-                        $conn,
-                        $actor_id,
-                        'soft_delete_user',
-                        'user',
-                        $id,
-                        'Moved user account to Deleted Records'
-                    );
-
-                    respond([
-                        'success' => true,
-                        'message' => 'User moved to Deleted Records.'
-                    ]);
-                }
-
-                $message = $stmt ? $stmt->error : $conn->error;
-                if ($stmt) { $stmt->close(); }
-
-                respond([
-                    'success' => false,
-                    'message' => $message ?: 'User could not be deleted.'
-                ]);
-            }
-
-            if ($action === 'restore_user') {
-                $stmt = $conn->prepare(
-                    "UPDATE users
-                     SET is_deleted = 0,
-                         is_suspended = 0,
-                         suspension_reason = NULL,
-                         suspended_at = NULL,
-                         deleted_at = NULL,
-                         deleted_by = NULL
-                     WHERE id = ?
-                       AND role NOT IN ('admin', 'super_admin', 'super')"
-                );
-                $stmt->bind_param('i', $id);
-
-                if ($stmt->execute()) {
-                    logAudit($conn, $actor_id, 'restore_user', 'user', $id, 'Restored user account');
-                    respond(['success' => true, 'message' => 'User restored successfully']);
-                }
-
-                respond(['success' => false, 'message' => $conn->error]);
-            }
-
-            // suspend_user
-            $reason = trim($_POST['reason'] ?? '');
-
-            if ($reason === '') {
-                respond([
-                    'success' => false,
-                    'message' => 'A suspension reason is required.'
-                ]);
-            }
-
-            $stmt = $conn->prepare(
-                "UPDATE users
-                 SET is_suspended = 1,
-                     suspension_reason = ?,
-                     suspended_at = NOW()
-                 WHERE id = ?
-                   AND role NOT IN ('admin', 'super_admin', 'super')
-                   AND is_deleted = 0"
-            );
-            $stmt->bind_param('si', $reason, $id);
-
-            if ($stmt->execute() && $stmt->affected_rows >= 0) {
-                $sessionStmt = $conn->prepare(
-                    "UPDATE user_sessions
-                     SET is_active = 0
-                     WHERE user_id = ?"
-                );
-                if ($sessionStmt) {
-                    $sessionStmt->bind_param('i', $id);
-                    $sessionStmt->execute();
-                    $sessionStmt->close();
-                }
-
-                logAudit(
-                    $conn,
-                    $actor_id,
-                    'suspend_user',
-                    'user',
-                    $id,
-                    'Suspended user account. Reason: ' . $reason
-                );
-
-                respond([
-                    'success' => true,
-                    'message' => 'User suspended successfully.'
-                ]);
-            }
-
-            respond(['success' => false, 'message' => $conn->error]);
+            require_api_permission($conn, 'manage_users');
             break;
 
+        // Pet management
+        case 'get_pets':
+        case 'create_pet':
+        case 'update_pet':
+        case 'delete_pet':
+        case 'restore_pet':
         case 'archive_pet':
         case 'unarchive_pet':
         case 'transfer_pet':
             require_api_permission($conn, 'manage_pets');
             break;
 
+        // Adoption applications
         case 'get_applications':
         case 'override_application':
         case 'reopen_application':
-        case 'restore_appointment':
             require_api_permission($conn, 'manage_applications');
             break;
 
+        // Appointment restoration from Deleted Records
+        case 'restore_appointment':
+            require_api_permission($conn, 'manage_appointments');
+            break;
+
+        // Audit and sessions
         case 'get_audit_logs':
         case 'get_audit_search':
             require_api_permission($conn, 'view_audit_logs');
@@ -983,84 +761,7 @@ function authorize_action($conn, $action) {
             require_api_permission($conn, 'terminate_sessions');
             break;
 
-        case 'restore_appointment':
-            $id = intval($_POST['id'] ?? 0);
-
-            if (!$id) {
-                respond(['success' => false, 'message' => 'Missing appointment id']);
-            }
-
-            $lookup = $conn->prepare(
-                "SELECT application_id, appointment_type, scheduled_at
-                 FROM appointments
-                 WHERE id = ?
-                   AND is_deleted = 1
-                 LIMIT 1"
-            );
-            $lookup->bind_param('i', $id);
-            $lookup->execute();
-            $appointment = $lookup->get_result()->fetch_assoc();
-            $lookup->close();
-
-            if (!$appointment) {
-                respond([
-                    'success' => false,
-                    'message' => 'Appointment could not be restored or is already active.'
-                ]);
-            }
-
-            $stmt = $conn->prepare(
-                "UPDATE appointments
-                 SET is_deleted = 0,
-                     deleted_at = NULL,
-                     deleted_by = NULL
-                 WHERE id = ?
-                   AND is_deleted = 1"
-            );
-            $stmt->bind_param('i', $id);
-
-            if ($stmt->execute() && $stmt->affected_rows === 1) {
-                if (
-                    ($appointment['appointment_type'] ?? '') === 'interview' &&
-                    !empty($appointment['application_id'])
-                ) {
-                    $applicationId = (int)$appointment['application_id'];
-                    $scheduledAt = $appointment['scheduled_at'];
-
-                    $sync = $conn->prepare(
-                        "UPDATE adoption_applications
-                         SET interview_datetime = ?
-                         WHERE id = ?"
-                    );
-
-                    if ($sync) {
-                        $sync->bind_param('si', $scheduledAt, $applicationId);
-                        $sync->execute();
-                        $sync->close();
-                    }
-                }
-
-                logAudit(
-                    $conn,
-                    $actor_id,
-                    'restore_appointment',
-                    'appointment',
-                    $id,
-                    'Restored appointment from Deleted Records'
-                );
-
-                respond([
-                    'success' => true,
-                    'message' => 'Appointment restored successfully.'
-                ]);
-            }
-
-            respond([
-                'success' => false,
-                'message' => 'Appointment restore failed.'
-            ]);
-            break;
-
+        // System / shelter configuration
         case 'get_shelters':
         case 'get_system_settings':
         case 'save_setting':
@@ -1068,21 +769,23 @@ function authorize_action($conn, $action) {
         case 'create_shelter':
         case 'update_shelter':
         case 'delete_shelter':
-            require_api_permission($conn, 'configure_system');
-            break;
-        case 'get_alert_items':
-        case 'send_alert_notification':
-            require_api_permission($conn, 'manage_notifications');
-            break;
-        case 'generate_report':
-            require_api_permission($conn, 'generate_reports');
-            break;
         case 'get_report_schedules':
         case 'save_report_schedule':
         case 'delete_report_schedule':
         case 'run_report_immediately':
         case 'run_due_reports':
+        case 'create_sso_token':
+        case 'cleanup_sso_tokens':
             require_api_permission($conn, 'configure_system');
+            break;
+
+        case 'get_alert_items':
+        case 'send_alert_notification':
+            require_api_permission($conn, 'manage_notifications');
+            break;
+
+        case 'generate_report':
+            require_api_permission($conn, 'generate_reports');
             break;
 
         case 'backup_database':
@@ -1096,17 +799,11 @@ function authorize_action($conn, $action) {
             require_api_permission($conn, 'update_security_policy');
             break;
 
-        case 'create_sso_token':
-            require_api_permission($conn, 'configure_system');
-            break;
-
-        case 'cleanup_sso_tokens':
-            require_api_permission($conn, 'configure_system');
-            break;
-
         default:
-            echo json_encode(['success' => false, 'message' => 'Access denied']);
-            exit;
+            respond([
+                'success' => false,
+                'message' => 'Invalid action'
+            ]);
     }
 }
 
@@ -1457,6 +1154,91 @@ try {
             respond(['success' => false, 'message' => 'Pet could not be restored or is already active.']);
             break;
 
+        case 'restore_appointment':
+            $id = intval($_POST['id'] ?? 0);
+
+            if (!$id) {
+                respond([
+                    'success' => false,
+                    'message' => 'Missing appointment id'
+                ]);
+            }
+
+            $lookup = $conn->prepare(
+                "SELECT application_id, appointment_type, scheduled_at
+                 FROM appointments
+                 WHERE id = ?
+                   AND is_deleted = 1
+                 LIMIT 1"
+            );
+            $lookup->bind_param('i', $id);
+            $lookup->execute();
+            $appointment = $lookup->get_result()->fetch_assoc();
+            $lookup->close();
+
+            if (!$appointment) {
+                respond([
+                    'success' => false,
+                    'message' => 'Appointment could not be restored or is already active.'
+                ]);
+            }
+
+            $stmt = $conn->prepare(
+                "UPDATE appointments
+                 SET is_deleted = 0,
+                     deleted_at = NULL,
+                     deleted_by = NULL
+                 WHERE id = ?
+                   AND is_deleted = 1"
+            );
+            $stmt->bind_param('i', $id);
+
+            if ($stmt->execute() && $stmt->affected_rows === 1) {
+                if (
+                    ($appointment['appointment_type'] ?? '') === 'interview' &&
+                    !empty($appointment['application_id'])
+                ) {
+                    $applicationId = (int) $appointment['application_id'];
+                    $scheduledAt = $appointment['scheduled_at'];
+
+                    $sync = $conn->prepare(
+                        "UPDATE adoption_applications
+                         SET interview_datetime = ?
+                         WHERE id = ?"
+                    );
+
+                    if ($sync) {
+                        $sync->bind_param(
+                            'si',
+                            $scheduledAt,
+                            $applicationId
+                        );
+                        $sync->execute();
+                        $sync->close();
+                    }
+                }
+
+                logAudit(
+                    $conn,
+                    $actor_id,
+                    'restore_appointment',
+                    'appointment',
+                    $id,
+                    'Restored appointment from Deleted Records'
+                );
+
+                respond([
+                    'success' => true,
+                    'message' => 'Appointment restored successfully.'
+                ]);
+            }
+
+            respond([
+                'success' => false,
+                'message' => 'Appointment restore failed.'
+            ]);
+            break;
+
         case 'get_shelters':
             $result = $conn->query("SELECT id, name, address, phone, email, status, created_at FROM shelters ORDER BY name ASC");
             $shelters = [];
@@ -1528,88 +1310,104 @@ try {
 
         case 'delete_admin':
             $id = intval($_POST['id'] ?? 0);
-            if (!$id) { respond(['success' => false, 'message' => 'Missing admin id']); }
 
-            if ($id === intval($actor_id)) {
-                respond(['success' => false, 'message' => 'You cannot permanently delete your own account.']);
+            if (!$id) {
+                respond(['success' => false, 'message' => 'Missing admin id']);
             }
 
-            $targetStmt = $conn->prepare("SELECT id, username, full_name, email, role FROM users WHERE id = ? AND role IN ('admin', 'super_admin', 'super') LIMIT 1");
+            if ($id === intval($actor_id)) {
+                respond([
+                    'success' => false,
+                    'message' => 'You cannot delete your own account.'
+                ]);
+            }
+
+            $targetStmt = $conn->prepare(
+                "SELECT id, role
+                 FROM users
+                 WHERE id = ?
+                   AND role IN ('admin', 'super_admin', 'super')
+                   AND is_deleted = 0
+                 LIMIT 1"
+            );
             $targetStmt->bind_param('i', $id);
             $targetStmt->execute();
             $targetAdmin = $targetStmt->get_result()->fetch_assoc();
             $targetStmt->close();
 
             if (!$targetAdmin) {
-                respond(['success' => false, 'message' => 'Admin account not found.']);
+                respond([
+                    'success' => false,
+                    'message' => 'Admin account not found or already deleted.'
+                ]);
             }
 
             if (in_array($targetAdmin['role'], ['super_admin', 'super'], true)) {
-                $countResult = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role IN ('super_admin', 'super') AND is_deleted = 0");
-                $activeSuperAdmins = intval($countResult->fetch_assoc()['total'] ?? 0);
+                $countResult = $conn->query(
+                    "SELECT COUNT(*) AS total
+                     FROM users
+                     WHERE role IN ('super_admin', 'super')
+                       AND is_deleted = 0"
+                );
+
+                $activeSuperAdmins = intval(
+                    $countResult->fetch_assoc()['total'] ?? 0
+                );
+
                 if ($activeSuperAdmins <= 1) {
-                    respond(['success' => false, 'message' => 'The last active Super Admin cannot be deleted.']);
+                    respond([
+                        'success' => false,
+                        'message' => 'The last active Super Admin cannot be deleted.'
+                    ]);
                 }
             }
 
-            $conn->begin_transaction();
-            try {
-                $relatedTables = [
-                    'user_notifications',
-                    'password_reset_otps',
-                    'sso_tokens',
-                    'user_sessions',
-                    'return_requests',
-                    'appointments',
-                    'adoption_applications',
-                    'adoption_records',
-                    'audit_logs'
-                ];
+            $stmt = $conn->prepare(
+                "UPDATE users
+                 SET is_deleted = 1,
+                     is_suspended = 0,
+                     deleted_at = NOW(),
+                     deleted_by = ?
+                 WHERE id = ?
+                   AND role IN ('admin', 'super_admin', 'super')
+                   AND is_deleted = 0"
+            );
+            $stmt->bind_param('ii', $actor_id, $id);
 
-                foreach ($relatedTables as $table) {
-                    $deleteRelated = $conn->prepare("DELETE FROM `{$table}` WHERE user_id = ?");
-                    if (!$deleteRelated) {
-                        throw new RuntimeException("Unable to prepare cleanup for {$table}: " . $conn->error);
-                    }
-                    $deleteRelated->bind_param('i', $id);
-                    if (!$deleteRelated->execute()) {
-                        throw new RuntimeException("Unable to clean {$table}: " . $deleteRelated->error);
-                    }
-                    $deleteRelated->close();
+            if ($stmt->execute() && $stmt->affected_rows === 1) {
+                $stmt->close();
+
+                $sessionStmt = $conn->prepare(
+                    "UPDATE user_sessions
+                     SET is_active = 0
+                     WHERE user_id = ?"
+                );
+
+                if ($sessionStmt) {
+                    $sessionStmt->bind_param('i', $id);
+                    $sessionStmt->execute();
+                    $sessionStmt->close();
                 }
-
-                if (!empty($targetAdmin['email'])) {
-                    $otpDelete = $conn->prepare("DELETE FROM otps WHERE email = ?");
-                    if ($otpDelete) {
-                        $otpDelete->bind_param('s', $targetAdmin['email']);
-                        $otpDelete->execute();
-                        $otpDelete->close();
-                    }
-                }
-
-                $deleteUser = $conn->prepare("DELETE FROM users WHERE id = ? AND role IN ('admin', 'super_admin', 'super')");
-                $deleteUser->bind_param('i', $id);
-                if (!$deleteUser->execute() || $deleteUser->affected_rows !== 1) {
-                    throw new RuntimeException('Admin account could not be permanently deleted.');
-                }
-                $deleteUser->close();
-
-                $conn->commit();
 
                 logAudit(
                     $conn,
                     $actor_id,
-                    'permanent_delete_admin',
+                    'soft_delete_admin',
                     'user',
                     $id,
-                    'Permanently deleted admin account ID ' . $id
+                    'Moved admin account to Deleted Records'
                 );
 
-                respond(['success' => true, 'message' => 'Admin account permanently deleted from AniPet.']);
-            } catch (Throwable $deleteError) {
-                $conn->rollback();
-                respond(['success' => false, 'message' => 'Permanent deletion failed: ' . $deleteError->getMessage()]);
+                respond([
+                    'success' => true,
+                    'message' => 'Admin moved to Deleted Records.'
+                ]);
             }
+
+            respond([
+                'success' => false,
+                'message' => 'Admin could not be moved to Deleted Records.'
+            ]);
             break;
 
         case 'restore_admin':
@@ -1640,119 +1438,163 @@ try {
         case 'delete_user':
         case 'restore_user':
             $id = intval($_POST['id'] ?? 0);
-            if (!$id) { respond(['success' => false, 'message' => 'Missing user id']); }
+
+            if (!$id) {
+                respond(['success' => false, 'message' => 'Missing user id']);
+            }
 
             if ($action === 'delete_user') {
                 if ($id === intval($actor_id)) {
-                    respond(['success' => false, 'message' => 'You cannot permanently delete your own account.']);
+                    respond([
+                        'success' => false,
+                        'message' => 'You cannot delete your own account.'
+                    ]);
                 }
 
-                $targetStmt = $conn->prepare("SELECT id, username, full_name, email, role FROM users WHERE id = ? AND role NOT IN ('admin', 'super_admin', 'super') LIMIT 1");
-                $targetStmt->bind_param('i', $id);
-                $targetStmt->execute();
-                $targetUser = $targetStmt->get_result()->fetch_assoc();
-                $targetStmt->close();
+                $stmt = $conn->prepare(
+                    "UPDATE users
+                     SET is_deleted = 1,
+                         is_suspended = 0,
+                         deleted_at = NOW(),
+                         deleted_by = ?
+                     WHERE id = ?
+                       AND role NOT IN ('admin', 'super_admin', 'super')
+                       AND is_deleted = 0"
+                );
+                $stmt->bind_param('ii', $actor_id, $id);
 
-                if (!$targetUser) {
-                    respond(['success' => false, 'message' => 'User account not found.']);
-                }
+                if ($stmt->execute() && $stmt->affected_rows === 1) {
+                    $stmt->close();
 
-                $conn->begin_transaction();
-                try {
-                    $relatedTables = [
-                        'user_notifications',
-                        'password_reset_otps',
-                        'sso_tokens',
-                        'user_sessions',
-                        'return_requests',
-                        'appointments',
-                        'adoption_applications',
-                        'adoption_records',
-                        'audit_logs'
-                    ];
-
-                    foreach ($relatedTables as $table) {
-                        $deleteRelated = $conn->prepare("DELETE FROM `{$table}` WHERE user_id = ?");
-                        if (!$deleteRelated) {
-                            throw new RuntimeException("Unable to prepare cleanup for {$table}: " . $conn->error);
-                        }
-                        $deleteRelated->bind_param('i', $id);
-                        if (!$deleteRelated->execute()) {
-                            throw new RuntimeException("Unable to clean {$table}: " . $deleteRelated->error);
-                        }
-                        $deleteRelated->close();
-                    }
-
-                    if (!empty($targetUser['email'])) {
-                        $otpDelete = $conn->prepare("DELETE FROM otps WHERE email = ?");
-                        if ($otpDelete) {
-                            $otpDelete->bind_param('s', $targetUser['email']);
-                            $otpDelete->execute();
-                            $otpDelete->close();
-                        }
-                    }
-
-                    $deleteUser = $conn->prepare("DELETE FROM users WHERE id = ? AND role NOT IN ('admin', 'super_admin', 'super')");
-                    $deleteUser->bind_param('i', $id);
-                    if (!$deleteUser->execute() || $deleteUser->affected_rows !== 1) {
-                        throw new RuntimeException('User account could not be permanently deleted.');
-                    }
-                    $deleteUser->close();
-
-                    $conn->commit();
-
-                    logAudit(
-                        $conn,
-                        $actor_id,
-                        'permanent_delete_user',
-                        'user',
-                        $id,
-                        'Permanently deleted user account ID ' . $id
+                    $sessionStmt = $conn->prepare(
+                        "UPDATE user_sessions
+                         SET is_active = 0
+                         WHERE user_id = ?"
                     );
 
-                    respond(['success' => true, 'message' => 'User account permanently deleted from AniPet.']);
-                } catch (Throwable $deleteError) {
-                    $conn->rollback();
-                    respond(['success' => false, 'message' => 'Permanent deletion failed: ' . $deleteError->getMessage()]);
-                }
-            }
-
-            if ($action === 'suspend_user') {
-                $reason = trim($_POST['reason'] ?? '');
-                if ($reason === '') {
-                    respond(['success' => false, 'message' => 'Please enter a suspension reason.']);
-                }
-
-                $stmt = $conn->prepare("UPDATE users SET is_suspended = 1, suspension_reason = ?, suspended_at = NOW() WHERE id = ? AND role NOT IN ('admin', 'super_admin', 'super')");
-                $stmt->bind_param('si', $reason, $id);
-            } else {
-                $stmt = $conn->prepare("UPDATE users SET is_deleted = 0, is_suspended = 0, suspension_reason = NULL, suspended_at = NULL WHERE id = ? AND role NOT IN ('admin', 'super_admin', 'super')");
-                $stmt->bind_param('i', $id);
-            }
-
-            if ($stmt->execute()) {
-                if ($action === 'suspend_user') {
-                    $sessionStmt = $conn->prepare("UPDATE user_sessions SET is_active = 0 WHERE user_id = ?");
                     if ($sessionStmt) {
                         $sessionStmt->bind_param('i', $id);
                         $sessionStmt->execute();
                         $sessionStmt->close();
                     }
+
+                    logAudit(
+                        $conn,
+                        $actor_id,
+                        'soft_delete_user',
+                        'user',
+                        $id,
+                        'Moved user account to Deleted Records'
+                    );
+
+                    respond([
+                        'success' => true,
+                        'message' => 'User moved to Deleted Records.'
+                    ]);
                 }
 
-                $auditDetails = $action === 'suspend_user'
-                    ? 'Suspended user. Reason: ' . $reason
-                    : 'Restored user account';
-                logAudit($conn, $actor_id, $action, 'user', $id, $auditDetails);
-                respond(['success' => true, 'message' => $action === 'suspend_user' ? 'User suspended successfully.' : 'User restored successfully.']);
+                respond([
+                    'success' => false,
+                    'message' => 'User could not be moved to Deleted Records.'
+                ]);
             }
-            respond(['success' => false, 'message' => $conn->error]);
+
+            if ($action === 'restore_user') {
+                $stmt = $conn->prepare(
+                    "UPDATE users
+                     SET is_deleted = 0,
+                         is_suspended = 0,
+                         suspension_reason = NULL,
+                         suspended_at = NULL,
+                         deleted_at = NULL,
+                         deleted_by = NULL
+                     WHERE id = ?
+                       AND role NOT IN ('admin', 'super_admin', 'super')
+                       AND is_deleted = 1"
+                );
+                $stmt->bind_param('i', $id);
+
+                if ($stmt->execute() && $stmt->affected_rows === 1) {
+                    logAudit(
+                        $conn,
+                        $actor_id,
+                        'restore_user',
+                        'user',
+                        $id,
+                        'Restored user from Deleted Records'
+                    );
+
+                    respond([
+                        'success' => true,
+                        'message' => 'User restored successfully.'
+                    ]);
+                }
+
+                respond([
+                    'success' => false,
+                    'message' => 'User could not be restored or is already active.'
+                ]);
+            }
+
+            // suspend_user
+            $reason = trim($_POST['reason'] ?? '');
+
+            if ($reason === '') {
+                respond([
+                    'success' => false,
+                    'message' => 'Please enter a suspension reason.'
+                ]);
+            }
+
+            $stmt = $conn->prepare(
+                "UPDATE users
+                 SET is_suspended = 1,
+                     suspension_reason = ?,
+                     suspended_at = NOW()
+                 WHERE id = ?
+                   AND role NOT IN ('admin', 'super_admin', 'super')
+                   AND is_deleted = 0"
+            );
+            $stmt->bind_param('si', $reason, $id);
+
+            if ($stmt->execute()) {
+                $sessionStmt = $conn->prepare(
+                    "UPDATE user_sessions
+                     SET is_active = 0
+                     WHERE user_id = ?"
+                );
+
+                if ($sessionStmt) {
+                    $sessionStmt->bind_param('i', $id);
+                    $sessionStmt->execute();
+                    $sessionStmt->close();
+                }
+
+                logAudit(
+                    $conn,
+                    $actor_id,
+                    'suspend_user',
+                    'user',
+                    $id,
+                    'Suspended user. Reason: ' . $reason
+                );
+
+                respond([
+                    'success' => true,
+                    'message' => 'User suspended successfully.'
+                ]);
+            }
+
+            respond([
+                'success' => false,
+                'message' => $conn->error ?: 'Unable to suspend user.'
+            ]);
             break;
 
         case 'archive_pet':
             $id = intval($_POST['id'] ?? 0);
             if (!$id) { respond(['success' => false, 'message' => 'Missing pet id']); }
-            $stmt = $conn->prepare("UPDATE pets SET is_archived = 1 WHERE id = ?");
+            $stmt = $conn->prepare("UPDATE pets SET is_archived = 1 WHERE id = ? AND is_deleted = 0");
             $stmt->bind_param('i', $id);
             if ($stmt->execute()) {
                 logAudit($conn, $actor_id, 'archive_pet', 'pet', $id, 'Archived pet record');
@@ -1764,7 +1606,7 @@ try {
         case 'unarchive_pet':
             $id = intval($_POST['id'] ?? 0);
             if (!$id) { respond(['success' => false, 'message' => 'Missing pet id']); }
-            $stmt = $conn->prepare("UPDATE pets SET is_archived = 0 WHERE id = ?");
+            $stmt = $conn->prepare("UPDATE pets SET is_archived = 0 WHERE id = ? AND is_deleted = 0");
             $stmt->bind_param('i', $id);
             if ($stmt->execute()) {
                 logAudit($conn, $actor_id, 'unarchive_pet', 'pet', $id, 'Unarchived pet record');
