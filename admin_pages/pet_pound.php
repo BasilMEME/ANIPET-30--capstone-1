@@ -840,6 +840,44 @@ function normalizePetGracePeriodDisplay(modalBody) {
         const now = new Date();
         const hasExpired = !Number.isNaN(deadline.getTime()) && now >= deadline;
 
+        // Show a clear countdown while the pet is still within the claim period.
+        let countdownNotice = modalBody.querySelector("#gracePeriodCountdown");
+
+        if (!hasExpired && !Number.isNaN(deadline.getTime())) {
+            const millisecondsLeft = deadline.getTime() - now.getTime();
+            const daysLeft = Math.max(
+                1,
+                Math.ceil(millisecondsLeft / (1000 * 60 * 60 * 24))
+            );
+
+            if (!countdownNotice) {
+                countdownNotice = document.createElement("div");
+                countdownNotice.id = "gracePeriodCountdown";
+                countdownNotice.style.margin = "16px 0";
+                countdownNotice.style.padding = "12px 14px";
+                countdownNotice.style.border = "1px solid #d7b28a";
+                countdownNotice.style.borderRadius = "8px";
+                countdownNotice.style.background = "#fff8ee";
+                countdownNotice.style.fontWeight = "600";
+                countdownNotice.style.color = "#7a4b2a";
+
+                const firstDivider = modalBody.querySelector("hr");
+                if (firstDivider) {
+                    firstDivider.parentNode.insertBefore(countdownNotice, firstDivider);
+                } else {
+                    modalBody.insertBefore(countdownNotice, modalBody.firstChild);
+                }
+            }
+
+            countdownNotice.textContent =
+                "The owner has " +
+                daysLeft +
+                (daysLeft === 1 ? " day" : " days") +
+                " until expiration.";
+        } else if (countdownNotice) {
+            countdownNotice.remove();
+        }
+
         // Find any element containing the adoption-eligibility warning.
         modalBody.querySelectorAll("p, div, span").forEach(function (element) {
             const message = (element.textContent || "").trim();
