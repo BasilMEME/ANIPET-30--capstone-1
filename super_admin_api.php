@@ -19,6 +19,26 @@ if (function_exists('columnExists')) {
         $conn->query("ALTER TABLE users ADD COLUMN suspended_at DATETIME DEFAULT NULL AFTER suspension_reason");
     }
 }
+
+// Soft-delete metadata for the Super Admin Deleted Records page.
+if (function_exists('columnExists')) {
+    if (!columnExists($conn, 'users', 'deleted_at')) {
+        $conn->query("ALTER TABLE users ADD COLUMN deleted_at DATETIME DEFAULT NULL AFTER is_deleted");
+    }
+    if (!columnExists($conn, 'users', 'deleted_by')) {
+        $conn->query("ALTER TABLE users ADD COLUMN deleted_by INT DEFAULT NULL AFTER deleted_at");
+    }
+
+    if (!columnExists($conn, 'pets', 'is_deleted')) {
+        $conn->query("ALTER TABLE pets ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0 AFTER is_archived");
+    }
+    if (!columnExists($conn, 'pets', 'deleted_at')) {
+        $conn->query("ALTER TABLE pets ADD COLUMN deleted_at DATETIME DEFAULT NULL AFTER is_deleted");
+    }
+    if (!columnExists($conn, 'pets', 'deleted_by')) {
+        $conn->query("ALTER TABLE pets ADD COLUMN deleted_by INT DEFAULT NULL AFTER deleted_at");
+    }
+}
 if (empty($actor_id)) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
@@ -680,6 +700,107 @@ function authorize_action($conn, $action) {
         case 'create_admin':
         case 'update_admin':
         case 'delete_admin':
+            $id = intval($_POST['id'] ?? 0);
+            if (!$id) { respond(['success' => false, 'message' => 'Missing admin id']); }
+
+            if ($id === intval($actor_id)) {
+                respond(['success' => false, 'message' => 'You cannot delete your own account.']);
+            }
+
+            $targetStmt = $conn->prepare(
+                "SELECT id, username, full_name, email, role
+                 FROM users
+                 WHERE id = ?
+                   AND role IN ('admin', 'super_admin', 'super')
+                   AND is_deleted = 0
+                 LIMIT 1"
+            );
+            $targetStmt->bind_param('i', $id);
+            $targetStmt->execute();
+            $targetAdmin = $targetStmt->get_result()->fetch_assoc();
+            $targetStmt->close();
+
+            if (!$targetAdmin) {
+                respond(['success' => false, 'message' => 'Admin account not found or already deleted.']);
+            }
+
+            if (in_array($targetAdmin['role'], ['super_admin', 'super'], true)) {
+                $countResult = $conn->query(
+                    "SELECT COUNT(*) AS total
+                     FROM users
+                     WHERE role IN ('super_admin', 'super')
+                       AND is_deleted = 0"
+                );
+                $activeSuperAdmins = intval(
+                    $countResult->fetch_assoc()['total'] ?? 0
+                );
+
+                if ($activeSuperAdmins <= 1) {
+                    respond([
+                        'success' => false,
+                        'message' => 'The last active Super Admin cannot be deleted.'
+                    ]);
+                }
+            }
+
+            $stmt = $conn->prepare(
+                "UPDATE users
+                 SET is_deleted = 1,
+                     is_suspended = 0,
+                     deleted_at = NOW(),
+                     deleted_by = ?
+                 WHERE id = ?
+                   AND role IN ('admin', 'super_admin', 'super')
+                   AND is_deleted = 0"
+            );
+            $stmt->bind_param('ii', $actor_id, $id);
+
+            if ($stmt->execute() && $stmt->affected_rows === 1) {
+                $stmt->close();
+
+                // Immediately invalidate active sessions without destroying related records.
+                $sessionStmt = $conn->prepare(
+                    "UPDATE user_sessions SET is_active = 0 WHERE user_id = ?"
+                );
+                if ($sessionStmt) {
+                    $sessionStmt->bind_param('i', $id);
+                    $sessionStmt->execute();
+                    $sessionStmt->close();
+                }
+
+                $tokenStmt = $conn->prepare(
+                    "DELETE FROM sso_tokens WHERE user_id = ?"
+                );
+                if ($tokenStmt) {
+                    $tokenStmt->bind_param('i', $id);
+                    $tokenStmt->execute();
+                    $tokenStmt->close();
+                }
+
+                logAudit(
+                    $conn,
+                    $actor_id,
+                    'soft_delete_admin',
+                    'user',
+                    $id,
+                    'Moved admin account to Deleted Records'
+                );
+
+                respond([
+                    'success' => true,
+                    'message' => 'Admin moved to Deleted Records.'
+                ]);
+            }
+
+            $message = $stmt ? $stmt->error : $conn->error;
+            if ($stmt) { $stmt->close(); }
+
+            respond([
+                'success' => false,
+                'message' => $message ?: 'Admin could not be deleted.'
+            ]);
+            break;
+
         case 'restore_admin':
         case 'reset_admin_password':
         case 'get_role_permissions':
@@ -691,14 +812,144 @@ function authorize_action($conn, $action) {
         case 'suspend_user':
         case 'delete_user':
         case 'restore_user':
-        case 'get_user_history':
-            require_api_permission($conn, 'manage_users');
+            $id = intval($_POST['id'] ?? 0);
+            if (!$id) { respond(['success' => false, 'message' => 'Missing user id']); }
+
+            if ($action === 'delete_user') {
+                if ($id === intval($actor_id)) {
+                    respond(['success' => false, 'message' => 'You cannot delete your own account.']);
+                }
+
+                $stmt = $conn->prepare(
+                    "UPDATE users
+                     SET is_deleted = 1,
+                         is_suspended = 0,
+                         deleted_at = NOW(),
+                         deleted_by = ?
+                     WHERE id = ?
+                       AND role NOT IN ('admin', 'super_admin', 'super')
+                       AND is_deleted = 0"
+                );
+                $stmt->bind_param('ii', $actor_id, $id);
+
+                if ($stmt->execute() && $stmt->affected_rows === 1) {
+                    $stmt->close();
+
+                    $sessionStmt = $conn->prepare(
+                        "UPDATE user_sessions SET is_active = 0 WHERE user_id = ?"
+                    );
+                    if ($sessionStmt) {
+                        $sessionStmt->bind_param('i', $id);
+                        $sessionStmt->execute();
+                        $sessionStmt->close();
+                    }
+
+                    $tokenStmt = $conn->prepare(
+                        "DELETE FROM sso_tokens WHERE user_id = ?"
+                    );
+                    if ($tokenStmt) {
+                        $tokenStmt->bind_param('i', $id);
+                        $tokenStmt->execute();
+                        $tokenStmt->close();
+                    }
+
+                    logAudit(
+                        $conn,
+                        $actor_id,
+                        'soft_delete_user',
+                        'user',
+                        $id,
+                        'Moved user account to Deleted Records'
+                    );
+
+                    respond([
+                        'success' => true,
+                        'message' => 'User moved to Deleted Records.'
+                    ]);
+                }
+
+                $message = $stmt ? $stmt->error : $conn->error;
+                if ($stmt) { $stmt->close(); }
+
+                respond([
+                    'success' => false,
+                    'message' => $message ?: 'User could not be deleted.'
+                ]);
+            }
+
+            if ($action === 'restore_user') {
+                $stmt = $conn->prepare(
+                    "UPDATE users
+                     SET is_deleted = 0,
+                         is_suspended = 0,
+                         suspension_reason = NULL,
+                         suspended_at = NULL,
+                         deleted_at = NULL,
+                         deleted_by = NULL
+                     WHERE id = ?
+                       AND role NOT IN ('admin', 'super_admin', 'super')"
+                );
+                $stmt->bind_param('i', $id);
+
+                if ($stmt->execute()) {
+                    logAudit($conn, $actor_id, 'restore_user', 'user', $id, 'Restored user account');
+                    respond(['success' => true, 'message' => 'User restored successfully']);
+                }
+
+                respond(['success' => false, 'message' => $conn->error]);
+            }
+
+            // suspend_user
+            $reason = trim($_POST['reason'] ?? '');
+
+            if ($reason === '') {
+                respond([
+                    'success' => false,
+                    'message' => 'A suspension reason is required.'
+                ]);
+            }
+
+            $stmt = $conn->prepare(
+                "UPDATE users
+                 SET is_suspended = 1,
+                     suspension_reason = ?,
+                     suspended_at = NOW()
+                 WHERE id = ?
+                   AND role NOT IN ('admin', 'super_admin', 'super')
+                   AND is_deleted = 0"
+            );
+            $stmt->bind_param('si', $reason, $id);
+
+            if ($stmt->execute() && $stmt->affected_rows >= 0) {
+                $sessionStmt = $conn->prepare(
+                    "UPDATE user_sessions
+                     SET is_active = 0
+                     WHERE user_id = ?"
+                );
+                if ($sessionStmt) {
+                    $sessionStmt->bind_param('i', $id);
+                    $sessionStmt->execute();
+                    $sessionStmt->close();
+                }
+
+                logAudit(
+                    $conn,
+                    $actor_id,
+                    'suspend_user',
+                    'user',
+                    $id,
+                    'Suspended user account. Reason: ' . $reason
+                );
+
+                respond([
+                    'success' => true,
+                    'message' => 'User suspended successfully.'
+                ]);
+            }
+
+            respond(['success' => false, 'message' => $conn->error]);
             break;
 
-        case 'get_pets':
-        case 'create_pet':
-        case 'update_pet':
-        case 'delete_pet':
         case 'archive_pet':
         case 'unarchive_pet':
         case 'transfer_pet':
@@ -793,7 +1044,7 @@ authorize_action($conn, $action);
 try {
     switch ($action) {
         case 'get_admins':
-            $result = $conn->query("SELECT id, username, full_name, email, role, is_verified, is_suspended, is_deleted, created_at FROM users WHERE role IN ('admin', 'super_admin', 'super') ORDER BY created_at DESC");
+            $result = $conn->query("SELECT id, username, full_name, email, role, is_verified, is_suspended, is_deleted, created_at FROM users WHERE role IN ('admin', 'super_admin', 'super') AND is_deleted = 0 ORDER BY created_at DESC");
             $admins = [];
             while ($row = $result->fetch_assoc()) { $admins[] = $row; }
             respond(['success' => true, 'admins' => $admins]);
@@ -886,14 +1137,14 @@ try {
             break;
 
         case 'get_users':
-            $result = $conn->query("SELECT id, username, full_name, email, role, is_verified, is_suspended, is_deleted, created_at FROM users WHERE role NOT IN ('admin', 'super_admin', 'super') ORDER BY created_at DESC");
+            $result = $conn->query("SELECT id, username, full_name, email, role, is_verified, is_suspended, is_deleted, created_at FROM users WHERE role NOT IN ('admin', 'super_admin', 'super') AND is_deleted = 0 ORDER BY created_at DESC");
             $users = [];
             while ($row = $result->fetch_assoc()) { $users[] = $row; }
             respond(['success' => true, 'users' => $users]);
             break;
 
         case 'get_pets':
-            $result = $conn->query("SELECT id, name, breed, age, gender, status, health_status, description, image, is_archived, shelter_id, created_at FROM pets ORDER BY created_at DESC");
+            $result = $conn->query("SELECT id, name, breed, age, gender, status, health_status, description, image, is_archived, is_deleted, shelter_id, created_at FROM pets WHERE is_deleted = 0 ORDER BY created_at DESC");
             $pets = [];
             while ($row = $result->fetch_assoc()) { $pets[] = $row; }
             respond(['success' => true, 'pets' => $pets]);
@@ -1074,13 +1325,47 @@ try {
         case 'delete_pet':
             $id = intval($_POST['id'] ?? 0);
             if (!$id) { respond(['success' => false, 'message' => 'Missing pet id']); }
-            $stmt = $conn->prepare("DELETE FROM pets WHERE id = ?");
-            $stmt->bind_param('i', $id);
-            if ($stmt->execute()) {
-                logAudit($conn, $actor_id, 'delete_pet', 'pet', $id, 'Deleted pet record');
-                respond(['success' => true, 'message' => 'Pet deleted successfully']);
+
+            $stmt = $conn->prepare(
+                "UPDATE pets
+                 SET is_deleted = 1,
+                     is_archived = 1,
+                     deleted_at = NOW(),
+                     deleted_by = ?
+                 WHERE id = ?
+                   AND is_deleted = 0"
+            );
+            $stmt->bind_param('ii', $actor_id, $id);
+
+            if ($stmt->execute() && $stmt->affected_rows === 1) {
+                logAudit($conn, $actor_id, 'soft_delete_pet', 'pet', $id, 'Moved pet to Deleted Records');
+                respond(['success' => true, 'message' => 'Pet moved to Deleted Records.']);
             }
-            respond(['success' => false, 'message' => $conn->error]);
+
+            respond(['success' => false, 'message' => 'Pet could not be deleted or is already deleted.']);
+            break;
+
+        case 'restore_pet':
+            $id = intval($_POST['id'] ?? 0);
+            if (!$id) { respond(['success' => false, 'message' => 'Missing pet id']); }
+
+            $stmt = $conn->prepare(
+                "UPDATE pets
+                 SET is_deleted = 0,
+                     is_archived = 0,
+                     deleted_at = NULL,
+                     deleted_by = NULL
+                 WHERE id = ?
+                   AND is_deleted = 1"
+            );
+            $stmt->bind_param('i', $id);
+
+            if ($stmt->execute() && $stmt->affected_rows === 1) {
+                logAudit($conn, $actor_id, 'restore_pet', 'pet', $id, 'Restored pet from Deleted Records');
+                respond(['success' => true, 'message' => 'Pet restored successfully.']);
+            }
+
+            respond(['success' => false, 'message' => 'Pet could not be restored or is already active.']);
             break;
 
         case 'get_shelters':
@@ -1140,7 +1425,8 @@ try {
             $email = safeValue($conn, $_POST['email'] ?? '');
             $role = safeValue($conn, $_POST['role'] ?? 'admin');
             $is_suspended = isset($_POST['is_suspended']) ? intval($_POST['is_suspended']) : 0;
-            $is_deleted = isset($_POST['is_deleted']) ? intval($_POST['is_deleted']) : 0;
+            // Deletion is handled only by delete_admin so deleted_at/deleted_by are always recorded.
+            $is_deleted = 0;
             if (!$id || !$full_name || !$email) { respond(['success' => false, 'message' => 'Missing required admin fields']); }
             $stmt = $conn->prepare("UPDATE users SET full_name = ?, email = ?, role = ?, is_suspended = ?, is_deleted = ? WHERE id = ? AND role IN ('admin', 'super_admin', 'super')");
             $stmt->bind_param('sssiii', $full_name, $email, $role, $is_suspended, $is_deleted, $id);
@@ -1240,13 +1526,25 @@ try {
         case 'restore_admin':
             $id = intval($_POST['id'] ?? 0);
             if (!$id) { respond(['success' => false, 'message' => 'Missing admin id']); }
-            $stmt = $conn->prepare("UPDATE users SET is_deleted = 0, is_suspended = 0 WHERE id = ? AND role IN ('admin', 'super_admin', 'super')");
+
+            $stmt = $conn->prepare(
+                "UPDATE users
+                 SET is_deleted = 0,
+                     is_suspended = 0,
+                     deleted_at = NULL,
+                     deleted_by = NULL
+                 WHERE id = ?
+                   AND role IN ('admin', 'super_admin', 'super')
+                   AND is_deleted = 1"
+            );
             $stmt->bind_param('i', $id);
-            if ($stmt->execute()) {
-                logAudit($conn, $actor_id, 'restore_admin', 'user', $id, 'Restored admin account');
+
+            if ($stmt->execute() && $stmt->affected_rows === 1) {
+                logAudit($conn, $actor_id, 'restore_admin', 'user', $id, 'Restored admin from Deleted Records');
                 respond(['success' => true, 'message' => 'Admin restored successfully']);
             }
-            respond(['success' => false, 'message' => $conn->error]);
+
+            respond(['success' => false, 'message' => 'Admin could not be restored or is already active.']);
             break;
 
         case 'suspend_user':

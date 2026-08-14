@@ -2,6 +2,25 @@
 require_once __DIR__ . '/auth_helper.php';
 require_super_or_permission('manage_admins');
 
+// Soft-delete metadata used by the Deleted Records page.
+if (function_exists('columnExists')) {
+    if (!columnExists($conn, 'users', 'deleted_at')) {
+        $conn->query("ALTER TABLE users ADD COLUMN deleted_at DATETIME DEFAULT NULL AFTER is_deleted");
+    }
+    if (!columnExists($conn, 'users', 'deleted_by')) {
+        $conn->query("ALTER TABLE users ADD COLUMN deleted_by INT DEFAULT NULL AFTER deleted_at");
+    }
+    if (!columnExists($conn, 'pets', 'is_deleted')) {
+        $conn->query("ALTER TABLE pets ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0 AFTER is_archived");
+    }
+    if (!columnExists($conn, 'pets', 'deleted_at')) {
+        $conn->query("ALTER TABLE pets ADD COLUMN deleted_at DATETIME DEFAULT NULL AFTER is_deleted");
+    }
+    if (!columnExists($conn, 'pets', 'deleted_by')) {
+        $conn->query("ALTER TABLE pets ADD COLUMN deleted_by INT DEFAULT NULL AFTER deleted_at");
+    }
+}
+
 function fetchRows($conn, $sql) {
     $rows = [];
     $result = $conn->query($sql);
@@ -13,9 +32,9 @@ function fetchRows($conn, $sql) {
     return $rows;
 }
 
-$admins = fetchRows($conn, "SELECT id, username, full_name, email, role, is_verified, is_suspended, is_deleted, created_at FROM users WHERE role IN ('admin', 'super_admin', 'super') ORDER BY created_at DESC");
-$users = fetchRows($conn, "SELECT id, username, full_name, email, role, is_verified, is_suspended, is_deleted, created_at FROM users WHERE role NOT IN ('admin', 'super_admin', 'super') ORDER BY created_at DESC");
-$pets = fetchRows($conn, "SELECT id, name, breed, age, gender, status, health_status, description, is_archived, shelter_id, created_at FROM pets ORDER BY created_at DESC");
+$admins = fetchRows($conn, "SELECT id, username, full_name, email, role, is_verified, is_suspended, is_deleted, created_at FROM users WHERE role IN ('admin', 'super_admin', 'super') AND is_deleted = 0 ORDER BY created_at DESC");
+$users = fetchRows($conn, "SELECT id, username, full_name, email, role, is_verified, is_suspended, is_deleted, created_at FROM users WHERE role NOT IN ('admin', 'super_admin', 'super') AND is_deleted = 0 ORDER BY created_at DESC");
+$pets = fetchRows($conn, "SELECT id, name, breed, age, gender, status, health_status, description, is_archived, is_deleted, shelter_id, created_at FROM pets WHERE is_deleted = 0 ORDER BY created_at DESC");
 $shelters = fetchRows($conn, "SELECT id, name FROM shelters ORDER BY name ASC");
 ?>
 <!DOCTYPE html>
@@ -415,7 +434,10 @@ tbody tr:last-child td{
             <h1>Super Admin Operations</h1>
             <p class="note">Manage staff accounts, users, and pet records from one organized workspace.</p>
         </div>
-        <a class="btn btn-secondary" href="super_admin_dashboard.php">Back to Dashboard</a>
+        <div class="inline-actions">
+            <a class="btn btn-primary" href="super_admin_deleted_records.php">Deleted Records</a>
+            <a class="btn btn-secondary" href="super_admin_dashboard.php">Back to Dashboard</a>
+        </div>
     </div>
     <nav class="quick-nav" aria-label="Page sections">
         <a href="#admin-accounts">Admin Accounts</a>
@@ -424,6 +446,7 @@ tbody tr:last-child td{
         <a href="#pet-records">Pet Records</a>
         <a href="#petFormSection">Pet Editor</a>
         <a href="#pet-actions">Pet Actions</a>
+        <a href="super_admin_deleted_records.php">Deleted Records</a>
     </nav>
 
     <section class="section" id="admin-accounts">
@@ -468,7 +491,7 @@ tbody tr:last-child td{
                 <div class="input-group"><label>Full Name</label><input type="text" name="full_name" id="updateFullName" required></div>
                 <div class="input-group"><label>Email</label><input type="email" name="email" id="updateEmail" required></div>
                 <div class="input-group"><label>Role</label><select name="role" id="updateRole"><option value="admin">Admin</option><option value="super_admin">Super Admin</option></select></div>
-                <div class="input-group"><label>State</label><select name="state" id="updateState"><option value="0">Active</option><option value="1">Suspended</option><option value="2">Deleted</option></select></div>
+                <div class="input-group"><label>State</label><select name="state" id="updateState"><option value="0">Active</option><option value="1">Suspended</option></select></div>
                 <div class="action-row"><button class="btn btn-primary" type="submit">Update Admin</button></div>
             </form>
         </div>
@@ -705,7 +728,7 @@ tbody tr:last-child td{
     }
 
     function deleteAdmin(id) {
-        if (!confirm('Permanently delete this admin account?\n\nThis will remove the account and its related AniPet records. This action cannot be undone.')) {
+        if (!confirm('Move this admin account to Deleted Records?\n\nThe account will be hidden from active records and can be restored by a Super Admin.')) {
             return;
         }
 
@@ -717,7 +740,7 @@ tbody tr:last-child td{
             .then(data => {
                 alert(data.message || (
                     data.success
-                        ? 'Admin permanently deleted.'
+                        ? 'Admin moved to Deleted Records.'
                         : 'Admin deletion failed.'
                 ));
 
@@ -775,13 +798,7 @@ tbody tr:last-child td{
                 admin.role || 'admin';
 
             document.getElementById('updateState').value =
-                admin.is_deleted
-                    ? '2'
-                    : (
-                        admin.is_suspended
-                            ? '1'
-                            : '0'
-                    );
+                admin.is_suspended ? '1' : '0';
         });
 
     document
@@ -887,7 +904,7 @@ tbody tr:last-child td{
     }
 
     function deleteUser(id) {
-        if (!confirm('Permanently delete this user account?\n\nThis will remove the account and its related AniPet records. This action cannot be undone.')) {
+        if (!confirm('Move this user account to Deleted Records?\n\nThe account and its AniPet history will be preserved and can be restored by a Super Admin.')) {
             return;
         }
 
@@ -899,7 +916,7 @@ tbody tr:last-child td{
             .then(data => {
                 alert(data.message || (
                     data.success
-                        ? 'User permanently deleted.'
+                        ? 'User moved to Deleted Records.'
                         : 'User deletion failed.'
                 ));
 
@@ -1052,7 +1069,7 @@ tbody tr:last-child td{
     }
 
     function deletePet(id) {
-        if (!confirm('Delete this pet record?')) {
+        if (!confirm('Move this pet record to Deleted Records?\n\nThe pet record will be hidden from active records and can be restored later.')) {
             return;
         }
 
@@ -1064,7 +1081,7 @@ tbody tr:last-child td{
             .then(data => {
                 alert(data.message || (
                     data.success
-                        ? 'Pet deleted.'
+                        ? 'Pet moved to Deleted Records.'
                         : 'Pet deletion failed.'
                 ));
 
