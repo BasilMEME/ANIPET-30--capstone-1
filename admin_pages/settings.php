@@ -26,40 +26,33 @@ $settings = [
         ''
     ),
 
-    // Donation information
-    'donation_gcash_name' => get_system_setting(
+    // Pet Pound policies and operating hours
+    'pet_pound_operating_days' => get_system_setting(
         $conn,
-        'donation_gcash_name',
-        ''
+        'pet_pound_operating_days',
+        'Monday to Friday'
     ),
-    'donation_gcash_number' => get_system_setting(
+    'pet_pound_opening_time' => get_system_setting(
         $conn,
-        'donation_gcash_number',
-        ''
+        'pet_pound_opening_time',
+        '08:00'
     ),
-    'donation_notes' => get_system_setting(
+    'pet_pound_closing_time' => get_system_setting(
         $conn,
-        'donation_notes',
-        ''
+        'pet_pound_closing_time',
+        '17:00'
     ),
-    'donation_qr_filename' => get_system_setting(
+    'pet_pound_claim_policy' => get_system_setting(
         $conn,
-        'donation_qr_filename',
+        'pet_pound_claim_policy',
+        'Impounded pets may be claimed by their owner within 14 days from the date of impoundment. After the claim period expires, the pet may become eligible for adoption subject to the Pet Pound\'s assessment.'
+    ),
+    'pet_pound_public_notice' => get_system_setting(
+        $conn,
+        'pet_pound_public_notice',
         ''
     )
 ];
-
-$qrFilename = trim(
-    $settings['donation_qr_filename']
-);
-
-$qrExists = $qrFilename !== ''
-    && is_file(
-        __DIR__ . '/../images/' . $qrFilename
-    );
-
-$isSuperAdmin =
-    current_user_role() === 'super_admin';
 
 ?>
 
@@ -185,185 +178,106 @@ $isSuperAdmin =
 
 
 <!-- ========================================================= -->
-<!-- DONATION SETTINGS -->
+<!-- PET POUND POLICIES & OPERATING HOURS -->
 <!-- ========================================================= -->
 
 <div class="card">
 
     <div class="card-header">
-
         <div>
-
             <div class="card-title">
-                Donations (GCash)
+                Pet Pound Policies & Operating Hours
             </div>
 
             <div class="card-sub">
-                Configure the GCash account and QR code shown
-                to users who want to donate
+                Set the Pet Pound schedule, claim policy, and public notice
             </div>
-
         </div>
-
     </div>
 
-    <?php if (!$isSuperAdmin): ?>
+    <form id="petPoundPolicyForm">
 
-        <p
-            style="
-                font-size: .82rem;
-                color: var(--warning);
-                margin-bottom: 14px;
-            "
-        >
-            🔒 Only a Super Admin can edit donation settings.
-            The information below is read-only.
-        </p>
-
-    <?php endif; ?>
-
-    <form
-        id="donationForm"
-        enctype="multipart/form-data"
-    >
-
-        <div class="form-row cols-2">
-
-            <div>
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        GCash Account Name
-                    </label>
-
-                    <input
-                        type="text"
-                        name="donation_gcash_name"
-                        class="form-control"
-                        value="<?php echo htmlspecialchars(
-                            $settings['donation_gcash_name'],
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ); ?>"
-                        <?php echo $isSuperAdmin ? '' : 'disabled'; ?>
-                    >
-
-                </div>
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        GCash Number
-                    </label>
-
-                    <input
-                        type="text"
-                        name="donation_gcash_number"
-                        class="form-control"
-                        placeholder="e.g. 09123456789"
-                        value="<?php echo htmlspecialchars(
-                            $settings['donation_gcash_number'],
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ); ?>"
-                        <?php echo $isSuperAdmin ? '' : 'disabled'; ?>
-                    >
-
-                </div>
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        Notes
-                    </label>
-
-                    <textarea
-                        name="donation_notes"
-                        class="form-control"
-                        placeholder="Optional message shown alongside the QR code"
-                        <?php echo $isSuperAdmin ? '' : 'disabled'; ?>
-                    ><?php echo htmlspecialchars(
-                        $settings['donation_notes'],
-                        ENT_QUOTES,
-                        'UTF-8'
-                    ); ?></textarea>
-
-                </div>
-
-            </div>
-
-            <div>
-
-                <div class="form-group">
-
-                    <label class="form-label">
-                        Donation QR Code
-                    </label>
-
-                    <?php if ($qrExists): ?>
-
-                        <div style="margin-bottom: 10px;">
-
-                            <img
-                                src="images/<?php echo rawurlencode(
-                                    $qrFilename
-                                ); ?>"
-                                alt="Donation QR Code"
-                                style="
-                                    width: 160px;
-                                    height: 160px;
-                                    object-fit: contain;
-                                    border: 1px solid var(--border);
-                                    border-radius: 8px;
-                                    background: #ffffff;
-                                "
-                            >
-
-                        </div>
-
-                    <?php else: ?>
-
-                        <div
-                            class="empty-state"
-                            style="padding: 16px;"
-                        >
-                            <p style="font-size: .8rem;">
-                                No donation QR code uploaded yet
-                            </p>
-                        </div>
-
-                    <?php endif; ?>
-
-                    <input
-                        type="file"
-                        name="donation_qr"
-                        accept=".jpg,.jpeg,.png,.gif,.webp"
-                        class="form-control"
-                        <?php echo $isSuperAdmin ? '' : 'disabled'; ?>
-                    >
-
-                </div>
-
-            </div>
-
+        <div class="form-group">
+            <label class="form-label">Operating Days</label>
+            <input
+                type="text"
+                name="pet_pound_operating_days"
+                class="form-control"
+                placeholder="e.g. Monday to Friday"
+                value="<?php echo htmlspecialchars(
+                    $settings['pet_pound_operating_days'],
+                    ENT_QUOTES,
+                    'UTF-8'
+                ); ?>"
+            >
         </div>
 
-        <?php if ($isSuperAdmin): ?>
-
-            <div
-                class="action-row"
-                style="margin-top: 6px;"
-            >
-                <button
-                    class="btn btn-primary"
-                    type="submit"
+        <div class="form-row cols-2">
+            <div class="form-group">
+                <label class="form-label">Opening Time</label>
+                <input
+                    type="time"
+                    name="pet_pound_opening_time"
+                    class="form-control"
+                    value="<?php echo htmlspecialchars(
+                        $settings['pet_pound_opening_time'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ); ?>"
                 >
-                    Save Donation Settings
-                </button>
             </div>
 
-        <?php endif; ?>
+            <div class="form-group">
+                <label class="form-label">Closing Time</label>
+                <input
+                    type="time"
+                    name="pet_pound_closing_time"
+                    class="form-control"
+                    value="<?php echo htmlspecialchars(
+                        $settings['pet_pound_closing_time'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ); ?>"
+                >
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Claim / Impound Policy</label>
+            <textarea
+                name="pet_pound_claim_policy"
+                class="form-control"
+                style="min-height: 120px;"
+                placeholder="Enter the policy shown to staff or users..."
+            ><?php echo htmlspecialchars(
+                $settings['pet_pound_claim_policy'],
+                ENT_QUOTES,
+                'UTF-8'
+            ); ?></textarea>
+            <div style="font-size:.8rem;color:var(--muted);margin-top:6px;">
+                Suggested policy keeps the current 14-day claim period consistent with the Pet Pound workflow.
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Public Notice</label>
+            <textarea
+                name="pet_pound_public_notice"
+                class="form-control"
+                style="min-height: 100px;"
+                placeholder="e.g. Bring supporting ownership documents when claiming an impounded pet."
+            ><?php echo htmlspecialchars(
+                $settings['pet_pound_public_notice'],
+                ENT_QUOTES,
+                'UTF-8'
+            ); ?></textarea>
+        </div>
+
+        <div class="action-row" style="margin-top: 6px;">
+            <button class="btn btn-primary" type="submit">
+                Save Policies & Operating Hours
+            </button>
+        </div>
 
     </form>
 
@@ -454,28 +368,19 @@ if (petPoundForm) {
 }
 
 
-const donationForm =
-    document.getElementById('donationForm');
+const petPoundPolicyForm =
+    document.getElementById('petPoundPolicyForm');
 
-if (donationForm) {
-    donationForm.addEventListener(
+if (petPoundPolicyForm) {
+    petPoundPolicyForm.addEventListener(
         'submit',
         async function (event) {
             event.preventDefault();
 
-            const saved = await submitSettingsForm(
+            await submitSettingsForm(
                 event.currentTarget,
-                'update_donation_settings'
+                'update_pet_pound_policy_settings'
             );
-
-            if (saved) {
-                setTimeout(
-                    function () {
-                        window.location.reload();
-                    },
-                    600
-                );
-            }
         }
     );
 }
