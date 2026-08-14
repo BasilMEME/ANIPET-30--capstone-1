@@ -51,6 +51,17 @@ $settings = [
 
 ?>
 
+<div class="card" style="margin-bottom:18px;border-left:4px solid var(--accent,#986038);">
+    <div class="card-header">
+        <div>
+            <div class="card-title">Read-only Settings</div>
+            <div class="card-sub">
+                These Pet Pound settings are managed by the Super Admin. Changes made by the Super Admin will automatically appear here.
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ========================================================= -->
 <!-- PET POUND INFORMATION -->
 <!-- ========================================================= -->
@@ -155,17 +166,7 @@ $settings = [
 
         </div>
 
-        <div
-            class="action-row"
-            style="margin-top: 6px;"
-        >
-            <button
-                class="btn btn-primary"
-                type="submit"
-            >
-                Save Pet Pound Information
-            </button>
-        </div>
+        <div style="font-size:.82rem;color:var(--muted);margin-top:8px;">Only the Super Admin can change these values.</div>
 
     </form>
 
@@ -272,11 +273,7 @@ $settings = [
             </div>
         </div>
 
-        <div class="action-row" style="margin-top: 6px;">
-            <button class="btn btn-primary" type="submit">
-                Save Policies & Operating Hours
-            </button>
-        </div>
+        <div style="font-size:.82rem;color:var(--muted);margin-top:8px;">Only the Super Admin can change these values.</div>
 
     </form>
 
@@ -284,125 +281,17 @@ $settings = [
 
 
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('#petPoundForm input, #petPoundForm textarea, #petPoundPolicyForm input, #petPoundPolicyForm textarea')
+        .forEach(function (field) {
+            field.readOnly = true;
+            field.setAttribute('aria-readonly', 'true');
+        });
 
-async function submitSettingsForm(formElement, action) {
-    const button = formElement.querySelector(
-        'button[type="submit"]'
-    );
-
-    const originalText = button
-        ? button.textContent
-        : '';
-
-    if (button) {
-        button.disabled = true;
-        button.textContent = 'Saving...';
-    }
-
-    try {
-        const body = new FormData(formElement);
-
-        body.append(
-            'action',
-            action
-        );
-
-        const response = await fetch(
-            'admin_api.php',
-            {
-                method: 'POST',
-                body: body
-            }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(
-                data.message ||
-                'Unable to save settings'
-            );
-        }
-
-        showToast(
-            data.message ||
-            'Settings saved successfully'
-        );
-
-        return true;
-
-    } catch (error) {
-        showToast(
-            error.message ||
-            'Something went wrong',
-            'error'
-        );
-
-        return false;
-
-    } finally {
-        if (button) {
-            button.disabled = false;
-            button.textContent = originalText;
-        }
-    }
-}
-
-
-const petPoundForm =
-    document.getElementById('petPoundForm');
-
-if (petPoundForm) {
-    petPoundForm.addEventListener(
-        'submit',
-        async function (event) {
+    document.querySelectorAll('#petPoundForm, #petPoundPolicyForm').forEach(function (form) {
+        form.addEventListener('submit', function (event) {
             event.preventDefault();
-
-            await submitSettingsForm(
-                event.currentTarget,
-                'update_pet_pound_settings'
-            );
-        }
-    );
-}
-
-
-const claimGracePeriodDays = document.getElementById('claimGracePeriodDays');
-const claimPolicyPreview = document.getElementById('claimPolicyPreview');
-
-function updateClaimPolicyPreview() {
-    if (!claimGracePeriodDays || !claimPolicyPreview) return;
-
-    let days = parseInt(claimGracePeriodDays.value, 10);
-    if (!Number.isFinite(days) || days < 1) days = 1;
-
-    const dayWord = days === 1 ? 'day' : 'days';
-    claimPolicyPreview.value =
-        `Impounded pets may be claimed by their owner within ${days} ${dayWord} from the date of impoundment. ` +
-        `After the ${days}-day grace period has passed, an unclaimed pet becomes eligible for adoption.`;
-}
-
-if (claimGracePeriodDays) {
-    claimGracePeriodDays.addEventListener('input', updateClaimPolicyPreview);
-    updateClaimPolicyPreview();
-}
-
-
-const petPoundPolicyForm =
-    document.getElementById('petPoundPolicyForm');
-
-if (petPoundPolicyForm) {
-    petPoundPolicyForm.addEventListener(
-        'submit',
-        async function (event) {
-            event.preventDefault();
-
-            await submitSettingsForm(
-                event.currentTarget,
-                'update_pet_pound_policy_settings'
-            );
-        }
-    );
-}
-
+        });
+    });
+});
 </script>

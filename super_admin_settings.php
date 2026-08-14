@@ -320,70 +320,47 @@ tbody tr:hover td{
     <h2>Pet Pound Information</h2>
 
     <p class="note">
-        These details represent the pet pound in the AniPet system.
+        These values are shared with the Admin Settings page. Any changes saved here will automatically appear for Admin users.
     </p>
 
     <form id="poundInfoForm">
 
         <div class="input-group">
             <label>Pet Pound Name</label>
-
             <input
                 type="text"
-                name="pound_name"
-                value="<?php
-                    echo htmlspecialchars(
-                        $settingsByKey['pound_name']
-                            ?? 'AniPet Pet Adoption Center'
-                    );
-                ?>"
-                required
-            >
-        </div>
-
-        <div class="input-group">
-            <label>Contact Email</label>
-
-            <input
-                type="email"
-                name="contact_email"
-                value="<?php
-                    echo htmlspecialchars(
-                        $settingsByKey['contact_email']
-                            ?? 'anipet.adoption@gmail.com'
-                    );
-                ?>"
+                name="pet_pound_name"
+                value="<?php echo htmlspecialchars($settingsByKey['pet_pound_name'] ?? 'AniPet Pet Adoption Center'); ?>"
                 required
             >
         </div>
 
         <div class="input-group">
             <label>Contact Number</label>
-
             <input
                 type="text"
-                name="support_phone"
+                name="pet_pound_contact"
                 placeholder="+63 9XX XXX XXXX"
-                value="<?php
-                    echo htmlspecialchars(
-                        $settingsByKey['support_phone'] ?? ''
-                    );
-                ?>"
+                value="<?php echo htmlspecialchars($settingsByKey['pet_pound_contact'] ?? ''); ?>"
             >
         </div>
 
         <div class="input-group">
             <label>Address</label>
-
             <textarea
-                name="pound_address"
+                name="pet_pound_address"
                 rows="4"
                 placeholder="Enter the pet pound address"
-            ><?php
-                echo htmlspecialchars(
-                    $settingsByKey['pound_address'] ?? ''
-                );
-            ?></textarea>
+            ><?php echo htmlspecialchars($settingsByKey['pet_pound_address'] ?? ''); ?></textarea>
+        </div>
+
+        <div class="input-group">
+            <label>Notes</label>
+            <textarea
+                name="pet_pound_notes"
+                rows="4"
+                placeholder="Optional information about the Pet Pound"
+            ><?php echo htmlspecialchars($settingsByKey['pet_pound_notes'] ?? ''); ?></textarea>
         </div>
 
         <div class="action-row">
@@ -395,62 +372,85 @@ tbody tr:hover td{
 </div>
 
 <div class="card">
-    <h2>Opening Hours</h2>
+    <h2>Pet Pound Policies & Operating Hours</h2>
 
     <p class="note">
-        Set the regular operating hours of the pet pound.
+        Set the schedule and claim grace period used by the Pet Pound system. Admin users can view these values but cannot change them.
     </p>
 
     <form id="openingHoursForm">
 
         <div class="input-group">
-            <label>Monday to Friday</label>
-
+            <label>Operating Days</label>
             <input
                 type="text"
-                name="hours_weekdays"
-                value="<?php
-                    echo htmlspecialchars(
-                        $settingsByKey['hours_weekdays']
-                            ?? '8:00 AM - 5:00 PM'
-                    );
-                ?>"
+                name="pet_pound_operating_days"
+                placeholder="e.g. Monday to Friday"
+                value="<?php echo htmlspecialchars($settingsByKey['pet_pound_operating_days'] ?? 'Monday to Friday'); ?>"
             >
         </div>
 
         <div class="input-group">
-            <label>Saturday</label>
-
+            <label>Opening Time</label>
             <input
-                type="text"
-                name="hours_saturday"
-                value="<?php
-                    echo htmlspecialchars(
-                        $settingsByKey['hours_saturday']
-                            ?? '8:00 AM - 12:00 PM'
-                    );
-                ?>"
+                type="time"
+                name="pet_pound_opening_time"
+                value="<?php echo htmlspecialchars($settingsByKey['pet_pound_opening_time'] ?? '08:00'); ?>"
             >
         </div>
 
         <div class="input-group">
-            <label>Sunday</label>
-
+            <label>Closing Time</label>
             <input
-                type="text"
-                name="hours_sunday"
-                value="<?php
-                    echo htmlspecialchars(
-                        $settingsByKey['hours_sunday']
-                            ?? 'Closed'
-                    );
-                ?>"
+                type="time"
+                name="pet_pound_closing_time"
+                value="<?php echo htmlspecialchars($settingsByKey['pet_pound_closing_time'] ?? '17:00'); ?>"
             >
+        </div>
+
+        <div class="input-group">
+            <label>Pet Claim Grace Period</label>
+            <div style="display:flex;align-items:center;gap:10px;max-width:280px;">
+                <input
+                    type="number"
+                    name="claim_grace_period_days"
+                    id="claimGracePeriodDays"
+                    min="1"
+                    max="365"
+                    step="1"
+                    value="<?php echo max(1, (int)($settingsByKey['claim_grace_period_days'] ?? 14)); ?>"
+                    required
+                >
+                <span class="note" style="white-space:nowrap;">day(s)</span>
+            </div>
+            <p class="note" style="margin:6px 0 0;">
+                This setting applies to newly impounded pets. Existing claim deadlines are not changed.
+            </p>
+        </div>
+
+        <div class="input-group">
+            <label>Claim / Impound Policy</label>
+            <textarea
+                id="claimPolicyPreview"
+                rows="5"
+                readonly
+                aria-readonly="true"
+            ><?php
+                $days = max(1, (int)($settingsByKey['claim_grace_period_days'] ?? 14));
+                echo htmlspecialchars(
+                    "Impounded pets may be claimed by their owner within {$days} day" .
+                    ($days === 1 ? '' : 's') .
+                    " from the date of impoundment. After the {$days}-day grace period has passed, an unclaimed pet becomes eligible for adoption."
+                );
+            ?></textarea>
+            <p class="note" style="margin:6px 0 0;">
+                The policy text is generated automatically from the grace-period setting above.
+            </p>
         </div>
 
         <div class="action-row">
             <button class="btn btn-primary" type="submit">
-                Save Opening Hours
+                Save Policies & Operating Hours
             </button>
         </div>
     </form>
@@ -717,6 +717,28 @@ tbody tr:hover td{
         );
     }
 }
+
+
+    const claimGracePeriodDays = document.getElementById('claimGracePeriodDays');
+    const claimPolicyPreview = document.getElementById('claimPolicyPreview');
+
+    function updateClaimPolicyPreview() {
+        if (!claimGracePeriodDays || !claimPolicyPreview) return;
+
+        let days = parseInt(claimGracePeriodDays.value, 10);
+        if (!Number.isFinite(days) || days < 1) days = 1;
+        if (days > 365) days = 365;
+
+        const dayWord = days === 1 ? 'day' : 'days';
+        claimPolicyPreview.value =
+            `Impounded pets may be claimed by their owner within ${days} ${dayWord} from the date of impoundment. ` +
+            `After the ${days}-day grace period has passed, an unclaimed pet becomes eligible for adoption.`;
+    }
+
+    if (claimGracePeriodDays) {
+        claimGracePeriodDays.addEventListener('input', updateClaimPolicyPreview);
+        updateClaimPolicyPreview();
+    }
 
     document.getElementById('poundInfoForm').addEventListener('submit', function(e) {
         e.preventDefault();
