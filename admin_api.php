@@ -1,6 +1,7 @@
 <?php
 header('Content-Type: application/json');
 require_once __DIR__ . '/auth_helper.php';
+require_once __DIR__ . '/system_settings_helper.php';
 $returnPolicyHelper = __DIR__ . '/return_policy_helper.php';
 if (is_file($returnPolicyHelper)) {
     require_once $returnPolicyHelper;
@@ -816,6 +817,64 @@ if ($result === true) {
             }
 
             respondJSON(true, 'Settings saved successfully');
+            break;
+
+        // ================================================================
+        // PET POUND / OFFICE SETTINGS
+        // ================================================================
+
+        case 'update_pet_pound_settings':
+            require_permission($conn, 'manage_settings');
+
+            $petPoundName    = trim($_POST['pet_pound_name'] ?? '');
+            $petPoundContact = trim($_POST['pet_pound_contact'] ?? '');
+            $petPoundAddress = trim($_POST['pet_pound_address'] ?? '');
+            $petPoundNotes   = trim($_POST['pet_pound_notes'] ?? '');
+
+            if ($petPoundName === '') {
+                respondJSON(false, 'Pet Pound name is required');
+            }
+
+            save_system_setting($conn, 'pet_pound_name', $petPoundName);
+            save_system_setting($conn, 'pet_pound_contact', $petPoundContact);
+            save_system_setting($conn, 'pet_pound_address', $petPoundAddress);
+            save_system_setting($conn, 'pet_pound_notes', $petPoundNotes);
+
+            respondJSON(true, 'Pet Pound information saved successfully');
+            break;
+
+        case 'update_pet_pound_policy_settings':
+            require_permission($conn, 'manage_settings');
+
+            $operatingDays = trim($_POST['pet_pound_operating_days'] ?? '');
+            $openingTime   = trim($_POST['pet_pound_opening_time'] ?? '');
+            $closingTime   = trim($_POST['pet_pound_closing_time'] ?? '');
+            $graceDaysRaw  = trim((string)($_POST['claim_grace_period_days'] ?? '14'));
+
+            if ($graceDaysRaw === '' || filter_var($graceDaysRaw, FILTER_VALIDATE_INT) === false) {
+                respondJSON(false, 'Grace period must be a whole number of days');
+            }
+
+            $graceDays = (int)$graceDaysRaw;
+            if ($graceDays < 1 || $graceDays > 365) {
+                respondJSON(false, 'Grace period must be between 1 and 365 days');
+            }
+
+            // Validate HTML time input values when they are provided.
+            foreach (['Opening time' => $openingTime, 'Closing time' => $closingTime] as $label => $timeValue) {
+                if ($timeValue !== '' && !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $timeValue)) {
+                    respondJSON(false, $label . ' is invalid');
+                }
+            }
+
+            save_system_setting($conn, 'pet_pound_operating_days', $operatingDays);
+            save_system_setting($conn, 'pet_pound_opening_time', $openingTime);
+            save_system_setting($conn, 'pet_pound_closing_time', $closingTime);
+            save_system_setting($conn, 'claim_grace_period_days', (string)$graceDays);
+
+            respondJSON(true, 'Pet Pound policies and operating hours saved successfully', [
+                'claim_grace_period_days' => $graceDays
+            ]);
             break;
 
         // ================================================================

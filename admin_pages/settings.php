@@ -42,10 +42,10 @@ $settings = [
         'pet_pound_closing_time',
         '17:00'
     ),
-    'pet_pound_claim_policy' => get_system_setting(
+    'claim_grace_period_days' => get_system_setting(
         $conn,
-        'pet_pound_claim_policy',
-        'Impounded pets may be claimed by their owner within 14 days from the date of impoundment. After the claim period expires, the pet may become eligible for adoption subject to the Pet Pound\'s assessment.'
+        'claim_grace_period_days',
+        '14'
     )
 ];
 
@@ -185,7 +185,7 @@ $settings = [
             </div>
 
             <div class="card-sub">
-                Set the Pet Pound schedule and claim policy
+                Set the Pet Pound schedule and view the system claim policy
             </div>
         </div>
     </div>
@@ -238,23 +238,39 @@ $settings = [
         </div>
 
         <div class="form-group">
-            <label class="form-label">Claim / Impound Policy</label>
-            <textarea
-                name="pet_pound_claim_policy"
-                class="form-control"
-                style="min-height: 120px;"
-                placeholder="Enter the policy shown to staff or users..."
-            ><?php echo htmlspecialchars(
-                $settings['pet_pound_claim_policy'],
-                ENT_QUOTES,
-                'UTF-8'
-            ); ?></textarea>
+            <label class="form-label">Pet Claim Grace Period</label>
+            <div style="display:flex;align-items:center;gap:10px;max-width:280px;">
+                <input
+                    type="number"
+                    name="claim_grace_period_days"
+                    id="claimGracePeriodDays"
+                    class="form-control"
+                    min="1"
+                    max="365"
+                    step="1"
+                    value="<?php echo (int)$settings['claim_grace_period_days']; ?>"
+                    required
+                >
+                <span style="white-space:nowrap;color:var(--muted);">day(s)</span>
+            </div>
             <div style="font-size:.8rem;color:var(--muted);margin-top:6px;">
-                Suggested policy keeps the current 14-day claim period consistent with the Pet Pound workflow.
+                This value will be used for newly impounded pets. Existing claim deadlines will not be changed.
             </div>
         </div>
 
-
+        <div class="form-group">
+            <label class="form-label">Claim / Impound Policy</label>
+            <textarea
+                id="claimPolicyPreview"
+                class="form-control"
+                style="min-height:120px;background:var(--bg-light,#f8fafc);"
+                readonly
+                aria-readonly="true"
+            ><?php $days = max(1, (int)$settings['claim_grace_period_days']); echo htmlspecialchars("Impounded pets may be claimed by their owner within {$days} day" . ($days === 1 ? '' : 's') . " from the date of impoundment. After the {$days}-day grace period has passed, an unclaimed pet becomes eligible for adoption.", ENT_QUOTES, 'UTF-8'); ?></textarea>
+            <div style="font-size:.8rem;color:var(--muted);margin-top:6px;">
+                The policy text is generated automatically from the grace-period setting above.
+            </div>
+        </div>
 
         <div class="action-row" style="margin-top: 6px;">
             <button class="btn btn-primary" type="submit">
@@ -348,6 +364,27 @@ if (petPoundForm) {
             );
         }
     );
+}
+
+
+const claimGracePeriodDays = document.getElementById('claimGracePeriodDays');
+const claimPolicyPreview = document.getElementById('claimPolicyPreview');
+
+function updateClaimPolicyPreview() {
+    if (!claimGracePeriodDays || !claimPolicyPreview) return;
+
+    let days = parseInt(claimGracePeriodDays.value, 10);
+    if (!Number.isFinite(days) || days < 1) days = 1;
+
+    const dayWord = days === 1 ? 'day' : 'days';
+    claimPolicyPreview.value =
+        `Impounded pets may be claimed by their owner within ${days} ${dayWord} from the date of impoundment. ` +
+        `After the ${days}-day grace period has passed, an unclaimed pet becomes eligible for adoption.`;
+}
+
+if (claimGracePeriodDays) {
+    claimGracePeriodDays.addEventListener('input', updateClaimPolicyPreview);
+    updateClaimPolicyPreview();
 }
 
 

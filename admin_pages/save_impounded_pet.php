@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . "/../auth_helper.php";
 require_permission($conn, 'manage_pet_pound');
+require_once __DIR__ . '/../system_settings_helper.php';
 
 // Required text fields
 $pet_name       = trim($_POST['pet_name'] ?? '');
@@ -27,6 +28,19 @@ if (!is_numeric($penalty_amount) || $penalty_amount < 0) {
     exit;
 }
 
+// Read the current grace-period setting. New impoundments use this value.
+// Existing records keep their already-saved claim_deadline.
+$gracePeriodDays = (int)get_system_setting(
+    $conn,
+    'claim_grace_period_days',
+    '14'
+);
+
+// Safety fallback in case the database contains an invalid value.
+if ($gracePeriodDays < 1 || $gracePeriodDays > 365) {
+    $gracePeriodDays = 14;
+}
+
 // Handle photo upload (optional)
 $pet_photo = null;
 
@@ -41,17 +55,16 @@ if (!empty($_FILES['pet_photo']['name'])) {
     $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     $ext = strtolower(pathinfo($_FILES['pet_photo']['name'], PATHINFO_EXTENSION));
 
-    if (!in_array($ext, $allowed)) {
+    if (!in_array($ext, $allowed, true)) {
         echo "Invalid photo file type.";
         exit;
     }
 
     $fileName = uniqid('pet_', true) . '.' . $ext;
+    $destination = $uploadDir . $fileName;
 
-$destination = $uploadDir . $fileName;
-
-// Save the relative path in MySQL
-$pet_photo = 'pet_pound/' . $fileName;
+    // Save the relative path in MySQL
+    $pet_photo = 'pet_pound/' . $fileName;
 
     if (!move_uploaded_file($_FILES['pet_photo']['tmp_name'], $destination)) {
         echo "Failed to upload photo.";
@@ -59,12 +72,8 @@ $pet_photo = 'pet_pound/' . $fileName;
     }
 }
 
-// Impound timestamp is "now"; the owner then gets a fixed 14-DAY grace period to
-// claim the pet before it becomes eligible to post for adoption. This is a policy
-// constant, not something entered on the form. Computed with MySQL's own NOW() (not
-// PHP's date()/time()) so it's always consistent with the "claim_deadline < NOW()"
-// expiry check elsewhere — PHP's configured timezone doesn't necessarily match the
-// DB server's, which would otherwise skew the grace-period math by several hours.
+// The claim deadline is calculated from the current configurable grace period.
+// MySQL's NOW() is used so it stays consistent with the Pet Pound expiry check.
 $status = 'Pending';
 
 $stmt = $conn->prepare("
@@ -72,16 +81,22 @@ $stmt = $conn->prepare("
         (pet_name, pet_photo, owner_name, reason, penalty_amount,
          impound_date, claim_deadline, species, breed, age,
          gender, health_status, status)
-    VALUES (?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 14 DAY), ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL ? DAY), ?, ?, ?, ?, ?, ?)
 ");
 
+if (!$stmt) {
+    echo "Error preparing pet record: " . $conn->error;
+    exit;
+}
+
 $stmt->bind_param(
-    'ssssdssssss',
+    'ssssdissssss',
     $pet_name,
     $pet_photo,
     $owner_name,
     $reason,
     $penalty_amount,
+    $gracePeriodDays,
     $species,
     $breed,
     $age,
