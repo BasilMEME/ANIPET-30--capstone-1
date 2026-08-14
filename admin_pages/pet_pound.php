@@ -1,8 +1,15 @@
 <?php
 require_once __DIR__ . "/../auth_helper.php";
 require_permission($conn, 'manage_pet_pound');
+require_once __DIR__ . '/../system_settings_helper.php';
 
-// Lazy grace-period expiry: any pet still Pending once its 14-day claim_deadline has
+// Use the grace-period value configured in Settings.
+$claimGraceDays = (int) get_system_setting($conn, 'claim_grace_period_days', '14');
+if ($claimGraceDays < 1 || $claimGraceDays > 365) {
+    $claimGraceDays = 14;
+}
+
+// Lazy grace-period expiry: any pet still Pending once its stored claim_deadline has
 // passed flips to Expired, which is what makes it eligible to be posted for adoption
 // (see post_pet_for_adoption.php). There is no cron in this stack, so this check runs
 // on every page load instead.
@@ -368,7 +375,7 @@ ADD IMPOUNDED PET MODAL
 
                 <div class="form-group">
                     <p class="note" style="margin:0;color:var(--muted);font-size:.85rem;">
-                        The owner gets a fixed <strong>14-day</strong> grace period from now to claim this pet before it becomes eligible for adoption posting.
+                        The owner gets a <strong><?= $claimGraceDays ?>-day</strong> grace period from now to claim this pet before it becomes eligible for adoption posting.
                     </p>
                 </div>
 
@@ -806,8 +813,8 @@ async function openPet(id) {
 
         modalBody.innerHTML = html;
 
-        // Keep the grace-period/adoption notice hidden until the full 14 days
-        // have actually passed. view_pet.php may render the notice early, so
+        // Keep the grace-period/adoption notice hidden until the configured deadline
+        // has actually passed. view_pet.php may render the notice early, so
         // enforce the deadline again here using the dates shown in the modal.
         normalizePetGracePeriodDisplay(modalBody);
     } catch (error) {
@@ -836,7 +843,7 @@ function normalizePetGracePeriodDisplay(modalBody) {
         // Find any element containing the adoption-eligibility warning.
         modalBody.querySelectorAll("p, div, span").forEach(function (element) {
             const message = (element.textContent || "").trim();
-            if (/14-day grace period has expired|eligible to be posted for adoption/i.test(message)) {
+            if (/grace period has expired|eligible to be posted for adoption/i.test(message)) {
                 element.style.display = hasExpired ? "" : "none";
             }
         });
