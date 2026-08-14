@@ -384,7 +384,7 @@ ADD IMPOUNDED PET MODAL
 
                 <div class="form-group">
                     <label class="form-label">Age</label>
-                    <input type="text" name="age" class="form-control" required>
+                    <textarea name="age" class="form-control" rows="2" placeholder="Example: Approximately 2 years old" required></textarea>
                 </div>
 
                 <div class="form-group">
@@ -637,12 +637,13 @@ POST PET FOR ADOPTION MODAL
 
                 <div class="form-group">
                     <label class="form-label">Age</label>
-                    <input
-                        type="text"
+                    <textarea
                         id="adoptionAge"
                         name="age"
                         class="form-control"
-                        required>
+                        rows="2"
+                        placeholder="Example: Approximately 2 years old"
+                        required></textarea>
                 </div>
 
                 <div class="form-group">
@@ -1363,7 +1364,7 @@ function ensureAdoptionPostModal() {
 
                         <div class="form-group">
                             <label class="form-label">Age</label>
-                            <input type="text" id="adoptionAge" name="age" class="form-control" required>
+                            <textarea id="adoptionAge" name="age" class="form-control" rows="2" placeholder="Example: Approximately 2 years old" required></textarea>
                         </div>
 
                         <div class="form-group">
