@@ -233,6 +233,55 @@ for ($day=1; $day<=$calDays; $day++):
 </div>
 </div>
 
+<!-- ══ REJECTION REASON MODAL ════════════════════════════════════════ -->
+<div class="modal-backdrop" id="rejectAppointmentModal">
+<div class="modal">
+    <div class="modal-header">
+        <span class="modal-title">Reject Appointment</span>
+        <button class="modal-close" onclick="closeRejectAppointmentModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+        <input type="hidden" id="rejectAppointmentId">
+
+        <div class="form-group">
+            <label class="form-label">
+                Reason for Rejection <span style="color:var(--danger);">*</span>
+            </label>
+
+            <textarea
+                id="rejectAppointmentReason"
+                class="form-control"
+                rows="5"
+                maxlength="1000"
+                placeholder="Enter the reason why this appointment is being rejected..."
+                required
+            ></textarea>
+
+            <div
+                id="rejectAppointmentReasonError"
+                style="display:none;color:var(--danger);font-size:.8rem;margin-top:6px;"
+            >
+                Rejection reason is required.
+            </div>
+
+            <p style="font-size:.8rem;color:var(--muted);margin-top:8px;">
+                This reason will be visible to the user in the AniPet app.
+            </p>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeRejectAppointmentModal()">
+            Cancel
+        </button>
+        <button class="btn btn-danger" id="confirmRejectAppointmentBtn" onclick="submitAppointmentRejection()">
+            Reject Appointment
+        </button>
+    </div>
+</div>
+</div>
+
 <script>
 async function viewAppointment(id) {
     document.getElementById('viewAptBody').innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Loading…</p></div>';
@@ -267,7 +316,8 @@ async function viewAppointment(id) {
             <div class="info-item"><label>Status</label><span class="badge badge-${a.status}">${a.status}</span></div>
             <div class="info-item"><label>Requested</label><span>${new Date(a.created_at).toLocaleDateString()}</span></div>
         </div>
-        ${a.details ? `<div class="divider"></div><h4 style="font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Details</h4><p style="font-size:.875rem;line-height:1.6;">${escHtml(a.details)}</p>` : ''}
+        ${a.details ? `<div class="divider"></div><h4 style="font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Details</h4><p style="font-size:.875rem;line-height:1.6;white-space:pre-line;">${escHtml(a.details)}</p>` : ''}
+        ${a.rejection_reason ? `<div class="divider"></div><h4 style="font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;color:var(--danger);margin-bottom:8px;">Rejection Reason</h4><p style="font-size:.875rem;line-height:1.6;color:var(--danger);">${escHtml(a.rejection_reason)}</p>` : ''}
         `;
     } catch(err) {
         document.getElementById('viewAptBody').innerHTML = '<p style="color:var(--danger);">Failed to load details.</p>';
@@ -277,11 +327,110 @@ async function viewAppointment(id) {
 function escHtml(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
 
 async function updateAptStatus(id, status) {
-    if (!confirm('Mark appointment as '+status+'?')) return;
-    const res  = await fetch('admin_api.php', {method:'POST', body: new URLSearchParams({action:'update_appointment_status',id,status})});
-    const data = await res.json();
-    if (data.success) { showToast('Appointment '+status); location.reload(); }
-    else showToast(data.message,'error');
+    if (status === 'rejected') {
+        openRejectAppointmentModal(id);
+        return;
+    }
+
+    if (!confirm('Mark appointment as ' + status + '?')) {
+        return;
+    }
+
+    try {
+        const res = await fetch('admin_api.php', {
+            method: 'POST',
+            body: new URLSearchParams({
+                action: 'update_appointment_status',
+                id: String(id),
+                status: status
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            showToast('Appointment ' + status);
+            setTimeout(() => location.reload(), 400);
+        } else {
+            showToast(data.message || 'Unable to update appointment.', 'error');
+        }
+    } catch (error) {
+        console.error(error);
+        showToast('Unable to connect to the server.', 'error');
+    }
+}
+
+function openRejectAppointmentModal(id) {
+    document.getElementById('rejectAppointmentId').value = String(id);
+    document.getElementById('rejectAppointmentReason').value = '';
+    document.getElementById('rejectAppointmentReasonError').style.display = 'none';
+    openModal('rejectAppointmentModal');
+
+    setTimeout(() => {
+        document.getElementById('rejectAppointmentReason')?.focus();
+    }, 100);
+}
+
+function closeRejectAppointmentModal() {
+    document.getElementById('rejectAppointmentId').value = '';
+    document.getElementById('rejectAppointmentReason').value = '';
+    document.getElementById('rejectAppointmentReasonError').style.display = 'none';
+    closeModal('rejectAppointmentModal');
+}
+
+async function submitAppointmentRejection() {
+    const id = document.getElementById('rejectAppointmentId').value;
+    const reasonField = document.getElementById('rejectAppointmentReason');
+    const reason = reasonField.value.trim();
+    const errorText = document.getElementById('rejectAppointmentReasonError');
+    const button = document.getElementById('confirmRejectAppointmentBtn');
+
+    if (!reason) {
+        errorText.style.display = 'block';
+        reasonField.focus();
+        return;
+    }
+
+    errorText.style.display = 'none';
+    button.disabled = true;
+    button.textContent = 'Rejecting...';
+
+    try {
+        const res = await fetch('admin_api.php', {
+            method: 'POST',
+            body: new URLSearchParams({
+                action: 'update_appointment_status',
+                id: String(id),
+                status: 'rejected',
+                rejection_reason: reason
+            })
+        });
+
+        const text = await res.text();
+        let data;
+
+        try {
+            data = JSON.parse(text);
+        } catch (parseError) {
+            console.error('Appointment rejection response:', text);
+            showToast('The server returned an invalid response.', 'error');
+            return;
+        }
+
+        if (data.success) {
+            closeRejectAppointmentModal();
+            showToast('Appointment rejected. The reason was sent to the user.');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showToast(data.message || 'Unable to reject appointment.', 'error');
+        }
+    } catch (error) {
+        console.error(error);
+        showToast('Unable to connect to the server.', 'error');
+    } finally {
+        button.disabled = false;
+        button.textContent = 'Reject Appointment';
+    }
 }
 
 

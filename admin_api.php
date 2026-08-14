@@ -46,6 +46,9 @@ if (function_exists('columnExists')) {
     if (!columnExists($conn, 'appointments', 'deleted_by')) {
         $conn->query("ALTER TABLE appointments ADD COLUMN deleted_by INT DEFAULT NULL");
     }
+    if (!columnExists($conn, 'appointments', 'rejection_reason')) {
+        $conn->query("ALTER TABLE appointments ADD COLUMN rejection_reason TEXT DEFAULT NULL");
+    }
 }
 
 try {
@@ -358,118 +361,277 @@ try {
 case 'update_appointment_status':
     require_permission($conn, 'manage_appointments');
 
-    $id     = intval($_POST['id'] ?? 0);
+    $id = intval($_POST['id'] ?? 0);
     $status = trim($_POST['status'] ?? '');
+    $rejectionReason = trim($_POST['rejection_reason'] ?? '');
 
     if (!$id || !$status) {
         respondJSON(false, 'Missing ID or status');
     }
 
-    if (!in_array($status, ['pending', 'approved', 'rejected'])) {
+    if (!in_array($status, ['pending', 'approved', 'rejected'], true)) {
         respondJSON(false, 'Invalid status');
     }
 
-    $stmt = $conn->prepare("UPDATE appointments SET status=? WHERE id=? AND is_deleted = 0");
-    $stmt->bind_param("si", $status, $id);
+    if ($status === 'rejected' && $rejectionReason === '') {
+        respondJSON(false, 'A rejection reason is required.');
+    }
 
-    if ($stmt->execute()) {
+    if (mb_strlen($rejectionReason) > 1000) {
+        respondJSON(false, 'Rejection reason must be 1000 characters or fewer.');
+    }
 
-        // Only notify when appointment is approved
-        if ($status === 'approved') {
+    $get = $conn->prepare(
+        "SELECT
+            a.id,
+            a.title,
+            a.details,
+            a.scheduled_at,
+            a.application_id,
+            a.appointment_type,
+            u.id AS user_id,
+            u.full_name,
+            u.email,
+            p.name AS pet_name
+         FROM appointments a
+         LEFT JOIN users u ON a.user_id = u.id
+         LEFT JOIN pets p ON a.pet_id = p.id
+         WHERE a.id = ?
+           AND a.is_deleted = 0
+         LIMIT 1"
+    );
+    $get->bind_param('i', $id);
+    $get->execute();
+    $appointment = $get->get_result()->fetch_assoc();
+    $get->close();
 
-            $get = $conn->prepare("
-                SELECT
-                    a.scheduled_at,
-                    a.application_id,
-                    u.id AS user_id,
-                    u.full_name,
-                    u.email,
-                    p.name AS pet_name
-                FROM appointments a
-                LEFT JOIN users u ON a.user_id = u.id
-                LEFT JOIN pets p ON a.pet_id = p.id
-                WHERE a.id = ?
-                LIMIT 1
-            ");
+    if (!$appointment) {
+        respondJSON(false, 'Appointment not found.');
+    }
 
-            $get->bind_param("i", $id);
-            $get->execute();
-            $appointment = $get->get_result()->fetch_assoc();
-            $get->close();
+    $details = (string)($appointment['details'] ?? '');
 
-            if ($appointment) {
+    if ($status === 'rejected') {
+        // Keep the appointment visible in the Android app so the adopter
+        // can see that it was rejected and why. The reason is stored in its
+        // own column and is also appended to details for backwards-compatible
+        // Android builds that already display appointment.details.
+        $details = preg_replace(
+            '/\n*\[Appointment Rejection Reason\].*$/s',
+            '',
+            $details
+        );
+        $details = trim($details);
 
-                $schedule = date(
-                    "F d, Y \\a\\t h:i A",
-                    strtotime($appointment['scheduled_at'])
-                );
+        if ($details !== '') {
+            $details .= "\n\n";
+        }
 
-                $subject = "Interview Schedule Confirmed";
+        $details .= "[Appointment Rejection Reason]\n" . $rejectionReason;
 
-                // Plain text notification (saved to database)
-                $notificationMessage =
-                    "Good day {$appointment['full_name']},\n\n" .
-                    "Your adoption interview for {$appointment['pet_name']} has been confirmed.\n\n" .
-                    "Interview Schedule:\n" .
-                    $schedule .
-                    "\n\nPlease arrive at least 15 minutes before your scheduled interview.\n\n" .
-                    "Thank you,\nAniPet Adoption Team";
+        $stmt = $conn->prepare(
+            "UPDATE appointments
+             SET status = 'rejected',
+                 rejection_reason = ?,
+                 details = ?
+             WHERE id = ?
+               AND is_deleted = 0"
+        );
+        $stmt->bind_param('ssi', $rejectionReason, $details, $id);
+    } else {
+        // Approving or returning to pending clears an old rejection reason.
+        $details = preg_replace(
+            '/\n*\[Appointment Rejection Reason\].*$/s',
+            '',
+            $details
+        );
+        $details = trim($details);
 
-                // Save notification
-                $notif = $conn->prepare("
-                    INSERT INTO user_notifications
-                    (user_id, title, message, type, is_read, created_at)
-                    VALUES (?, ?, ?, 'appointment', 0, NOW())
-                ");
+        $stmt = $conn->prepare(
+            "UPDATE appointments
+             SET status = ?,
+                 rejection_reason = NULL,
+                 details = ?
+             WHERE id = ?
+               AND is_deleted = 0"
+        );
+        $stmt->bind_param('ssi', $status, $details, $id);
+    }
 
+    if (!$stmt->execute()) {
+        respondJSON(
+            false,
+            $stmt->error ?: 'Unable to update appointment'
+        );
+    }
+
+    $stmt->close();
+
+    if ($status === 'approved') {
+        $schedule = $appointment['scheduled_at']
+            ? date(
+                "F d, Y \\a\\t h:i A",
+                strtotime($appointment['scheduled_at'])
+            )
+            : 'Not set';
+
+        $subject = "Interview Schedule Confirmed";
+
+        $notificationMessage =
+            "Good day {$appointment['full_name']},\n\n" .
+            "Your appointment" .
+            (!empty($appointment['pet_name'])
+                ? " for {$appointment['pet_name']}"
+                : "") .
+            " has been approved.\n\n" .
+            "Schedule:\n{$schedule}\n\n" .
+            "Thank you,\nAniPet Adoption Team";
+
+        if (!empty($appointment['user_id'])) {
+            $notif = $conn->prepare(
+                "INSERT INTO user_notifications
+                (user_id, title, message, type, is_read, created_at)
+                VALUES (?, ?, ?, 'appointment', 0, NOW())"
+            );
+
+            if ($notif) {
                 $notif->bind_param(
-                    "iss",
+                    'iss',
                     $appointment['user_id'],
                     $subject,
                     $notificationMessage
                 );
-
                 $notif->execute();
                 $notif->close();
-
-                // HTML Email
-                $emailBody = "
-                    <h2>Interview Schedule Confirmed</h2>
-
-                    <p>Good day <strong>{$appointment['full_name']}</strong>,</p>
-
-                    <p>Your adoption interview for <strong>{$appointment['pet_name']}</strong> has been confirmed.</p>
-
-                    <p>
-                        <strong>Interview Schedule:</strong><br>
-                        {$schedule}
-                    </p>
-
-                    <p>Please arrive at least <strong>15 minutes before</strong> your scheduled interview.</p>
-
-                    <p>
-                        Thank you,<br>
-                        <strong>AniPet Adoption Team</strong>
-                    </p>
-                ";
-
-                require_once __DIR__ . '/admin_pages/send_email.php';
-
-                if (function_exists('sendEmail')) {
-                    sendEmail(
-                        $appointment['email'],
-                        $subject,
-                        $emailBody,
-                        true
-                    );
-                }
             }
         }
 
-        respondJSON(true, 'Appointment updated');
+        require_once __DIR__ . '/admin_pages/send_email.php';
+
+        if (
+            !empty($appointment['email']) &&
+            function_exists('sendEmail')
+        ) {
+            $safeName = htmlspecialchars(
+                (string)$appointment['full_name'],
+                ENT_QUOTES,
+                'UTF-8'
+            );
+            $safeSchedule = htmlspecialchars(
+                $schedule,
+                ENT_QUOTES,
+                'UTF-8'
+            );
+            $safePet = htmlspecialchars(
+                (string)($appointment['pet_name'] ?? ''),
+                ENT_QUOTES,
+                'UTF-8'
+            );
+
+            $emailBody =
+                "<h2>Appointment Approved</h2>" .
+                "<p>Good day <strong>{$safeName}</strong>,</p>" .
+                "<p>Your appointment" .
+                ($safePet !== ''
+                    ? " for <strong>{$safePet}</strong>"
+                    : "") .
+                " has been approved.</p>" .
+                "<p><strong>Schedule:</strong><br>{$safeSchedule}</p>" .
+                "<p>Thank you,<br><strong>AniPet Adoption Team</strong></p>";
+
+            sendEmail(
+                $appointment['email'],
+                $subject,
+                $emailBody,
+                true
+            );
+        }
     }
 
-    respondJSON(false, $conn->error);
+    if ($status === 'rejected') {
+        $subject = "Appointment Rejected";
+
+        $notificationMessage =
+            "Good day {$appointment['full_name']},\n\n" .
+            "Your appointment" .
+            (!empty($appointment['pet_name'])
+                ? " for {$appointment['pet_name']}"
+                : "") .
+            " has been rejected.\n\n" .
+            "Reason:\n{$rejectionReason}\n\n" .
+            "You may review this reason in the Appointments section of the AniPet app.\n\n" .
+            "Thank you,\nAniPet Adoption Team";
+
+        if (!empty($appointment['user_id'])) {
+            $notif = $conn->prepare(
+                "INSERT INTO user_notifications
+                (user_id, title, message, type, is_read, created_at)
+                VALUES (?, ?, ?, 'appointment', 0, NOW())"
+            );
+
+            if ($notif) {
+                $notif->bind_param(
+                    'iss',
+                    $appointment['user_id'],
+                    $subject,
+                    $notificationMessage
+                );
+                $notif->execute();
+                $notif->close();
+            }
+        }
+
+        require_once __DIR__ . '/admin_pages/send_email.php';
+
+        if (
+            !empty($appointment['email']) &&
+            function_exists('sendEmail')
+        ) {
+            $safeName = htmlspecialchars(
+                (string)$appointment['full_name'],
+                ENT_QUOTES,
+                'UTF-8'
+            );
+            $safeReason = nl2br(
+                htmlspecialchars(
+                    $rejectionReason,
+                    ENT_QUOTES,
+                    'UTF-8'
+                )
+            );
+            $safePet = htmlspecialchars(
+                (string)($appointment['pet_name'] ?? ''),
+                ENT_QUOTES,
+                'UTF-8'
+            );
+
+            $emailBody =
+                "<h2>Appointment Rejected</h2>" .
+                "<p>Good day <strong>{$safeName}</strong>,</p>" .
+                "<p>Your appointment" .
+                ($safePet !== ''
+                    ? " for <strong>{$safePet}</strong>"
+                    : "") .
+                " has been rejected.</p>" .
+                "<p><strong>Reason:</strong><br>{$safeReason}</p>" .
+                "<p>You can also review this reason in the AniPet app.</p>" .
+                "<p>Thank you,<br><strong>AniPet Adoption Team</strong></p>";
+
+            sendEmail(
+                $appointment['email'],
+                $subject,
+                $emailBody,
+                true
+            );
+        }
+    }
+
+    respondJSON(
+        true,
+        $status === 'rejected'
+            ? 'Appointment rejected and reason sent to the user.'
+            : 'Appointment updated'
+    );
     break;
 
         case 'reschedule_appointment':
