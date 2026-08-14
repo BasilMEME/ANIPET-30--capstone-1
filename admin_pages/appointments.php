@@ -8,7 +8,7 @@ if (!in_array($filter, $validStatuses)) $filter = '';
 
 // Counts per status
 $counts = ['all'=>0,'pending'=>0,'approved'=>0,'rejected'=>0];
-$r = $conn->query("SELECT status, COUNT(*) as cnt FROM appointments GROUP BY status");
+$r = $conn->query("SELECT status, COUNT(*) as cnt FROM appointments WHERE is_deleted = 0 GROUP BY status");
 if ($r) while ($row = $r->fetch_assoc()) {
     if (isset($counts[$row['status']])) $counts[$row['status']] = (int)$row['cnt'];
     $counts['all'] += (int)$row['cnt'];
@@ -21,7 +21,7 @@ $sql = "SELECT a.id, a.title, a.details, a.scheduled_at, a.status, a.created_at,
         FROM appointments a
         LEFT JOIN pets p ON a.pet_id = p.id
         LEFT JOIN users u ON a.user_id = u.id
-        WHERE 1=1";
+        WHERE a.is_deleted = 0";
 if ($filter) $sql .= " AND a.status='" . $conn->real_escape_string($filter) . "'";
 $sql .= " ORDER BY a.scheduled_at DESC";
 
@@ -57,7 +57,8 @@ $calFirst = (int) date(
 $calEvents = [];
 $r2 = $conn->query(
     "SELECT id, title, scheduled_at, status FROM appointments
-     WHERE YEAR(scheduled_at)=".intval($calYear)." AND MONTH(scheduled_at)=".intval($calMonth)
+     WHERE is_deleted = 0
+       AND YEAR(scheduled_at)=".intval($calYear)." AND MONTH(scheduled_at)=".intval($calMonth)
 );
 if ($r2) while ($row = $r2->fetch_assoc()) {
     $d = (int)date('j', strtotime($row['scheduled_at']));
@@ -286,9 +287,8 @@ async function updateAptStatus(id, status) {
 
 async function deleteAppointment(id) {
     const confirmed = confirm(
-        'Delete this appointment permanently?\n\n' +
-        'This will remove it from the appointment list. ' +
-        'The related adoption application will NOT be deleted.'
+        'Move this appointment to Deleted Records?\n\n' +
+        'It will disappear from the active appointment list but can be restored by a Super Admin.'
     );
 
     if (!confirmed) return;
@@ -314,7 +314,7 @@ async function deleteAppointment(id) {
         }
 
         if (data.success) {
-            showToast('Appointment deleted.');
+            showToast('Appointment moved to Deleted Records.');
             setTimeout(() => location.reload(), 500);
         } else {
             showToast(data.message || 'Unable to delete appointment.', 'error');

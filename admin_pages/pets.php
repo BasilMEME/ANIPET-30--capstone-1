@@ -10,7 +10,7 @@ $showArchived  = isset($_GET['archived']) && $_GET['archived'] === '1';
 $validStatuses = ['available','reserved','in_adoption','adopted','under_treatment'];
 if (!in_array($filterStatus, $validStatuses)) $filterStatus = '';
 
-$sql = "SELECT id, name, IFNULL(species,'') as species, breed, age, gender, status, health_status, image, is_archived, created_at FROM pets WHERE is_archived = ?";
+$sql = "SELECT id, name, IFNULL(species,'') as species, breed, age, gender, status, health_status, image, is_archived, created_at FROM pets WHERE is_archived = ? AND is_deleted = 0";
 $params = [$showArchived ? 1 : 0];
 $types  = 'i';
 if ($filterStatus)  { $sql .= " AND status=?";  $params[] = $filterStatus;  $types .= 's'; }
@@ -30,14 +30,14 @@ if ($result) while ($row = $result->fetch_assoc()) $pets[] = $row;
 
 // Count by status (scoped to the same archived/active bucket currently being viewed)
 $statusCounts = [];
-$countStmt = $conn->prepare("SELECT status, COUNT(*) as cnt FROM pets WHERE is_archived = ? GROUP BY status");
+$countStmt = $conn->prepare("SELECT status, COUNT(*) as cnt FROM pets WHERE is_archived = ? AND is_deleted = 0 GROUP BY status");
 $archivedFlag = $showArchived ? 1 : 0;
 $countStmt->bind_param('i', $archivedFlag);
 $countStmt->execute();
 $r = $countStmt->get_result();
 if ($r) while ($row = $r->fetch_assoc()) $statusCounts[$row['status']] = $row['cnt'];
 $totalCount = array_sum($statusCounts);
-$archivedTotal = (int)($conn->query("SELECT COUNT(*) FROM pets WHERE is_archived = 1")->fetch_row()[0] ?? 0);
+$archivedTotal = (int)($conn->query("SELECT COUNT(*) FROM pets WHERE is_archived = 1 AND is_deleted = 0")->fetch_row()[0] ?? 0);
 ?>
 
 <!-- ══ HEADER ══════════════════════════════════════════════════════════ -->
@@ -448,10 +448,10 @@ async function submitEditPet() {
 }
 
 async function deletePet(id, name) {
-    if (!confirm('Delete "' + name + '"? This cannot be undone.')) return;
+    if (!confirm('Move "' + name + '" to Deleted Records?\n\nThe pet can be restored by a Super Admin.')) return;
     const res  = await fetch('admin_api.php', {method:'POST', body: new URLSearchParams({action:'delete_pet',id})});
     const data = await res.json();
-    if (data.success) { showToast('Pet deleted'); location.reload(); }
+    if (data.success) { showToast('Pet moved to Deleted Records'); location.reload(); }
     else showToast(data.message,'error');
 }
 

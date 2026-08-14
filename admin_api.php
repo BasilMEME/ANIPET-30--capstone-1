@@ -25,6 +25,29 @@ if (!in_array(current_user_role(), ['admin', 'super_admin'])) {
 // Note: pets/notifications auto-migrations now live in db_connect.php so every
 // entry point self-heals consistently (not just requests that hit this file first).
 
+// Soft-delete metadata used by Admin delete actions and Super Admin Deleted Records.
+if (function_exists('columnExists')) {
+    if (!columnExists($conn, 'pets', 'is_deleted')) {
+        $conn->query("ALTER TABLE pets ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0 AFTER is_archived");
+    }
+    if (!columnExists($conn, 'pets', 'deleted_at')) {
+        $conn->query("ALTER TABLE pets ADD COLUMN deleted_at DATETIME DEFAULT NULL AFTER is_deleted");
+    }
+    if (!columnExists($conn, 'pets', 'deleted_by')) {
+        $conn->query("ALTER TABLE pets ADD COLUMN deleted_by INT DEFAULT NULL AFTER deleted_at");
+    }
+
+    if (!columnExists($conn, 'appointments', 'is_deleted')) {
+        $conn->query("ALTER TABLE appointments ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0");
+    }
+    if (!columnExists($conn, 'appointments', 'deleted_at')) {
+        $conn->query("ALTER TABLE appointments ADD COLUMN deleted_at DATETIME DEFAULT NULL");
+    }
+    if (!columnExists($conn, 'appointments', 'deleted_by')) {
+        $conn->query("ALTER TABLE appointments ADD COLUMN deleted_by INT DEFAULT NULL");
+    }
+}
+
 try {
     switch ($action) {
 
@@ -93,7 +116,7 @@ try {
             $id = intval($_GET['id'] ?? 0);
             if (!$id) respondJSON(false, 'Missing pet ID');
 
-            $stmt = $conn->prepare("SELECT * FROM pets WHERE id = ? LIMIT 1");
+            $stmt = $conn->prepare("SELECT * FROM pets WHERE id = ? AND is_deleted = 0 LIMIT 1");
             $stmt->bind_param('i', $id);
             $stmt->execute();
             $pet = $stmt->get_result()->fetch_assoc();
@@ -179,15 +202,36 @@ try {
 
         case 'delete_pet':
             require_permission($conn, 'manage_pets');
-            $id = intval($_POST['id'] ?? 0);
-            if (!$id) respondJSON(false, 'Missing pet ID');
 
-            $stmt = $conn->prepare("DELETE FROM pets WHERE id = ?");
-            $stmt->bind_param('i', $id);
-            if ($stmt->execute()) {
-                respondJSON(true, 'Pet deleted');
+            $id = intval($_POST['id'] ?? 0);
+            $actorId = (int)(current_user_id() ?? 0);
+
+            if (!$id) {
+                respondJSON(false, 'Missing pet ID');
             }
-            respondJSON(false, $conn->error);
+
+            $stmt = $conn->prepare(
+                "UPDATE pets
+                 SET is_deleted = 1,
+                     is_archived = 1,
+                     deleted_at = NOW(),
+                     deleted_by = ?
+                 WHERE id = ?
+                   AND is_deleted = 0"
+            );
+            $stmt->bind_param('ii', $actorId, $id);
+
+            if ($stmt->execute() && $stmt->affected_rows === 1) {
+                respondJSON(
+                    true,
+                    'Pet moved to Deleted Records. It was not permanently removed.'
+                );
+            }
+
+            respondJSON(
+                false,
+                'Pet could not be deleted or is already in Deleted Records.'
+            );
             break;
 
         case 'archive_pet':
@@ -197,7 +241,7 @@ try {
             if (!$id) respondJSON(false, 'Missing pet ID');
 
             $archivedFlag = $action === 'archive_pet' ? 1 : 0;
-            $stmt = $conn->prepare("UPDATE pets SET is_archived = ? WHERE id = ?");
+            $stmt = $conn->prepare("UPDATE pets SET is_archived = ? WHERE id = ? AND is_deleted = 0");
             $stmt->bind_param('ii', $archivedFlag, $id);
             if ($stmt->execute()) {
                 respondJSON(true, $action === 'archive_pet' ? 'Pet archived' : 'Pet unarchived');
@@ -261,14 +305,20 @@ try {
                 !empty($result['success']) &&
                 in_array($status, ['approved', 'completed', 'rejected'], true)
             ) {
-                $deleteAppointment = $conn->prepare("
-                    DELETE FROM appointments
-                    WHERE application_id = ?
-                      AND appointment_type = 'interview'
-                ");
+                $actorId = (int)(current_user_id() ?? 0);
+
+                $deleteAppointment = $conn->prepare(
+                    "UPDATE appointments
+                     SET is_deleted = 1,
+                         deleted_at = NOW(),
+                         deleted_by = ?
+                     WHERE application_id = ?
+                       AND appointment_type = 'interview'
+                       AND is_deleted = 0"
+                );
 
                 if ($deleteAppointment) {
-                    $deleteAppointment->bind_param('i', $id);
+                    $deleteAppointment->bind_param('ii', $actorId, $id);
                     $deleteAppointment->execute();
                     $deleteAppointment->close();
                 }
@@ -296,7 +346,7 @@ try {
                  FROM appointments a
                  LEFT JOIN pets  p ON a.pet_id  = p.id
                  LEFT JOIN users u ON a.user_id = u.id
-                 WHERE a.id = ? LIMIT 1"
+                 WHERE a.id = ? AND a.is_deleted = 0 LIMIT 1"
             );
             $stmt->bind_param('i', $id);
             $stmt->execute();
@@ -319,7 +369,7 @@ case 'update_appointment_status':
         respondJSON(false, 'Invalid status');
     }
 
-    $stmt = $conn->prepare("UPDATE appointments SET status=? WHERE id=?");
+    $stmt = $conn->prepare("UPDATE appointments SET status=? WHERE id=? AND is_deleted = 0");
     $stmt->bind_param("si", $status, $id);
 
     if ($stmt->execute()) {
@@ -428,7 +478,7 @@ case 'update_appointment_status':
             $scheduled_at = trim($_POST['scheduled_at']   ?? '');
             if (!$id || !$scheduled_at) respondJSON(false, 'Missing ID or date');
 
-            $stmt = $conn->prepare("UPDATE appointments SET scheduled_at=?, status='pending' WHERE id=?");
+            $stmt = $conn->prepare("UPDATE appointments SET scheduled_at=?, status='pending' WHERE id=? AND is_deleted = 0");
             $stmt->bind_param('si', $scheduled_at, $id);
             if ($stmt->execute()) {
                 // If this appointment is a linked adoption interview, mirror the new
@@ -455,50 +505,63 @@ case 'update_appointment_status':
             require_permission($conn, 'manage_appointments');
 
             $id = intval($_POST['id'] ?? 0);
+            $actorId = (int)(current_user_id() ?? 0);
 
             if (!$id) {
                 respondJSON(false, 'Missing appointment ID');
             }
 
-            // Read the linked application before deleting so an adoption interview
-            // does not leave a stale interview date behind.
-            $lookup = $conn->prepare("
-                SELECT application_id, appointment_type
-                FROM appointments
-                WHERE id = ?
-                LIMIT 1
-            ");
+            // Read the linked application before soft-deleting so an adoption
+            // interview does not leave a stale interview date behind.
+            $lookup = $conn->prepare(
+                "SELECT application_id, appointment_type
+                 FROM appointments
+                 WHERE id = ?
+                   AND is_deleted = 0
+                 LIMIT 1"
+            );
             $lookup->bind_param('i', $id);
             $lookup->execute();
             $appointment = $lookup->get_result()->fetch_assoc();
             $lookup->close();
 
             if (!$appointment) {
-                respondJSON(false, 'Appointment not found');
+                respondJSON(false, 'Appointment not found or already deleted');
             }
 
-            $stmt = $conn->prepare("DELETE FROM appointments WHERE id = ?");
-            $stmt->bind_param('i', $id);
+            $stmt = $conn->prepare(
+                "UPDATE appointments
+                 SET is_deleted = 1,
+                     deleted_at = NOW(),
+                     deleted_by = ?
+                 WHERE id = ?
+                   AND is_deleted = 0"
+            );
+            $stmt->bind_param('ii', $actorId, $id);
 
-            if (!$stmt->execute()) {
-                respondJSON(false, $stmt->error ?: 'Unable to delete appointment');
+            if (!$stmt->execute() || $stmt->affected_rows !== 1) {
+                respondJSON(
+                    false,
+                    $stmt->error ?: 'Unable to move appointment to Deleted Records'
+                );
             }
 
             $stmt->close();
 
-            // If this was an adoption interview, clear the appointment date only.
-            // The adoption application itself remains intact.
+            // If this was an adoption interview, clear the visible schedule
+            // from the application. The appointment row itself is preserved
+            // in Deleted Records and can be restored later.
             if (
                 ($appointment['appointment_type'] ?? '') === 'interview' &&
                 !empty($appointment['application_id'])
             ) {
                 $applicationId = (int)$appointment['application_id'];
 
-                $clear = $conn->prepare("
-                    UPDATE adoption_applications
-                    SET interview_datetime = NULL
-                    WHERE id = ?
-                ");
+                $clear = $conn->prepare(
+                    "UPDATE adoption_applications
+                     SET interview_datetime = NULL
+                     WHERE id = ?"
+                );
 
                 if ($clear) {
                     $clear->bind_param('i', $applicationId);
@@ -507,7 +570,10 @@ case 'update_appointment_status':
                 }
             }
 
-            respondJSON(true, 'Appointment deleted successfully');
+            respondJSON(
+                true,
+                'Appointment moved to Deleted Records. It was not permanently removed.'
+            );
             break;
 
         // ================================================================
@@ -981,7 +1047,7 @@ if ($result === true) {
                         FROM appointments a
                         LEFT JOIN users u ON a.user_id = u.id
                         LEFT JOIN pets  p ON a.pet_id  = p.id
-                        WHERE 1=1 {$dateClauseApt}
+                        WHERE a.is_deleted = 0 {$dateClauseApt}
                         ORDER BY a.scheduled_at DESC LIMIT 200";
 
                 if ($dateParams) {
@@ -1014,7 +1080,7 @@ if ($result === true) {
 
                 $sql = "SELECT id, name, species, breed, age, gender, status, health_status,
                                DATE_FORMAT(created_at,'%Y-%m-%d') as created_at
-                        FROM pets WHERE 1=1 {$statusClause}
+                        FROM pets WHERE is_deleted = 0 {$statusClause}
                         ORDER BY created_at DESC LIMIT 200";
 
                 if ($statusParams) {
@@ -1084,14 +1150,14 @@ if ($result === true) {
             // Appointment status
             $aptStatus = [];
             $result = $conn->query(
-                "SELECT status, COUNT(*) as cnt FROM appointments GROUP BY status"
+                "SELECT status, COUNT(*) as cnt FROM appointments WHERE is_deleted = 0 GROUP BY status"
             );
             if ($result) while ($row = $result->fetch_assoc()) $aptStatus[] = $row;
 
             // Pet status
             $petStatus = [];
             $result = $conn->query(
-                "SELECT status, COUNT(*) as cnt FROM pets GROUP BY status"
+                "SELECT status, COUNT(*) as cnt FROM pets WHERE is_deleted = 0 GROUP BY status"
             );
             if ($result) while ($row = $result->fetch_assoc()) $petStatus[] = $row;
 

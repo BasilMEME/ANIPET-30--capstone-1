@@ -38,6 +38,16 @@ if (function_exists('columnExists')) {
     if (!columnExists($conn, 'pets', 'deleted_by')) {
         $conn->query("ALTER TABLE pets ADD COLUMN deleted_by INT DEFAULT NULL AFTER deleted_at");
     }
+
+    if (!columnExists($conn, 'appointments', 'is_deleted')) {
+        $conn->query("ALTER TABLE appointments ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0");
+    }
+    if (!columnExists($conn, 'appointments', 'deleted_at')) {
+        $conn->query("ALTER TABLE appointments ADD COLUMN deleted_at DATETIME DEFAULT NULL");
+    }
+    if (!columnExists($conn, 'appointments', 'deleted_by')) {
+        $conn->query("ALTER TABLE appointments ADD COLUMN deleted_by INT DEFAULT NULL");
+    }
 }
 if (empty($actor_id)) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
@@ -959,6 +969,7 @@ function authorize_action($conn, $action) {
         case 'get_applications':
         case 'override_application':
         case 'reopen_application':
+        case 'restore_appointment':
             require_api_permission($conn, 'manage_applications');
             break;
 
@@ -970,6 +981,84 @@ function authorize_action($conn, $action) {
         case 'get_sessions':
         case 'terminate_session':
             require_api_permission($conn, 'terminate_sessions');
+            break;
+
+        case 'restore_appointment':
+            $id = intval($_POST['id'] ?? 0);
+
+            if (!$id) {
+                respond(['success' => false, 'message' => 'Missing appointment id']);
+            }
+
+            $lookup = $conn->prepare(
+                "SELECT application_id, appointment_type, scheduled_at
+                 FROM appointments
+                 WHERE id = ?
+                   AND is_deleted = 1
+                 LIMIT 1"
+            );
+            $lookup->bind_param('i', $id);
+            $lookup->execute();
+            $appointment = $lookup->get_result()->fetch_assoc();
+            $lookup->close();
+
+            if (!$appointment) {
+                respond([
+                    'success' => false,
+                    'message' => 'Appointment could not be restored or is already active.'
+                ]);
+            }
+
+            $stmt = $conn->prepare(
+                "UPDATE appointments
+                 SET is_deleted = 0,
+                     deleted_at = NULL,
+                     deleted_by = NULL
+                 WHERE id = ?
+                   AND is_deleted = 1"
+            );
+            $stmt->bind_param('i', $id);
+
+            if ($stmt->execute() && $stmt->affected_rows === 1) {
+                if (
+                    ($appointment['appointment_type'] ?? '') === 'interview' &&
+                    !empty($appointment['application_id'])
+                ) {
+                    $applicationId = (int)$appointment['application_id'];
+                    $scheduledAt = $appointment['scheduled_at'];
+
+                    $sync = $conn->prepare(
+                        "UPDATE adoption_applications
+                         SET interview_datetime = ?
+                         WHERE id = ?"
+                    );
+
+                    if ($sync) {
+                        $sync->bind_param('si', $scheduledAt, $applicationId);
+                        $sync->execute();
+                        $sync->close();
+                    }
+                }
+
+                logAudit(
+                    $conn,
+                    $actor_id,
+                    'restore_appointment',
+                    'appointment',
+                    $id,
+                    'Restored appointment from Deleted Records'
+                );
+
+                respond([
+                    'success' => true,
+                    'message' => 'Appointment restored successfully.'
+                ]);
+            }
+
+            respond([
+                'success' => false,
+                'message' => 'Appointment restore failed.'
+            ]);
             break;
 
         case 'get_shelters':

@@ -18,6 +18,16 @@ if (function_exists('columnExists')) {
     if (!columnExists($conn, 'pets', 'deleted_by')) {
         $conn->query("ALTER TABLE pets ADD COLUMN deleted_by INT DEFAULT NULL AFTER deleted_at");
     }
+
+    if (!columnExists($conn, 'appointments', 'is_deleted')) {
+        $conn->query("ALTER TABLE appointments ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0");
+    }
+    if (!columnExists($conn, 'appointments', 'deleted_at')) {
+        $conn->query("ALTER TABLE appointments ADD COLUMN deleted_at DATETIME DEFAULT NULL");
+    }
+    if (!columnExists($conn, 'appointments', 'deleted_by')) {
+        $conn->query("ALTER TABLE appointments ADD COLUMN deleted_by INT DEFAULT NULL");
+    }
 }
 
 function deletedRows(mysqli $conn, string $sql): array
@@ -87,6 +97,28 @@ $deletedPets = deletedRows(
      LEFT JOIN users d ON d.id = p.deleted_by
      WHERE p.is_deleted = 1
      ORDER BY p.deleted_at DESC, p.id DESC"
+);
+
+$deletedAppointments = deletedRows(
+    $conn,
+    "SELECT
+        a.id,
+        a.title,
+        a.scheduled_at,
+        a.status,
+        a.appointment_type,
+        a.application_id,
+        a.deleted_at,
+        u.full_name AS client_name,
+        p.name AS pet_name,
+        d.full_name AS deleted_by_name,
+        d.username AS deleted_by_username
+     FROM appointments a
+     LEFT JOIN users u ON u.id = a.user_id
+     LEFT JOIN pets p ON p.id = a.pet_id
+     LEFT JOIN users d ON d.id = a.deleted_by
+     WHERE a.is_deleted = 1
+     ORDER BY a.deleted_at DESC, a.id DESC"
 );
 
 function deletedByLabel(array $row): string
@@ -177,7 +209,7 @@ function deletedDateLabel(?string $value): string
 
         .stats{
             display:grid;
-            grid-template-columns:repeat(3,minmax(0,1fr));
+            grid-template-columns:repeat(4,minmax(0,1fr));
             gap:14px;
             margin-bottom:16px;
         }
@@ -335,12 +367,14 @@ function deletedDateLabel(?string $value): string
         <div class="stat"><strong><?php echo count($deletedAdmins); ?></strong><span>Deleted Admins</span></div>
         <div class="stat"><strong><?php echo count($deletedUsers); ?></strong><span>Deleted Users</span></div>
         <div class="stat"><strong><?php echo count($deletedPets); ?></strong><span>Deleted Pets</span></div>
+        <div class="stat"><strong><?php echo count($deletedAppointments); ?></strong><span>Deleted Appointments</span></div>
     </div>
 
     <nav class="quick-nav">
         <a href="#deleted-admins">Admins</a>
         <a href="#deleted-users">Users</a>
         <a href="#deleted-pets">Pets</a>
+        <a href="#deleted-appointments">Appointments</a>
     </nav>
 
     <section class="section" id="deleted-admins">
@@ -446,6 +480,44 @@ function deletedDateLabel(?string $value): string
                                 <td><?php echo htmlspecialchars(deletedDateLabel($row['deleted_at'])); ?></td>
                                 <td><?php echo htmlspecialchars(deletedByLabel($row)); ?></td>
                                 <td><button class="btn btn-primary" onclick="restoreRecord('restore_pet', <?php echo (int) $row['id']; ?>, 'pet')">Restore</button></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+    <section class="section" id="deleted-appointments">
+        <div class="card">
+            <div class="section-title">
+                <h2>Deleted Appointments</h2>
+                <span class="count"><?php echo count($deletedAppointments); ?></span>
+            </div>
+            <div class="search-row">
+                <input id="appointmentSearch" type="search" placeholder="Search deleted appointments..." oninput="filterRows('appointmentSearch','deletedAppointmentsTable')">
+            </div>
+            <div class="table-wrap">
+                <table id="deletedAppointmentsTable">
+                    <thead>
+                    <tr><th>ID</th><th>Title</th><th>Client</th><th>Pet</th><th>Scheduled</th><th>Status</th><th>Type</th><th>Deleted At</th><th>Deleted By</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>
+                    <?php if (!$deletedAppointments): ?>
+                        <tr><td class="empty" colspan="10">No deleted appointments.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($deletedAppointments as $row): ?>
+                            <tr>
+                                <td><?php echo (int) $row['id']; ?></td>
+                                <td><?php echo htmlspecialchars((string) $row['title']); ?></td>
+                                <td><?php echo htmlspecialchars((string) ($row['client_name'] ?? '—')); ?></td>
+                                <td><?php echo htmlspecialchars((string) ($row['pet_name'] ?? '—')); ?></td>
+                                <td><?php echo htmlspecialchars((string) ($row['scheduled_at'] ?? '—')); ?></td>
+                                <td><?php echo htmlspecialchars((string) $row['status']); ?></td>
+                                <td><?php echo htmlspecialchars((string) $row['appointment_type']); ?></td>
+                                <td><?php echo htmlspecialchars(deletedDateLabel($row['deleted_at'])); ?></td>
+                                <td><?php echo htmlspecialchars(deletedByLabel($row)); ?></td>
+                                <td><button class="btn btn-primary" onclick="restoreRecord('restore_appointment', <?php echo (int) $row['id']; ?>, 'appointment')">Restore</button></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
