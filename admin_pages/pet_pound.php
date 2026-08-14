@@ -561,6 +561,16 @@ MARK AS DECEASED MODAL
     position: relative;
     z-index: 2;
 }
+/* Pet details: show the full uploaded photo instead of cropping it */
+#petModalBody img {
+    max-width: 460px;
+    max-height: 420px;
+    width: 100%;
+    height: auto;
+    object-fit: contain !important;
+    object-position: center;
+}
+
 </style>
 
 <!-- ===========================
@@ -794,6 +804,11 @@ async function openPet(id) {
         }
 
         modalBody.innerHTML = html;
+
+        // Keep the grace-period/adoption notice hidden until the full 14 days
+        // have actually passed. view_pet.php may render the notice early, so
+        // enforce the deadline again here using the dates shown in the modal.
+        normalizePetGracePeriodDisplay(modalBody);
     } catch (error) {
         console.error("Unable to open pet details:", error);
 
@@ -803,6 +818,42 @@ async function openPet(id) {
             '<p>' + escapeHtml(error.message || "Unable to load pet details.") + '</p>' +
             '</div>';
     }
+}
+
+
+function normalizePetGracePeriodDisplay(modalBody) {
+    if (!modalBody) return;
+
+    const text = modalBody.innerText || "";
+    const deadlineMatch = text.match(/GRACE PERIOD ENDS\s*\n?\s*([^\n]+)/i);
+
+    if (deadlineMatch) {
+        const deadline = new Date(deadlineMatch[1].trim());
+        const now = new Date();
+        const hasExpired = !Number.isNaN(deadline.getTime()) && now >= deadline;
+
+        // Find any element containing the adoption-eligibility warning.
+        modalBody.querySelectorAll("p, div, span").forEach(function (element) {
+            const message = (element.textContent || "").trim();
+            if (/14-day grace period has expired|eligible to be posted for adoption/i.test(message)) {
+                element.style.display = hasExpired ? "" : "none";
+            }
+        });
+    }
+
+    // Show the whole uploaded pet photo without cropping it.
+    modalBody.querySelectorAll("img").forEach(function (image) {
+        if (image.closest(".pet-details-photo, .pet-photo, .photo-wrap") || image.width > 120 || image.height > 120) {
+            image.style.width = "100%";
+            image.style.maxWidth = "460px";
+            image.style.height = "auto";
+            image.style.maxHeight = "420px";
+            image.style.objectFit = "contain";
+            image.style.objectPosition = "center";
+            image.style.display = "block";
+            image.style.margin = "0 auto";
+        }
+    });
 }
 
 
