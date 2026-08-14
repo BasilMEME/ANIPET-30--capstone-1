@@ -1,6 +1,16 @@
 <?php
 require_permission($conn, 'manage_notifications');
 
+// Clear notification history when requested.
+$clearNotificationMessage = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_notification_history'])) {
+    if ($conn->query("DELETE FROM notifications")) {
+        $clearNotificationMessage = 'Notification history cleared successfully.';
+    } else {
+        $clearNotificationMessage = 'Unable to clear notification history.';
+    }
+}
+
 // Recent notification history
 $history = [];
 $result = $conn->query("SELECT * FROM notifications ORDER BY created_at DESC LIMIT 30");
@@ -130,10 +140,26 @@ $templates = [
 <!-- ══ RIGHT: HISTORY ════════════════════════════════════════════════ -->
 <div>
 <div class="card">
-    <div class="card-header">
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
         <div class="card-title">📜 Recent Sent Notifications</div>
-        <span style="font-size:.8rem;color:var(--muted);">Last 30</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:.8rem;color:var(--muted);">Last 30</span>
+            <?php if (!empty($history)): ?>
+            <form method="post" style="margin:0;" onsubmit="return confirmClearNotificationHistory();">
+                <input type="hidden" name="clear_notification_history" value="1">
+                <button type="submit" class="btn btn-danger btn-sm" title="Delete all notification history">
+                    🗑 Clear Notifications
+                </button>
+            </form>
+            <?php endif; ?>
+        </div>
     </div>
+
+    <?php if ($clearNotificationMessage): ?>
+    <div style="margin:0 0 12px;padding:10px 12px;border-radius:8px;background:var(--surface-soft,#f3f4f6);font-size:.85rem;">
+        <?php echo htmlspecialchars($clearNotificationMessage); ?>
+    </div>
+    <?php endif; ?>
 
     <?php if (empty($history)): ?>
     <div class="empty-state"><div class="empty-icon">📭</div><p>No notifications sent yet</p></div>
@@ -193,5 +219,11 @@ function useTemplate(tpl) {
     const messageEl = document.querySelector('.tab-pane.active textarea[name="message"]') || document.getElementById('notif_message');
     if (subjectEl) subjectEl.value = tpl.subject;
     if (messageEl) messageEl.value = tpl.message;
+}
+
+function confirmClearNotificationHistory() {
+    return window.confirm(
+        'Clear all sent notification history?\n\nThis will permanently remove every record from the notification history.'
+    );
 }
 </script>
