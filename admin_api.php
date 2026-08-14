@@ -1,11 +1,7 @@
 <?php
 header('Content-Type: application/json');
 require_once __DIR__ . '/auth_helper.php';
-require_once __DIR__ . '/system_settings_helper.php';
-$returnPolicyHelper = __DIR__ . '/return_policy_helper.php';
-if (is_file($returnPolicyHelper)) {
-    require_once $returnPolicyHelper;
-}
+require_once __DIR__ . '/return_policy_helper.php';
 
 $action = $_REQUEST['action'] ?? '';
 if (empty($action)) {
@@ -244,7 +240,39 @@ try {
             // sync with the pending -> screening -> approved -> for_releasing -> ready_pickup -> completed pipeline.
             $base_url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']) . '/';
             $result = applyApplicationStatusChange($conn, $id, $status, current_user_id(), $admin_notes, $interview_dt, $base_url);
-            respondJSON($result['success'], $result['message'], ['qr_code' => $result['qr_code'] ?? null]);
+
+            /*
+             * Once the adoption application moves past the interview stage,
+             * remove the linked interview appointment so it no longer appears
+             * in either the Admin Appointment Management page or the user's
+             * Android Appointments screen.
+             *
+             * Approved   = interview is finished and application passed
+             * Completed  = adoption workflow is finished
+             * Rejected   = application is closed
+             */
+            if (
+                !empty($result['success']) &&
+                in_array($status, ['approved', 'completed', 'rejected'], true)
+            ) {
+                $deleteAppointment = $conn->prepare("
+                    DELETE FROM appointments
+                    WHERE application_id = ?
+                      AND appointment_type = 'interview'
+                ");
+
+                if ($deleteAppointment) {
+                    $deleteAppointment->bind_param('i', $id);
+                    $deleteAppointment->execute();
+                    $deleteAppointment->close();
+                }
+            }
+
+            respondJSON(
+                $result['success'],
+                $result['message'],
+                ['qr_code' => $result['qr_code'] ?? null]
+            );
             break;
 
         // ================================================================
@@ -416,66 +444,6 @@ case 'update_appointment_status':
             respondJSON(false, $conn->error);
             break;
 
-
-        case 'delete_appointment':
-            require_permission($conn, 'manage_appointments');
-
-            $id = intval($_POST['id'] ?? 0);
-
-            if (!$id) {
-                respondJSON(false, 'Missing appointment ID');
-            }
-
-            // Read the linked application before deleting so an adoption interview
-            // does not leave a stale interview date behind.
-            $lookup = $conn->prepare("
-                SELECT application_id, appointment_type
-                FROM appointments
-                WHERE id = ?
-                LIMIT 1
-            ");
-            $lookup->bind_param('i', $id);
-            $lookup->execute();
-            $appointment = $lookup->get_result()->fetch_assoc();
-            $lookup->close();
-
-            if (!$appointment) {
-                respondJSON(false, 'Appointment not found');
-            }
-
-            $stmt = $conn->prepare("DELETE FROM appointments WHERE id = ?");
-            $stmt->bind_param('i', $id);
-
-            if (!$stmt->execute()) {
-                respondJSON(false, $stmt->error ?: 'Unable to delete appointment');
-            }
-
-            $stmt->close();
-
-            // If this was an adoption interview, clear the appointment date only.
-            // The adoption application itself remains intact.
-            if (
-                ($appointment['appointment_type'] ?? '') === 'interview' &&
-                !empty($appointment['application_id'])
-            ) {
-                $applicationId = (int)$appointment['application_id'];
-
-                $clear = $conn->prepare("
-                    UPDATE adoption_applications
-                    SET interview_datetime = NULL
-                    WHERE id = ?
-                ");
-
-                if ($clear) {
-                    $clear->bind_param('i', $applicationId);
-                    $clear->execute();
-                    $clear->close();
-                }
-            }
-
-            respondJSON(true, 'Appointment deleted successfully');
-            break;
-
         // ================================================================
         // USER MANAGEMENT
         // ================================================================
@@ -525,24 +493,43 @@ case 'update_appointment_status':
 
     require_once __DIR__ . '/admin_pages/send_email.php';
 
-    $recipient_group   = trim($_POST['recipient_group'] ?? '');
-    $notification_type = trim($_POST['notification_type'] ?? 'announcement');
-    $subject           = trim($_POST['subject'] ?? '');
-    $message           = trim($_POST['message'] ?? '');
+    $recipient_group =
+        trim($_POST['recipient_group'] ?? '');
 
-    if (!$recipient_group || !$subject || !$message) {
-        respondJSON(false, 'Missing required fields');
+    $notification_type =
+        trim($_POST['notification_type'] ?? 'announcement');
+
+    $subject =
+        trim($_POST['subject'] ?? '');
+
+    $message =
+        trim($_POST['message'] ?? '');
+
+    if (
+        !$recipient_group ||
+        !$subject ||
+        !$message
+    ) {
+        respondJSON(
+            false,
+            'Missing required fields'
+        );
     }
 
-    // Save notification
     $stmt = $conn->prepare("
         INSERT INTO notifications
-        (recipient_group, notification_type, subject, message, created_at)
+        (
+            recipient_group,
+            notification_type,
+            subject,
+            message,
+            created_at
+        )
         VALUES (?, ?, ?, ?, NOW())
     ");
 
     $stmt->bind_param(
-        "ssss",
+        'ssss',
         $recipient_group,
         $notification_type,
         $subject,
@@ -550,17 +537,78 @@ case 'update_appointment_status':
     );
 
     if (!$stmt->execute()) {
-        respondJSON(false, $conn->error);
+        respondJSON(
+            false,
+            $conn->error
+        );
     }
 
+    $stmt->close();
+
     $sent = 0;
+    $failed = 0;
+    $errors = [];
 
-    // ==========================
-    // SEND TO SINGLE APPLICANT
-    // ==========================
-    if ($recipient_group == "applicant") {
+    $sendToUser = function (
+        array $user
+    ) use (
+        $subject,
+        $message,
+        &$sent,
+        &$failed,
+        &$errors
+    ): void {
+        $personalizedMessage = nl2br(
+            str_replace(
+                ['[Name]', '[name]'],
+                [
+                    $user['full_name'],
+                    $user['full_name']
+                ],
+                $message
+            )
+        );
 
-        $applicationId = intval($_POST['applicant_id'] ?? 0);
+        $result = sendEmail(
+            $user['email'],
+            $subject,
+            $personalizedMessage,
+            true
+        );
+
+        if (
+            isset($result['success']) &&
+            $result['success'] === true
+        ) {
+            $sent++;
+        } else {
+            $failed++;
+
+            $errors[] =
+                $user['email'] .
+                ': ' .
+                ($result['message'] ?? 'Unknown error');
+
+            error_log(
+                'Notification email failed for ' .
+                $user['email'] .
+                ': ' .
+                ($result['message'] ?? 'Unknown error')
+            );
+        }
+    };
+
+    if ($recipient_group === 'applicant') {
+        $applicationId = intval(
+            $_POST['applicant_id'] ?? 0
+        );
+
+        if ($applicationId <= 0) {
+            respondJSON(
+                false,
+                'Invalid applicant ID'
+            );
+        }
 
         $getUser = $conn->prepare("
             SELECT
@@ -573,60 +621,52 @@ case 'update_appointment_status':
             LIMIT 1
         ");
 
-        $getUser->bind_param("i", $applicationId);
+        $getUser->bind_param(
+            'i',
+            $applicationId
+        );
+
         $getUser->execute();
 
-        $user = $getUser->get_result()->fetch_assoc();
+        $user = $getUser
+            ->get_result()
+            ->fetch_assoc();
 
-        if ($user) {
+        $getUser->close();
 
-            sendEmail(
-                $user['email'],
-                $subject,
-                nl2br(str_replace(
-                    ['[Name]', '[name]'],
-                    [$user['full_name'], $user['full_name']],
-                    $message
-                ))
+        if (!$user) {
+            respondJSON(
+                false,
+                'Applicant email was not found'
             );
-
-            $sent++;
         }
-    }
 
-    // ==========================
-    // SEND TO ALL USERS
-    // ==========================
-    elseif ($recipient_group == "all") {
-
+        $sendToUser($user);
+    } elseif ($recipient_group === 'all') {
         $users = $conn->query("
-            SELECT email, full_name
+            SELECT
+                email,
+                full_name
             FROM users
-            WHERE role='user'
-            AND is_verified=1
+            WHERE role = 'user'
+            AND is_verified = 1
+            AND email IS NOT NULL
+            AND email != ''
         ");
 
-        while ($user = $users->fetch_assoc()) {
-
-            sendEmail(
-                $user['email'],
-                $subject,
-                nl2br(str_replace(
-                    ['[Name]', '[name]'],
-                    [$user['full_name'], $user['full_name']],
-                    $message
-                ))
+        if (!$users) {
+            respondJSON(
+                false,
+                $conn->error
             );
-
-            $sent++;
         }
-    }
 
-    // ==========================
-    // SEND TO ALL APPLICANTS
-    // ==========================
-    elseif ($recipient_group == "applicants") {
-
+        while (
+            $user = $users->fetch_assoc()
+        ) {
+            $sendToUser($user);
+        }
+    } elseif ($recipient_group === 'applicants') {
         $users = $conn->query("
             SELECT DISTINCT
                 u.email,
@@ -634,31 +674,41 @@ case 'update_appointment_status':
             FROM adoption_applications aa
             INNER JOIN users u
                 ON aa.user_id = u.id
+            WHERE u.email IS NOT NULL
+            AND u.email != ''
         ");
 
-        while ($user = $users->fetch_assoc()) {
-
-            $result = sendEmail(
-    $user['email'],
-    $subject,
-    nl2br(str_replace(
-        ['[Name]', '[name]'],
-        [$user['full_name'], $user['full_name']],
-        $message
-    ))
-);
-
-if ($result === true) {
-    $sent++;
-} else {
-    error_log("Notification email failed: " . print_r($result, true));
-}
+        if (!$users) {
+            respondJSON(
+                false,
+                $conn->error
+            );
         }
+
+        while (
+            $user = $users->fetch_assoc()
+        ) {
+            $sendToUser($user);
+        }
+    } else {
+        respondJSON(
+            false,
+            'Unsupported recipient group'
+        );
+    }
+
+    if ($sent === 0) {
+        respondJSON(
+            false,
+            $errors[0]
+                ?? 'No notification emails were sent'
+        );
     }
 
     respondJSON(
         true,
-        "Notification sent successfully to {$sent} recipient(s)."
+        "Sent to {$sent} recipient(s). " .
+        "Failed: {$failed}."
     );
 
     break;
@@ -817,64 +867,6 @@ if ($result === true) {
             }
 
             respondJSON(true, 'Settings saved successfully');
-            break;
-
-        // ================================================================
-        // PET POUND / OFFICE SETTINGS
-        // ================================================================
-
-        case 'update_pet_pound_settings':
-            require_permission($conn, 'manage_settings');
-
-            $petPoundName    = trim($_POST['pet_pound_name'] ?? '');
-            $petPoundContact = trim($_POST['pet_pound_contact'] ?? '');
-            $petPoundAddress = trim($_POST['pet_pound_address'] ?? '');
-            $petPoundNotes   = trim($_POST['pet_pound_notes'] ?? '');
-
-            if ($petPoundName === '') {
-                respondJSON(false, 'Pet Pound name is required');
-            }
-
-            save_system_setting($conn, 'pet_pound_name', $petPoundName);
-            save_system_setting($conn, 'pet_pound_contact', $petPoundContact);
-            save_system_setting($conn, 'pet_pound_address', $petPoundAddress);
-            save_system_setting($conn, 'pet_pound_notes', $petPoundNotes);
-
-            respondJSON(true, 'Pet Pound information saved successfully');
-            break;
-
-        case 'update_pet_pound_policy_settings':
-            require_permission($conn, 'manage_settings');
-
-            $operatingDays = trim($_POST['pet_pound_operating_days'] ?? '');
-            $openingTime   = trim($_POST['pet_pound_opening_time'] ?? '');
-            $closingTime   = trim($_POST['pet_pound_closing_time'] ?? '');
-            $graceDaysRaw  = trim((string)($_POST['claim_grace_period_days'] ?? '14'));
-
-            if ($graceDaysRaw === '' || filter_var($graceDaysRaw, FILTER_VALIDATE_INT) === false) {
-                respondJSON(false, 'Grace period must be a whole number of days');
-            }
-
-            $graceDays = (int)$graceDaysRaw;
-            if ($graceDays < 1 || $graceDays > 365) {
-                respondJSON(false, 'Grace period must be between 1 and 365 days');
-            }
-
-            // Validate HTML time input values when they are provided.
-            foreach (['Opening time' => $openingTime, 'Closing time' => $closingTime] as $label => $timeValue) {
-                if ($timeValue !== '' && !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $timeValue)) {
-                    respondJSON(false, $label . ' is invalid');
-                }
-            }
-
-            save_system_setting($conn, 'pet_pound_operating_days', $operatingDays);
-            save_system_setting($conn, 'pet_pound_opening_time', $openingTime);
-            save_system_setting($conn, 'pet_pound_closing_time', $closingTime);
-            save_system_setting($conn, 'claim_grace_period_days', (string)$graceDays);
-
-            respondJSON(true, 'Pet Pound policies and operating hours saved successfully', [
-                'claim_grace_period_days' => $graceDays
-            ]);
             break;
 
         // ================================================================
