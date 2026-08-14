@@ -892,6 +892,13 @@ function normalizePetGracePeriodDisplay(modalBody) {
                 daysLeft +
                 (daysLeft === 1 ? " day" : " days") +
                 " until expiration.";
+
+            // Keep only one divider around this countdown section.
+            // Remove the extra divider that appears between the countdown and pet photo.
+            let nextElement = countdownNotice.nextElementSibling;
+            if (nextElement && nextElement.tagName === "HR") {
+                nextElement.remove();
+            }
         } else if (countdownNotice) {
             countdownNotice.remove();
         }
