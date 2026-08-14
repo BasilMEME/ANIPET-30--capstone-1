@@ -861,11 +861,29 @@ function normalizePetGracePeriodDisplay(modalBody) {
                 countdownNotice.style.fontWeight = "600";
                 countdownNotice.style.color = "#7a4b2a";
 
-                const firstDivider = modalBody.querySelector("hr");
-                if (firstDivider) {
-                    firstDivider.parentNode.insertBefore(countdownNotice, firstDivider);
+                // Place the countdown between the divider lines directly above the pet photo.
+                const dividers = modalBody.querySelectorAll("hr");
+                const photo = modalBody.querySelector("img");
+
+                if (photo) {
+                    let photoSection = photo;
+                    while (photoSection.parentElement && photoSection.parentElement !== modalBody) {
+                        photoSection = photoSection.parentElement;
+                    }
+
+                    const dividerBeforePhoto = Array.from(dividers).find(function (divider) {
+                        return divider.compareDocumentPosition(photo) & Node.DOCUMENT_POSITION_FOLLOWING;
+                    });
+
+                    if (dividerBeforePhoto && dividerBeforePhoto.nextSibling) {
+                        dividerBeforePhoto.parentNode.insertBefore(countdownNotice, dividerBeforePhoto.nextSibling);
+                    } else if (photoSection && photoSection.parentNode) {
+                        photoSection.parentNode.insertBefore(countdownNotice, photoSection);
+                    } else {
+                        modalBody.appendChild(countdownNotice);
+                    }
                 } else {
-                    modalBody.insertBefore(countdownNotice, modalBody.firstChild);
+                    modalBody.appendChild(countdownNotice);
                 }
             }
 
